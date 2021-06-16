@@ -3,11 +3,11 @@
 * Built by mlq1616
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 */
-string Program_Name="Saturnian Maneuvering OS";
+string Program_Name="Saturnian Maneuvering";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
 Color DEFAULT_BACKGROUND_COLOR=new Color(44,0,88,255);
 double Speed_Limit=100;
-double Acceptable_Angle=1;
+double Acceptable_Angle=5;
 bool Control_Gyroscopes=true;
 bool Control_Thrusters=true;
 
@@ -591,6 +591,11 @@ Vector3D Relative_RestingVelocity{
 		return GlobalToLocal(RestingVelocity,Controller);
 	}
 }
+double CurrentSpeed{
+	get{
+		return CurrentVelocity.Length();
+	}
+}
 Vector3D CurrentVelocity;
 Vector3D Velocity_Direction{
 	get{
@@ -671,7 +676,7 @@ string GetThrustTypeName(IMyThrust Thruster){
 		size="Large";
 		block_type=GetRemovedString(block_type,size);
 	}
-	if((!block_type.ToLower().Contains("atmospheric"))||(!block_type.ToLower().Contains("hydrogen")))
+	if((!block_type.ToLower().Contains("atmospheric"))&&(!block_type.ToLower().Contains("hydrogen")))
 		block_type+="Ion";
 	return (size+" "+block_type).Trim();
 }
@@ -819,6 +824,7 @@ bool Setup(){
 		double distance=(Controller.GetPosition()-Block.GetPosition()).Length();
 		MySize=Math.Max(MySize,distance);
 	}
+	Acceptable_Angle=Math.Min(Math.Max(0.5,200/MySize),10);
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -991,7 +997,8 @@ void SetGyroscopes(){
 	Gyroscope.Roll=(float)output.Z;
 }
 
-bool Safety=false;
+bool Safety=true;
+bool Last_Dampener_Status=true;
 void SetThrusters(){
 	float input_forward=0.0f;
 	float input_up=0.0f;
@@ -999,15 +1006,16 @@ void SetThrusters(){
 	float damp_multx=0.99f;
 	double effective_speed_limit=Speed_Limit;
 	
+	
 	bool Undercontrol=false;
 	foreach(IMyShipController Ctrl in Controllers)
 		Undercontrol=Undercontrol||Ctrl.IsUnderControl;
 	
 	if(Safety){
-		if(Elevation<5000)
-			effective_speed_limit=Math.Min(effective_speed_limit,(Elevation-30)*10);
-		if(Time_To_Crash<60&&Time_To_Crash>=0)
-			effective_speed_limit=Math.Min(effective_speed_limit,Time_To_Crash/30*100);
+		if(Elevation<1000)
+			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt((Elevation-30)/1000)*Speed_Limit);
+		if(Time_To_Crash<30&&Time_To_Crash>=0)
+			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Time_To_Crash/30)*Speed_Limit);
 	}
 	if(Controller.DampenersOverride){
 		Write("Cruise Control: Off");
@@ -1017,7 +1025,7 @@ void SetThrusters(){
 		input_forward+=(float)((Relative_CurrentVelocity.Z-Relative_RestingVelocity.Z)*Mass_Accomodation*damp_multx);
 	}
 	else{
-		if(true&&(Elevation>50||CurrentVelocity.Length()>10)){
+		if(Elevation>50||CurrentVelocity.Length()>10){
 			Write("Cruise Control: On");
 			Vector3D velocity_direction=CurrentVelocity;
 			velocity_direction.Normalize();
@@ -1038,6 +1046,23 @@ void SetThrusters(){
 	effective_speed_limit=Math.Max(effective_speed_limit,10);
 	if(!Safety)
 		effective_speed_limit=300000000;
+	
+	if(Last_Dampener_Status!=Controller.DampenersOverride){
+		if(Last_Dampener_Status)
+			RestingSpeed=CurrentSpeed;
+		else
+			RestingSpeed=0;
+		Last_Dampener_Status=Controller.DampenersOverride;
+	}
+	
+	if(false&&RestingSpeed==0&&Controller.DampenersOverride&&(CurrentSpeed+5)<effective_speed_limit){
+		for(int i=0;i<All_Thrusters.Length;i++){
+			foreach(IMyThrust Thruster in All_Thrusters[i])
+				Thruster.ThrustOverride=0;
+		}
+		return;
+	}
+	
 	if(Gravity.Length()>0&&Mass_Accomodation>0&&GetAngle(CurrentVelocity,Gravity)>Acceptable_Angle){
 		if(!(_Autoland&&Time_To_Crash>15&&Controller.GetShipSpeed()>5)){
 			input_right-=(float)Adjusted_Gravity.X;
@@ -1114,7 +1139,7 @@ void SetThrusters(){
 	else if(input_right/Left_Thrust<-0.01f)
 		output_left=Math.Min(Math.Abs(input_right/Left_Thrust), 1);
 	
-	const float MIN_THRUST=0.00001f;
+	const float MIN_THRUST=0.0001f;
 	foreach(IMyThrust Thruster in Forward_Thrusters){
 		Thruster.ThrustOverridePercentage=output_forward;
 		if(output_forward<=0)
@@ -1257,6 +1282,7 @@ public void Main(string argument, UpdateType updateSource)
 			Write("Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
 			Write("Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
 		}
+		Write("Size:"+Math.Round(MySize,1)+"M");
 		if(argument.ToLower().Equals("autoland")){
 			Autoland();
 		}
