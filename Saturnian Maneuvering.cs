@@ -1072,7 +1072,7 @@ void SetThrusters(){
 	
 	if(Gravity.Length()>0&&Mass_Accomodation>0&&(Controller.GetShipSpeed()<100||GetAngle(CurrentVelocity,Gravity)>Acceptable_Angle)){
 		if(!(_Autoland&&Time_To_Crash>15&&CurrentSpeed>5)){
-			if(Elevation>Ev_Df&&CurrentSpeed>1){
+			if(!((!Controller.DampenersOverride)&&Elevation<Ev_Df&&CurrentSpeed<1)){
 				input_right-=(float)Adjusted_Gravity.X;
 				input_up-=(float)Adjusted_Gravity.Y;
 				input_forward+=(float)Adjusted_Gravity.Z;
