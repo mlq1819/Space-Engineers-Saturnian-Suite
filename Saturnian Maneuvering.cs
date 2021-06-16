@@ -7,7 +7,6 @@ string Program_Name="Saturnian Maneuvering OS";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
 Color DEFAULT_BACKGROUND_COLOR=new Color(44,0,88,255);
 double Speed_Limit=100;
-double Guest_Mode_Timer=900;
 double Acceptable_Angle=1;
 bool Control_Gyroscopes=true;
 bool Control_Thrusters=true;
@@ -375,12 +374,6 @@ void Write(string text,bool new_line=true,bool append=true){
 		Me.GetSurface(0).WriteText(text+'\n', append);
 	else
 		Me.GetSurface(0).WriteText(text, append);
-	foreach(CustomPanel Panel in DebugLCDs){
-		if(new_line)
-			Panel.Display.WriteText(text+'\n', append);
-		else
-			Panel.Display.WriteText(text, append);
-	}
 }
 
 string GetRemovedString(string big_string, string small_string){
@@ -583,6 +576,7 @@ Vector3D Right_Vector{
 }
 
 float Mass_Accomodation=0.0f;
+double Time_To_Crash=double.MaxValue;
 
 double RestingSpeed=0;
 Vector3D RestingVelocity{
@@ -762,10 +756,9 @@ void Reset(){
 double MySize=0;
 bool Setup(){
 	Reset();
-	SetupAirlocks();
-	Controller=GenericMethods<IMyShipController>.GetFunc(MainControllerFunction);
+	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
 	if(Controller==null)
-		Controller=GenericMethods<IMyShipController>.GetFunc(ControllerFunction);
+		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
 	Controllers=GenericMethods<IMyShipController>.GetAllFunc(ControllerFunction);
 	if(Controller==null){
 		Write("Failed to find Controller", false, false);
@@ -811,7 +804,6 @@ bool Setup(){
 			Left_Thrusters.Add(Thruster);
 		else if(ThrustDirection==Left)
 			Right_Thrusters.Add(Thruster);
-		FunctionalBlocks.Add(Thruster);
 	}
 	SetThrusterList(Forward_Thrusters,"Forward");
 	SetThrusterList(Backward_Thrusters,"Backward");
@@ -883,7 +875,6 @@ bool Autoland(){
 	return true;
 }
 bool Disable(){
-	SetStatus("Status LCD\nOffline", new Color(255,255,255,255), new Color(0,0,0,255));
 	Operational=false;
 	ResetThrusters();
 	if(Gyroscope!=null)
@@ -893,7 +884,6 @@ bool Disable(){
 	return true;
 }
 bool FactoryReset(){
-	SetStatus("Status LCD\nOffline", DEFAULT_TEXT_COLOR, DEFAULT_BACKGROUND_COLOR);
 	if(Gyroscope!=null)
 		Gyroscope.GyroOverride=false;
 	for(int i=0;i<All_Thrusters.Length;i++){
@@ -1124,35 +1114,36 @@ void SetThrusters(){
 	else if(input_right/Left_Thrust<-0.01f)
 		output_left=Math.Min(Math.Abs(input_right/Left_Thrust), 1);
 	
+	const float MIN_THRUST=0.00001f;
 	foreach(IMyThrust Thruster in Forward_Thrusters){
 		Thruster.ThrustOverridePercentage=output_forward;
-		if(!Safety)
-			Thruster.Enabled=output_forward>0;
+		if(output_forward<=0)
+			Thruster.ThrustOverride=MIN_THRUST;
 	}
 	foreach(IMyThrust Thruster in Backward_Thrusters){
 		Thruster.ThrustOverridePercentage=output_backward;
-		if(!Safety)
-			Thruster.Enabled=output_backward>0;
+		if(output_backward<=0)
+			Thruster.ThrustOverride=MIN_THRUST;
 	}
 	foreach(IMyThrust Thruster in Up_Thrusters){
 		Thruster.ThrustOverridePercentage=output_up;
-		if(!Safety)
-			Thruster.Enabled=output_up>0;
+		if(output_up<=0)
+			Thruster.ThrustOverride=MIN_THRUST;
 	}
 	foreach(IMyThrust Thruster in Down_Thrusters){
 		Thruster.ThrustOverridePercentage=output_down;
-		if(!Safety)
-			Thruster.Enabled=output_down>0;
+		if(output_down<=0)
+			Thruster.ThrustOverride=MIN_THRUST;
 	}
 	foreach(IMyThrust Thruster in Right_Thrusters){
 		Thruster.ThrustOverridePercentage=output_right;
-		if(!Safety)
-			Thruster.Enabled=output_right>0;
+		if(output_right<=0)
+			Thruster.ThrustOverride=MIN_THRUST;
 	}
 	foreach(IMyThrust Thruster in Left_Thrusters){
 		Thruster.ThrustOverridePercentage=output_left;
-		if(!Safety)
-			Thruster.Enabled=output_left>0;
+		if(output_left<=0)
+			Thruster.ThrustOverride=MIN_THRUST;
 	}
 }
 
@@ -1271,7 +1262,6 @@ public void Main(string argument, UpdateType updateSource)
 		}
 		else if(argument.ToLower().Equals("factory reset")){
 			FactoryReset();
-			DisplayMenu();
 		}
 		if(_Autoland)
 			Write("Autoland Enabled");
