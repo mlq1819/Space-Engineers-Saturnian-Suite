@@ -1259,7 +1259,7 @@ void UpdateSystemData(){
 					}
 					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
 						Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
-						if(_Autoland&&(Time_To_Crash>30||(CurrentSpeed<=5&&Time_To_Crash>7.5)))
+						if(_Autoland&&(Time_To_Crash>30||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash>5)))
 							Controller.DampenersOverride=false;
 						need_print=false;
 					}
@@ -1300,8 +1300,6 @@ public void Main(string argument, UpdateType updateSource)
 		else if(argument.ToLower().Equals("factory reset")){
 			FactoryReset();
 		}
-		if(_Autoland)
-			Write("Autoland Enabled");
 		
 		if(!Me.CubeGrid.IsStatic&&Controller.CalculateShipMass().PhysicalMass>0){
 			if(Control_Thrusters)
