@@ -461,7 +461,7 @@ float Forward_Thrust{
 	get{
 		float total=0;
 		foreach(IMyThrust Thruster in Forward_Thrusters){
-			if(Thruster.Enabled)
+			if(Thruster.IsWorking)
 				total+=Thruster.MaxEffectiveThrust;
 		}
 		return Math.Max(total,1);
@@ -471,7 +471,7 @@ float Backward_Thrust{
 	get{
 		float total=0;
 		foreach(IMyThrust Thruster in Backward_Thrusters){
-			if(Thruster.Enabled)
+			if(Thruster.IsWorking)
 				total+=Thruster.MaxEffectiveThrust;
 		}
 		return Math.Max(total,1);
@@ -481,7 +481,7 @@ float Up_Thrust{
 	get{
 		float total=0;
 		foreach(IMyThrust Thruster in Up_Thrusters){
-			if(Thruster.Enabled)
+			if(Thruster.IsWorking)
 				total+=Thruster.MaxEffectiveThrust;
 		}
 		return Math.Max(total,1);
@@ -491,7 +491,7 @@ float Down_Thrust{
 	get{
 		float total=0;
 		foreach(IMyThrust Thruster in Down_Thrusters){
-			if(Thruster.Enabled)
+			if(Thruster.IsWorking)
 				total+=Thruster.MaxEffectiveThrust;
 		}
 		return Math.Max(total,1);
@@ -501,7 +501,7 @@ float Left_Thrust{
 	get{
 		float total=0;
 		foreach(IMyThrust Thruster in Left_Thrusters){
-			if(Thruster.Enabled)
+			if(Thruster.IsWorking)
 				total+=Thruster.MaxEffectiveThrust;
 		}
 		return Math.Max(total,1);
@@ -511,7 +511,7 @@ float Right_Thrust{
 	get{
 		float total=0;
 		foreach(IMyThrust Thruster in Right_Thrusters){
-			if(Thruster.Enabled)
+			if(Thruster.IsWorking)
 				total+=Thruster.MaxEffectiveThrust;
 		}
 		return Math.Max(total,1);
