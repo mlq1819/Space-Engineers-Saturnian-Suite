@@ -1010,7 +1010,6 @@ void SetGyroscopes(){
 }
 
 bool Safety=true;
-bool Last_Dampener_Status=true;
 void SetThrusters(){
 	float input_forward=0.0f;
 	float input_up=0.0f;
@@ -1018,14 +1017,14 @@ void SetThrusters(){
 	float damp_multx=0.99f;
 	double effective_speed_limit=Speed_Limit;
 	
-	
 	bool Undercontrol=false;
 	foreach(IMyShipController Ctrl in Controllers)
 		Undercontrol=Undercontrol||Ctrl.IsUnderControl;
 	
+	double Ev_Df=Math.Max(0,Math.Min(20,MySize/4))+10;
 	if(Safety){
-		if(Elevation<1000)
-			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt((Elevation-30)/1000)*Speed_Limit);
+		if(Elevation<200+Ev_Df)
+			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Math.Max(Elevation-Ev_Df,0)/200)*Speed_Limit);
 		if(Time_To_Crash<30&&Time_To_Crash>=0)
 			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Time_To_Crash/30)*Speed_Limit);
 	}
@@ -1055,22 +1054,15 @@ void SetThrusters(){
 			Write("Dampeners: Off");
 		}
 	}
-	effective_speed_limit=Math.Max(effective_speed_limit,10);
+	
+	effective_speed_limit=Math.Max(effective_speed_limit,5);
 	if(!Safety)
 		effective_speed_limit=300000000;
 	
 	Write("Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
-	effective_speed_limit=Speed_Limit;
 	
-	if(Last_Dampener_Status!=Controller.DampenersOverride){
-		if(Last_Dampener_Status)
-			RestingSpeed=CurrentSpeed;
-		else
-			RestingSpeed=0;
-		Last_Dampener_Status=Controller.DampenersOverride;
-	}
 	
-	if(false&&RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit){
+	if(RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit){
 		for(int i=0;i<All_Thrusters.Length;i++){
 			foreach(IMyThrust Thruster in All_Thrusters[i])
 				Thruster.ThrustOverride=0;
@@ -1079,10 +1071,12 @@ void SetThrusters(){
 	}
 	
 	if(Gravity.Length()>0&&Mass_Accomodation>0&&(Controller.GetShipSpeed()<100||GetAngle(CurrentVelocity,Gravity)>Acceptable_Angle)){
-		if(!(_Autoland&&Time_To_Crash>15&&Controller.GetShipSpeed()>5)){
-			input_right-=(float)Adjusted_Gravity.X;
-			input_up-=(float)Adjusted_Gravity.Y;
-			input_forward+=(float)Adjusted_Gravity.Z;
+		if(!(_Autoland&&Time_To_Crash>15&&CurrentSpeed>5)){
+			if(Elevation>Ev_Df&&CurrentSpeed>1){
+				input_right-=(float)Adjusted_Gravity.X;
+				input_up-=(float)Adjusted_Gravity.Y;
+				input_forward+=(float)Adjusted_Gravity.Z;
+			}
 		}
 	}
 	
@@ -1105,7 +1099,8 @@ void SetThrusters(){
 	foreach(IMyShipController Ctrl in Controllers){
 		if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.Y)>0.5f){
 			if(Ctrl.MoveIndicator.Y>0){
-				if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit)
+				bool grav=GetAngle(Up_Vector,Gravity_Direction)>150;
+				if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit||(grav&&(Elevation<100+Ev_Df)))
 					input_up=0.95f*Up_Thrust;
 				else
 					input_up=Math.Min(input_up,0);
@@ -1297,7 +1292,6 @@ public void Main(string argument, UpdateType updateSource)
 			Write("Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
 			Write("Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
 		}
-		Write("Size:"+Math.Round(MySize,1)+"M");
 		if(argument.ToLower().Equals("autoland")){
 			Autoland();
 		}
