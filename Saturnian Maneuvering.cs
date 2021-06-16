@@ -460,48 +460,60 @@ List<IMyThrust> Right_Thrusters{
 float Forward_Thrust{
 	get{
 		float total=0;
-		foreach(IMyThrust Thruster in Forward_Thrusters)
-			total+=Thruster.MaxEffectiveThrust;
+		foreach(IMyThrust Thruster in Forward_Thrusters){
+			if(Thruster.Enabled)
+				total+=Thruster.MaxEffectiveThrust;
+		}
 		return Math.Max(total,1);
 	}
 }
 float Backward_Thrust{
 	get{
 		float total=0;
-		foreach(IMyThrust Thruster in Backward_Thrusters)
-			total+=Thruster.MaxEffectiveThrust;
+		foreach(IMyThrust Thruster in Backward_Thrusters){
+			if(Thruster.Enabled)
+				total+=Thruster.MaxEffectiveThrust;
+		}
 		return Math.Max(total,1);
 	}
 }
 float Up_Thrust{
 	get{
 		float total=0;
-		foreach(IMyThrust Thruster in Up_Thrusters)
-			total+=Thruster.MaxEffectiveThrust;
+		foreach(IMyThrust Thruster in Up_Thrusters){
+			if(Thruster.Enabled)
+				total+=Thruster.MaxEffectiveThrust;
+		}
 		return Math.Max(total,1);
 	}
 }
 float Down_Thrust{
 	get{
 		float total=0;
-		foreach(IMyThrust Thruster in Down_Thrusters)
-			total+=Thruster.MaxEffectiveThrust;
+		foreach(IMyThrust Thruster in Down_Thrusters){
+			if(Thruster.Enabled)
+				total+=Thruster.MaxEffectiveThrust;
+		}
 		return Math.Max(total,1);
 	}
 }
 float Left_Thrust{
 	get{
 		float total=0;
-		foreach(IMyThrust Thruster in Left_Thrusters)
-			total+=Thruster.MaxEffectiveThrust;
+		foreach(IMyThrust Thruster in Left_Thrusters){
+			if(Thruster.Enabled)
+				total+=Thruster.MaxEffectiveThrust;
+		}
 		return Math.Max(total,1);
 	}
 }
 float Right_Thrust{
 	get{
 		float total=0;
-		foreach(IMyThrust Thruster in Right_Thrusters)
-			total+=Thruster.MaxEffectiveThrust;
+		foreach(IMyThrust Thruster in Right_Thrusters){
+			if(Thruster.Enabled)
+				total+=Thruster.MaxEffectiveThrust;
+		}
 		return Math.Max(total,1);
 	}
 }
@@ -1047,6 +1059,9 @@ void SetThrusters(){
 	if(!Safety)
 		effective_speed_limit=300000000;
 	
+	Write("Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
+	effective_speed_limit=Speed_Limit;
+	
 	if(Last_Dampener_Status!=Controller.DampenersOverride){
 		if(Last_Dampener_Status)
 			RestingSpeed=CurrentSpeed;
@@ -1055,7 +1070,7 @@ void SetThrusters(){
 		Last_Dampener_Status=Controller.DampenersOverride;
 	}
 	
-	if(false&&RestingSpeed==0&&Controller.DampenersOverride&&(CurrentSpeed+5)<effective_speed_limit){
+	if(false&&RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit){
 		for(int i=0;i<All_Thrusters.Length;i++){
 			foreach(IMyThrust Thruster in All_Thrusters[i])
 				Thruster.ThrustOverride=0;
@@ -1063,7 +1078,7 @@ void SetThrusters(){
 		return;
 	}
 	
-	if(Gravity.Length()>0&&Mass_Accomodation>0&&GetAngle(CurrentVelocity,Gravity)>Acceptable_Angle){
+	if(Gravity.Length()>0&&Mass_Accomodation>0&&(Controller.GetShipSpeed()<100||GetAngle(CurrentVelocity,Gravity)>Acceptable_Angle)){
 		if(!(_Autoland&&Time_To_Crash>15&&Controller.GetShipSpeed()>5)){
 			input_right-=(float)Adjusted_Gravity.X;
 			input_up-=(float)Adjusted_Gravity.Y;
