@@ -376,6 +376,16 @@ void Write(string text,bool new_line=true,bool append=true){
 		Me.GetSurface(0).WriteText(text, append);
 }
 
+int Display_Count=3;
+int Current_Display=1;
+double Display_Timer=5;
+void Display(int display_number,string text,bool new_line=true,bool append=true){
+	if(display_number==Current_Display)
+		Write(text,new_line,append);
+	else
+		Echo(text);
+}
+
 string GetRemovedString(string big_string, string small_string){
 	string output=big_string;
 	if(big_string.Contains(small_string)){
@@ -1024,29 +1034,29 @@ void SetThrusters(){
 			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Time_To_Crash/30)*Speed_Limit);
 	}
 	if(Controller.DampenersOverride){
-		Write("Cruise Control: Off");
-		Write("Dampeners: On");
+		Display(3,"Cruise Control: Off");
+		Display(3,"Dampeners: On");
 		input_right-=(float)((Relative_CurrentVelocity.X-Relative_RestingVelocity.X)*Mass_Accomodation*damp_multx);
 		input_up-=(float)((Relative_CurrentVelocity.Y-Relative_RestingVelocity.Y)*Mass_Accomodation*damp_multx);
 		input_forward+=(float)((Relative_CurrentVelocity.Z-Relative_RestingVelocity.Z)*Mass_Accomodation*damp_multx);
 	}
 	else{
 		if(Elevation>50||CurrentVelocity.Length()>10){
-			Write("Cruise Control: On");
+			Display(3,"Cruise Control: On");
 			Vector3D velocity_direction=CurrentVelocity;
 			velocity_direction.Normalize();
 			double angle=Math.Min(GetAngle(Forward_Vector, velocity_direction),GetAngle(Backward_Vector, velocity_direction));
 			if(angle<=Acceptable_Angle/2){
 				input_right-=(float)((Relative_CurrentVelocity.X-Relative_RestingVelocity.X)*Mass_Accomodation*damp_multx);
 				input_up-=(float)((Relative_CurrentVelocity.Y-Relative_RestingVelocity.Y)*Mass_Accomodation*damp_multx);
-				Write("Stabilizers: On ("+Math.Round(angle, 1)+"° dev)");
+				Display(3,"Stabilizers: On ("+Math.Round(angle, 1)+"° dev)");
 			}
 			else
-				Write("Stabilizers: Off ("+Math.Round(angle, 1)+"° dev)");
+				Display(3,"Stabilizers: Off ("+Math.Round(angle, 1)+"° dev)");
 		}
 		else{
-			Write("Cruise Control: Off");
-			Write("Dampeners: Off");
+			Display(3,"Cruise Control: Off");
+			Display(3,"Dampeners: Off");
 		}
 	}
 	
@@ -1054,7 +1064,7 @@ void SetThrusters(){
 	if(!Safety)
 		effective_speed_limit=300000000;
 	
-	Write("Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
+	Display(3,"Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
 	
 	
 	if(RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit){
@@ -1208,6 +1218,12 @@ void UpdateProgramInfo(){
 	Echo(Program_Name+" OS Cycle-"+cycle.ToString()+" ("+loading_char+")");
 	Me.GetSurface(1).WriteText(Program_Name+" OS Cycle-"+cycle.ToString()+" ("+loading_char+")",false);
 	seconds_since_last_update=Runtime.TimeSinceLastRun.TotalSeconds + (Runtime.LastRunTimeMs / 1000);
+	Display_Timer-=seconds_since_last_update;
+	if(Display_Timer<=0){
+		Current_Display=(Current_Display%Display_Count)+1;
+		Display_Timer=5;
+	}
+	Write("Display "+Current_Display.ToString()+"/"+Display_Count.ToString());
 	Echo(ToString(FromSeconds(seconds_since_last_update))+" since last cycle");
 	Time_Since_Start=UpdateTimeSpan(Time_Since_Start,seconds_since_last_update);
 	Echo(ToString(Time_Since_Start)+" since last reboot\n");
@@ -1539,13 +1555,13 @@ void Main_Program(string argument){
 	UpdateSystemData();
 	if(!Me.CubeGrid.IsStatic){
 		if(Elevation!=double.MaxValue){
-			Write("Elevation: "+Math.Round(Elevation,1).ToString());
-			Write("Sealevel: "+Math.Round(Sealevel,1).ToString());
+			Display(1,"Elevation: "+Math.Round(Elevation,1).ToString());
+			Display(1,"Sealevel: "+Math.Round(Sealevel,1).ToString());
 		}
 		if(Gravity.Length()>0)
-			Write("Gravity:"+Math.Round(Gravity.Length()/9.814,2)+"Gs");
-		Write("Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
-		Write("Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
+			Display(1,"Gravity:"+Math.Round(Gravity.Length()/9.814,2)+"Gs");
+		Display(2,"Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
+		Display(2,"Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
 	}
 	if(argument.ToLower().Equals("autoland")){
 		Autoland();
