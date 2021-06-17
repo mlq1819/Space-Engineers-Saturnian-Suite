@@ -852,7 +852,7 @@ public Program(){
 		Me.GetSurface(i).ContentType=ContentType.TEXT_AND_IMAGE;
 	}
 	Me.GetSurface(1).FontSize=2.2f;
-	Me.GetSurface(1).TextPadding=40.0f;
+	Me.GetSurface(1).TextPadding=30.0f;
 	Echo("Beginning initialization");
 	Rnd=new Random();
 	string[] args=this.Storage.Split('•');
@@ -1574,6 +1574,8 @@ bool PerformTask(Task task){
 			return Task_Send(task);
 		case "Direction":
 			return Task_Direction(task);
+		case "Up":
+			return Task_Up(task);
 	}
 	return false;
 }
