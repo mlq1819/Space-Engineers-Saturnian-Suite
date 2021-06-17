@@ -2,6 +2,7 @@
 * Saturnian Maneuvering OS
 * Built by mlq1616
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
+* This suite handles thruster and gyroscope controls. 
 */
 string Program_Name="Saturnian Maneuvering";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
@@ -926,6 +927,10 @@ bool FactoryReset(){
 double Pitch_Time= 1.0f;
 double Yaw_Time=1.0f;
 double Roll_Time=1.0f;
+bool Do_Direction=false;
+Vector3D Target_Direction=new Vector3D(0,0,0);
+bool Do_Up=false;
+Vector3D Target_Up=new Vector3D(0,0,0);
 void SetGyroscopes(){
 	Gyroscope.GyroOverride=(AngularVelocity.Length()<3);
 	float current_pitch=(float)Relative_AngularVelocity.X;
@@ -961,16 +966,23 @@ void SetGyroscopes(){
 	if(Math.Abs(input_pitch)<0.05f){
 		input_pitch=current_pitch*0.99f;
 		float orbit_multx=1;
-		if(Safety){
-			if((((Elevation-MySize)<Controller.GetShipSpeed()*2&&(Elevation-MySize)<50)||Controller.DampenersOverride&&!Controller.IsUnderControl)&&GetAngle(Gravity,Forward_Vector)<120&&Pitch_Time>=1){
-				double difference=Math.Abs(GetAngle(Gravity,Forward_Vector));
-				if(difference<90)
-					input_pitch-=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
-			}
-			if((Controller.DampenersOverride&&!Undercontrol)&&(GetAngle(Gravity,Forward_Vector)>(90+Acceptable_Angle/2))){
-				double difference=Math.Abs(GetAngle(Gravity,Forward_Vector));
-				if(difference>90+Acceptable_Angle/2)
-					input_pitch+=10*gyro_multx*((float)Math.Min(Math.Abs((difference-90)/90),1))*orbit_multx;
+		if(Do_Direction&&Target_Direction.Length()>0){
+			double difference=GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction);
+			if(difference>Acceptable_Angle/2)
+				input_pitch-=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+		}
+		else{
+			if(Safety){
+				if((((Elevation-MySize)<Controller.GetShipSpeed()*2&&(Elevation-MySize)<50)||Controller.DampenersOverride&&!Controller.IsUnderControl)&&GetAngle(Gravity,Forward_Vector)<120&&Pitch_Time>=1){
+					double difference=Math.Abs(GetAngle(Gravity,Forward_Vector));
+					if(difference<90)
+						input_pitch-=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+				}
+				if((Controller.DampenersOverride&&!Undercontrol)&&(GetAngle(Gravity,Forward_Vector)>(90+Acceptable_Angle/2))){
+					double difference=Math.Abs(GetAngle(Gravity,Forward_Vector));
+					if(difference>90+Acceptable_Angle/2)
+						input_pitch+=10*gyro_multx*((float)Math.Min(Math.Abs((difference-90)/90),1))*orbit_multx;
+				}
 			}
 		}
 	}
@@ -982,6 +994,11 @@ void SetGyroscopes(){
 		input_yaw+=Math.Min(Math.Max(Ctrl.RotationIndicator.Y/100,-1),1);
 	if(Math.Abs(input_yaw)<0.05f){
 		input_yaw=current_yaw*0.99f;
+		if(Do_Direction&&Target_Direction.Length()>0){
+			double difference=GetAngle(Left_Vector,Target_Direction)-GetAngle(Right_Vector,Target_Direction);
+			if(difference>Acceptable_Angle/2)
+				input_yaw-=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+		}
 	}
 	else{
 		Yaw_Time=0;
@@ -991,7 +1008,12 @@ void SetGyroscopes(){
 		input_roll+=Ctrl.RollIndicator;
 	if(Math.Abs(input_roll)<0.05f){
 		input_roll=current_roll*0.99f;
-		if(Safety&&Gravity.Length()>0&&Roll_Time>=1){
+		if(Do_Up&&Target_Up.Length()>0){
+			double difference=GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up);
+			if(difference>Acceptable_Angle/2)
+				input_roll+=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+		}
+		else if(Safety&&Gravity.Length()>0&&Roll_Time>=1){
 			double difference=GetAngle(Left_Vector,Gravity)-GetAngle(Right_Vector,Gravity);
 			if(Math.Abs(difference)>Acceptable_Angle){
 				input_roll-=(float)Math.Min(Math.Max(difference*5,-5),25)*gyro_multx*5;
@@ -1216,7 +1238,7 @@ void UpdateProgramInfo(){
 	}
 	Write("",false,false);
 	Echo(Program_Name+" OS Cycle-"+cycle.ToString()+" ("+loading_char+")");
-	Me.GetSurface(1).WriteText(Program_Name+" OS Cycle-"+cycle.ToString()+" ("+loading_char+")",false);
+	Me.GetSurface(1).WriteText(Program_Name+" OS\nCycle-"+cycle.ToString()+" ("+loading_char+")",false);
 	seconds_since_last_update=Runtime.TimeSinceLastRun.TotalSeconds + (Runtime.LastRunTimeMs / 1000);
 	Display_Timer-=seconds_since_last_update;
 	if(Display_Timer<=0){
@@ -1476,12 +1498,25 @@ class Task{
 			new Vector2(1,-1)
 			)); //Params: ProgName, [Arguments]
 			
+			output.Add(new TaskFormat(
+			"Direction",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: Vector3D
+			
+			output.Add(new TaskFormat(
+			"Up",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: Vector3D
+			
 			return output;
 		}
 	}
 }
 Queue<Task> Task_Queue; //When a task is added, it is added to the Task Queue to be performed
 
+//Sends an argument to a programmable block
 bool Task_Send(Task task){
 	IMyProgrammableBlock target=GenericMethods<IMyProgrammableBlock>.GetFull(task.Qualifiers[0]);
 	if(target==null)
@@ -1493,6 +1528,30 @@ bool Task_Send(Task task){
 		arguments+=task.Qualifiers[i];
 	}
 	return target.TryRun(arguments);
+}
+
+//Tells the ship to orient to a specific forward direction
+bool Task_Direction(Task task){
+	Vector3D direction=new Vector3D(0,0,0);
+	if(Vector3D.TryParse(task.Qualifiers[0],out direction)){
+		Target_Direction=direction;
+		Target_Direction.Normalize();
+		Do_Direction=true;
+		return true;
+	}
+	return false;
+}
+
+//Tells the ship to orient to a specific up direction
+bool Task_Up(Task task){
+	Vector3D direction=new Vector3D(0,0,0);
+	if(Vector3D.TryParse(task.Qualifiers[0],out direction)){
+		Target_Up=direction;
+		Target_Up.Normalize();
+		Do_Up=true;
+		return true;
+	}
+	return false;
 }
 
 bool PerformTask(Task task){
@@ -1513,12 +1572,16 @@ bool PerformTask(Task task){
 	switch(task.Type){
 		case "Send":
 			return Task_Send(task);
-		
+		case "Direction":
+			return Task_Direction(task);
 	}
 	return false;
 }
 
 void ProcessTasks(){
+	Task_Resetter();
+	if(Task_Queue.Count==0)
+		return;
 	Queue<Task> Recycling=new Queue<Task>();
 	while(Task_Queue.Count>0){
 		Task task=Task_Queue.Dequeue();
@@ -1549,6 +1612,11 @@ void ProcessTasks(){
 		Task_Queue.Enqueue(Recycling.Dequeue());
 }
 
+void Task_Resetter(){
+	Do_Direction=false;
+	Do_Up=false;
+}
+
 void TaskParser(string argument){
 	string[] tasks=argument.Split('•');
 	foreach(string task in tasks){
@@ -1567,6 +1635,7 @@ void TaskParser(string argument){
 }
 
 void Main_Program(string argument){
+	ProcessTasks();
 	UpdateSystemData();
 	if(!Me.CubeGrid.IsStatic){
 		if(Elevation!=double.MaxValue){
