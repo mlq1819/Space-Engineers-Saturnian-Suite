@@ -1260,7 +1260,7 @@ void UpdateSystemData(){
 					if(Safety&&Time_To_Crash<(5+CurrentSpeed/5)&&Controller.GetShipSpeed()>5){
 						Controller.DampenersOverride=true;
 						RestingSpeed=0;
-						Echo("Crash predicted within "+Math.Round(5+CurrentSpeed/5,0)+" seconds; enabling Dampeners");
+						Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,0)+" seconds; enabling Dampeners",5));
 						need_print=false;
 					}
 					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
@@ -1306,8 +1306,14 @@ public void Main(string argument,UpdateType updateSource){
 		PrintNotifications();
 		if(updateSource==UpdateType.Script)
 			TaskParser(argument);
-		else
+		else if(updateSource!=UpdateType.Terminal)
 			Main_Program(argument);
+		else{
+			if(argument.ToLower().IndexOf("task:")==0)
+				TaskParser(argument.Substring(5));
+			else
+				Main_Program(argument);
+		}
 	}
 	catch(Exception E){
 		Write(E.ToString());
@@ -1403,20 +1409,6 @@ class Task{
 			Qualifiers.Add(s);
 	}
 	
-	public static List<TaskFormat> ValidFormats{
-		get{
-			List<TaskFormat> output=new List<TaskFormat>();
-			
-			output.Add(new TaskFormat(
-			"Send",
-			new List<Quantifier>(new Quantifier[] {Quantifier.Once,Quantifier.Numbered}),
-			new Vector2(1,-1)
-			)); //Params: ProgName, [Arguments]
-			
-			return output;
-		}
-	}
-	
 	public override string ToString(){
 		string output=Type+'\n'+Duration.ToString();
 		foreach(string Q in Qualifiers)
@@ -1442,12 +1434,88 @@ class Task{
 		output=new Task(type,duration,qualifiers);
 		return output.Valid;
 	}
+	
+	public static List<TaskFormat> ValidFormats{
+		get{
+			List<TaskFormat> output=new List<TaskFormat>();
+			
+			output.Add(new TaskFormat(
+			"Send",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Once,Quantifier.Numbered}),
+			new Vector2(1,-1)
+			)); //Params: ProgName, [Arguments]
+			
+			return output;
+		}
+	}
 }
 Queue<Task> Task_Queue; //When a task is added, it is added to the Task Queue to be performed
 
-bool ProcessTask(){
-	
+bool Task_Send(Task task){
+	IMyProgrammableBlock target=GenericMethods<IMyProgrammableBlock>.GetFull(task.Qualifiers[0]);
+	if(target==null)
+		return false;
+	string arguments="";
+	for(int i=1;i<task.Qualifiers.Count;i++){
+		if(i!=1)
+			arguments+='\n';
+		arguments+=task.Qualifiers[i];
+	}
+	return target.TryRun(arguments);
+}
+
+bool PerformTask(Task task){
+	if(task.Duration==Quantifier.Stop){
+		Queue<Task> Recycling=new Queue<Task>();
+		bool found=false;
+		while(Task_Queue.Count>0){
+			Task t=Task_Queue.Dequeue();
+			if(found||!t.Type.Equals(task.Type))
+				Recycling.Enqueue(t);
+			else
+				found=true;
+		}
+		while(Recycling.Count>0)
+			Task_Queue.Enqueue(Recycling.Dequeue());
+		return found;
+	}
+	switch(task.Type){
+		case "Send":
+			return Task_Send(task);
+		
+	}
 	return false;
+}
+
+void ProcessTasks(){
+	Queue<Task> Recycling=new Queue<Task>();
+	while(Task_Queue.Count>0){
+		Task task=Task_Queue.Dequeue();
+		if(!task.Valid){
+			Notifications.Add(new Notification("Discarded invalid Task: \""+task.ToString()+"\"",5));
+			continue;
+		}
+		if(!PerformTask(task))
+			Recycling.Enqueue(task);
+		else{
+			switch(task.Duration){
+				case Quantifier.Numbered:
+					int num=0;
+					Int32.TryParse(task.Qualifiers[0],out num);
+					num--;
+					if(num>0){
+						task.Qualifiers[0]=num.ToString();
+						Recycling.Enqueue(task);
+					}
+					break;
+				case Quantifier.Until:
+					Recycling.Enqueue(task);
+					break;
+			}
+		}
+	}
+	while(Recycling.Count>0)
+		Task_Queue.Enqueue(Recycling.Dequeue());
 }
 
 void TaskParser(string argument){
@@ -1456,8 +1524,12 @@ void TaskParser(string argument){
 		if(task.Trim().Length==0)
 			continue;
 		Task t;
-		if(Task.TryParse(task,out t))
-			Task_Queue.Enqueue(t);
+		if(Task.TryParse(task,out t)){
+			if(t.Duration==Quantifier.Stop)
+				PerformTask(t);
+			else
+				Task_Queue.Enqueue(t);
+		}
 		else
 			Notifications.Add(new Notification("Failed to parse \""+task+"\"",5));
 	}
