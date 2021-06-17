@@ -1271,18 +1271,18 @@ void UpdateSystemData(){
 				Time_To_Crash=Elevation/Elevation_per_second;
 				bool need_print=true;
 				if(_Autoland)
-					Write("Autoland Enabled\nTarget: "+Math.Round(5+CurrentSpeed/5,1)+" seconds");
+					Write("Autoland Enabled");
 				if(Time_To_Crash>0){
 					if(Safety&&Time_To_Crash<(5+CurrentSpeed/5)&&Controller.GetShipSpeed()>5){
 						Controller.DampenersOverride=true;
 						RestingSpeed=0;
 						for(int i=0;i<Notifications.Count;i++){
-							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds\nenabling Dampeners")){
+							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nenabling Dampeners...")){
 								Notifications.RemoveAt(i--);
 								continue;
 							}
 						}
-						Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,0)+" seconds\nenabling Dampeners",5));
+						Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nenabling Dampeners...",5));
 						need_print=false;
 					}
 					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
