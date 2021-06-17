@@ -768,6 +768,7 @@ void Reset(){
 		All_Thrusters[i]=new List<IMyThrust>();
 	}
 	RestingSpeed=0;
+	Notifications=new List<Notification>();
 }
 
 double MySize=0;
@@ -869,6 +870,9 @@ public Program(){
 				break;
 		}
 	}
+	Notifications=new List<Notification>();
+	Task_Queue=new Queue<Task>();
+	TaskParser(Me.CustomData);
 	Setup();
 }
 
@@ -881,6 +885,10 @@ public void Save(){
 			ResetThruster(Thruster);
 	}
 	bool ship=!Me.CubeGrid.IsStatic;
+	Me.CustomData="";
+	foreach(Task T in Task_Queue){
+		Me.CustomData+=T.ToString()+'•';
+	}
 }
 
 bool _Autoland=false;
@@ -1182,6 +1190,17 @@ void SetThrusters(){
 	}
 }
 
+struct Notification{
+	public string Text;
+	public double Time;
+	
+	public Notification(string x,double t){
+		Text=x;
+		Time=t;
+	}
+}
+List<Notification> Notifications;
+
 void UpdateProgramInfo(){
 	cycle=(++cycle)%long.MaxValue;
 	switch(loading_char){
@@ -1279,44 +1298,197 @@ void UpdateSystemData(){
 	Mass_Accomodation=(float)(Controller.CalculateShipMass().PhysicalMass*Gravity.Length());
 }
 
-public void Main(string argument, UpdateType updateSource)
-{
+void PrintNotifications(){
+	if(Notifications.Count>0){
+		Write("--Notifications--");
+		for(int i=0;i<Notifications.Count;i++){
+			Write(Notifications[i].Text);
+			Notifications[i].Time-=seconds_since_last_update;
+			if(Notifications[i].Time<=0){
+				Notifications.RemoveAt(i--);
+				continue;
+			}
+		}
+		Write("--Program--");
+	}
+}
+
+public void Main(string argument,UpdateType updateSource){
 	try{
 		UpdateProgramInfo();
-		UpdateSystemData();
-		if(!Me.CubeGrid.IsStatic){
-			if(Elevation!=double.MaxValue){
-				Write("Elevation: "+Math.Round(Elevation,1).ToString());
-				Write("Sealevel: "+Math.Round(Sealevel,1).ToString());
-			}
-			if(Gravity.Length()>0)
-				Write("Gravity:"+Math.Round(Gravity.Length()/9.814,2)+"Gs");
-			Write("Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
-			Write("Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
-		}
-		if(argument.ToLower().Equals("autoland")){
-			Autoland();
-		}
-		else if(argument.ToLower().Equals("factory reset")){
-			FactoryReset();
-		}
-		
-		if(!Me.CubeGrid.IsStatic&&Controller.CalculateShipMass().PhysicalMass>0){
-			if(Control_Thrusters)
-				SetThrusters();
-			else
-				ResetThrusters();
-			if(Control_Gyroscopes)
-				SetGyroscopes();
-			else
-				Gyroscope.GyroOverride=false;
-		}
+		PrintNotifications();
+		if(updateSource==UpdateType.Script)
+			TaskParser(argument);
 		else
-			ResetThrusters();
-		Runtime.UpdateFrequency=GetUpdateFrequency();
+			Main_Program(argument);
 	}
 	catch(Exception E){
 		Write(E.ToString());
 		FactoryReset();
 	}
+}
+
+enum Quantifier{
+	Once=0,
+	Numbered=1,
+	Until=2,
+	Stop=3
+}
+struct TaskFormat{
+	public string Type;
+	public List<Quantifier> Durations;
+	public Vector2 QualifierLimits;
+	
+	public TaskFormat(string T,List<Quantifier> Q,Vector2 L){
+		Type=T;
+		Durations=new List<Quantifier>;
+		foreach(Quantifier q in Q)
+			Durations.Add(q);
+		QualifierLimits=L;
+	}
+	
+	public bool Validate(Task input){
+		if(!input.Type.Equals(Type))
+			return false;
+		if(!Durations.Contains(input.Duration))
+			return false;
+		if(input.Duration==Quantifier.Numbered){
+			if(input.Qualifiers.Count-1<QualifierLimits.X)
+				return false;
+			if(QualifierLimits.Y>=0&&input.Qualifiers.Count-1>QualifierLimits.Y)
+				return false;
+		}
+		else{
+			if(input.Qualifiers.Count<QualifierLimits.X)
+				return false;
+			if(QualifierLimits.Y>=0&&input.Qualifiers.Count>QualifierLimits.Y)
+				return false;
+		}
+		return true;
+	}
+}
+struct Task{
+	public string Type;
+	public Quantifier Duration;
+	public List<string> Qualifiers;
+	
+	public bool Valid{
+		get{
+			int t=0;
+			if(!Type.First().Equals(Type.First().ToUpper()))
+				return false;
+			if(!Type.Substring(1).Equals(Type.Substring(1).ToLower()))
+				return false;
+			switch(Duration){
+				case Quantifier.Numbered:
+					if(Qualifiers.Count<1||!Int32.TryParse(Qualifiers[0],out t))
+						return false;
+					if(t<0)
+						return false;
+					break;
+				case Quantifier.Stop:
+					if(Qualifiers.Count>0)
+						return false;
+					break;
+			}
+			foreach(string Q in Qualifiers){
+				if(Q.Contains('•')||Q.Contains('\n'))
+					return false;
+			}
+			foreach(TaskFormat Format in ValidFormats){
+				if(Format.Validate(this))
+					return true;
+			}
+			return false;
+		}
+	}
+	
+	public Task(string T,Quantifier D){
+		Type=T;
+		Duration=D;
+		Qualifiers=new List<string>();
+	}
+	
+	public Task(string T, Quantifier D, List<string> Q):this(T,D){
+		foreach(string s in Q)
+			Qualifiers.Add(s);
+	}
+	
+	public static List<TaskFormat> ValidFormats{
+		get{
+			List<TaskFormat> output=new List<TaskFormat>();
+			
+			output.Add(
+			"Send",
+			new List<Quantifier>([Quantifier.Once,Quantifier.Numbered]),
+			new Vector2(1,-1)
+			); //Params: ProgName, [Arguments]
+			
+			return output;
+		}
+	}
+	
+	public string ToString(){
+		string output=Type+'\n'+Duration.ToString();
+		foreach(string Q in Qualifiers)
+			output+='\n'+Qualifiers;
+		return output;
+	}
+	
+	public static bool TryParse(string input,out Task output){
+		
+	}
+}
+Queue<Task> Task_Queue; //When a task is added, it is added to the Task Queue to be performed
+
+bool ProcessTask(){
+	
+	return false;
+}
+
+void TaskParser(string argument){
+	string[] tasks=argument.Split('•');
+	foreach(string task in tasks){
+		if(task.Trim().Length==0)
+			continue;
+		Task t;
+		if(Task.TryParse(task,out t))
+			Task_Queue.Enqueue(t);
+		else
+			Notifications.Add(new Notification("Failed to parse \""+task+"\"",5));
+	}
+}
+
+void Main_Program(string argument){
+	UpdateSystemData();
+	if(!Me.CubeGrid.IsStatic){
+		if(Elevation!=double.MaxValue){
+			Write("Elevation: "+Math.Round(Elevation,1).ToString());
+			Write("Sealevel: "+Math.Round(Sealevel,1).ToString());
+		}
+		if(Gravity.Length()>0)
+			Write("Gravity:"+Math.Round(Gravity.Length()/9.814,2)+"Gs");
+		Write("Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
+		Write("Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
+	}
+	if(argument.ToLower().Equals("autoland")){
+		Autoland();
+	}
+	else if(argument.ToLower().Equals("factory reset")){
+		FactoryReset();
+	}
+	
+	if(!Me.CubeGrid.IsStatic&&Controller.CalculateShipMass().PhysicalMass>0){
+		if(Control_Thrusters)
+			SetThrusters();
+		else
+			ResetThrusters();
+		if(Control_Gyroscopes)
+			SetGyroscopes();
+		else
+			Gyroscope.GyroOverride=false;
+	}
+	else
+		ResetThrusters();
+	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
