@@ -1277,12 +1277,12 @@ void UpdateSystemData(){
 						Controller.DampenersOverride=true;
 						RestingSpeed=0;
 						for(int i=0;i<Notifications.Count;i++){
-							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nenabling Dampeners...")){
+							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nEnabling Dampeners...")){
 								Notifications.RemoveAt(i--);
 								continue;
 							}
 						}
-						Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nenabling Dampeners...",5));
+						Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nEnabling Dampeners...",2));
 						need_print=false;
 					}
 					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
@@ -1315,8 +1315,7 @@ void PrintNotifications(){
 			Write("--Notifications--");
 			for(int i=0;i<Notifications.Count;i++){
 				Notifications[i].Time=Math.Max(0,Notifications[i].Time-seconds_since_last_update);
-				Write((i+1).ToString()+": "+Math.Round(Notifications[i].Time,3).ToString()+" s");
-				Write(Notifications[i].Text);
+				Write("\""+Notifications[i].Text+"\"");
 				if(Notifications[i].Time<=0){
 					Notifications.RemoveAt(i--);
 					continue;
