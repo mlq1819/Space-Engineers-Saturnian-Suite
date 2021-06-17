@@ -833,15 +833,27 @@ void TaskParser(string argument){
 	}
 }
 
+void Send(string argument){
+	List<IMyProgrammableBlock> ProgBlocks=GenericMethods<IMyProgrammableBlock>.GetAllIncluding("");
+	int i=0;
+	foreach(IMyProgrammableBlock prog in ProgBlocks){
+		if(prog.TryRun(argument))
+			i++;
+	}
+	Write("Ran\n\""+argument+"\"\non "+i.ToString()+"/"+ProgBlocks.Count.ToString()+" machines");
+}
+
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
-	List<IMyProgrammableBlock> ProgBlocks=GenericMethods<IMyProgrammableBlock>.GetAllIncluding("");
+	Write("--Saturnian Task System--\n--Debugging Program--");
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
-	else if(argument.ToLower().Equals("up")){
-		//
+	else if(argument.ToLower().Equals("direction")){
+		Send("Direction\n"+Up_Vector.ToString());
+	} else if(argument.ToLower().Equals("stop direction")){
+		Send("Direction\nStop");
 	}
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
