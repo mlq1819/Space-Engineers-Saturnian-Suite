@@ -384,19 +384,6 @@ string GetRemovedString(string big_string, string small_string){
 	return output;
 }
 
-struct CustomPanel{
-	public IMyTextSurface Display;
-	public bool Trans;
-	public CustomPanel(IMyTextSurface d,bool t=false){
-		Display=d;
-		Trans=t;
-	}
-	public CustomPanel(IMyTextPanel p){
-		Display=p as IMyTextSurface;
-		Trans=p.CustomName.ToLower().Contains("transparent");
-	}
-}
-
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
@@ -1190,7 +1177,7 @@ void SetThrusters(){
 	}
 }
 
-struct Notification{
+class Notification{
 	public string Text;
 	public double Time;
 	
@@ -1302,8 +1289,8 @@ void PrintNotifications(){
 	if(Notifications.Count>0){
 		Write("--Notifications--");
 		for(int i=0;i<Notifications.Count;i++){
-			Write(Notifications[i].Text);
-			Notifications[i].Time-=seconds_since_last_update;
+			Notifications[i].Time=Math.Max(0,Notifications[i].Time-seconds_since_last_update);
+			Write(Notifications[i].Text+" ("+Math.Round(Notifications[i].Time));
 			if(Notifications[i].Time<=0){
 				Notifications.RemoveAt(i--);
 				continue;
@@ -1341,7 +1328,7 @@ struct TaskFormat{
 	
 	public TaskFormat(string T,List<Quantifier> Q,Vector2 L){
 		Type=T;
-		Durations=new List<Quantifier>;
+		Durations=new List<Quantifier>();
 		foreach(Quantifier q in Q)
 			Durations.Add(q);
 		QualifierLimits=L;
@@ -1367,7 +1354,7 @@ struct TaskFormat{
 		return true;
 	}
 }
-struct Task{
+class Task{
 	public string Type;
 	public Quantifier Duration;
 	public List<string> Qualifiers;
@@ -1375,7 +1362,9 @@ struct Task{
 	public bool Valid{
 		get{
 			int t=0;
-			if(!Type.First().Equals(Type.First().ToUpper()))
+			if(Type.Length==0)
+				return false;
+			if(!Type.Substring(0,1).Equals(Type.Substring(0,1).ToUpper()))
 				return false;
 			if(!Type.Substring(1).Equals(Type.Substring(1).ToLower()))
 				return false;
@@ -1418,25 +1407,40 @@ struct Task{
 		get{
 			List<TaskFormat> output=new List<TaskFormat>();
 			
-			output.Add(
+			output.Add(new TaskFormat(
 			"Send",
-			new List<Quantifier>([Quantifier.Once,Quantifier.Numbered]),
+			new List<Quantifier>(new Quantifier[] {Quantifier.Once,Quantifier.Numbered}),
 			new Vector2(1,-1)
-			); //Params: ProgName, [Arguments]
+			)); //Params: ProgName, [Arguments]
 			
 			return output;
 		}
 	}
 	
-	public string ToString(){
+	public override string ToString(){
 		string output=Type+'\n'+Duration.ToString();
 		foreach(string Q in Qualifiers)
-			output+='\n'+Qualifiers;
+			output+='\n'+Q;
 		return output;
 	}
 	
 	public static bool TryParse(string input,out Task output){
-		
+		output=null;
+		string[] args=input.Split('\n');
+		if(args.Length<2)
+			return false;
+		if(args[0].Length==0)
+			return false;
+		string type=args[0];
+		Quantifier duration;
+		if(!Quantifier.TryParse(args[1],out duration))
+			return false;
+		List<string> qualifiers=new List<string>();
+		for(int i=2;i<args.Length;i++){
+			qualifiers.Add(args[i]);
+		}
+		output=new Task(type,duration,qualifiers);
+		return output.Valid;
 	}
 }
 Queue<Task> Task_Queue; //When a task is added, it is added to the Task Queue to be performed
