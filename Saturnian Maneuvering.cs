@@ -1097,7 +1097,7 @@ void SetGyroscopes(){
 	Gyroscope.Roll=(float)output.Z;
 }
 
-double Match_Thrust(double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
+float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
 	double deacceleration=0;
 	double difference=Relative_Speed-Relative_Target_Speed;
 	if(difference>0)
@@ -1107,17 +1107,18 @@ double Match_Thrust(double Relative_Speed,double Relative_Target_Speed,double Re
 	if((difference>0)^(Relative_Distance<0)){
 		double time=difference/deacceleration;
 		time=(Relative_Distance-(difference*time/2))/difference;
-		if(time>0&&(!Match_Direction||GetAngle(Forward_Vector,Target_Direction<=Acceptable_Angle))&&Relative_Speed-Relative_Target_Speed<=0.05){
+		if(time>0&&(!Match_Direction||GetAngle(Forward_Vector,Target_Direction)<=Acceptable_Angle)&&Relative_Speed-Relative_Target_Speed<=0.05){
 			if(difference>0){
-				if((CurrentVelocity+V1-RestingVelocity).Length()<=Math.Min(Elevation,Math.Min(effective_speed_limit,Target_Distance)))
+				if((CurrentVelocity+V1-RestingVelocity).Length()<=Math.Min(Elevation,Math.Min(esl,Target_Distance)))
 					return -0.95f*T1;
 			}
 			else {
-				if((CurrentVelocity+V2-RestingVelocity).Length()<=Math.Min(Elevation, Math.Min(effective_speed_limit,Target_Distance)))
+				if((CurrentVelocity+V2-RestingVelocity).Length()<=Math.Min(Elevation, Math.Min(esl,Target_Distance)))
 					return 0.95f*T2;
 			}
 		}
 	}
+	return 0;
 }
 
 bool Safety=true;
@@ -1125,7 +1126,7 @@ bool Do_Position=false;
 Vector3D Target_Position=new Vector3D(0,0,0);
 Vector3D Relative_Target_Position{
 	get{
-		return GlobalToLocalPosition(Target_Position);
+		return GlobalToLocalPosition(Target_Position,Controller);
 	}
 }
 double Target_Distance{
@@ -1205,10 +1206,10 @@ void SetThrusters(){
 		}
 	}
 	
-	if(Match_Position){
-		input_right=Match_Thrust(Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
-		input_up=Match_Thrust(Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
-		input_forward=-1*Match_Thrust(Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
+	if(Do_Position){
+		input_right=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
+		input_up=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
+		input_forward=-1*Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
 	}
 	else{
 		foreach(IMyShipController Ctrl in Controllers){
@@ -1618,6 +1619,12 @@ class Task{
 			new Vector2(1,1)
 			)); //Params: Vector3D
 			
+			output.Add(new TaskFormat(
+			"Go",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: Vector3D
+			
 			return output;
 		}
 	}
@@ -1705,6 +1712,8 @@ bool PerformTask(Task task){
 			return Task_Direction(task);
 		case "Up":
 			return Task_Up(task);
+		case "Go":
+			return Task_Go(task);
 	}
 	return false;
 }

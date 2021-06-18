@@ -894,9 +894,12 @@ void Main_Program(string argument){
 	} else if(argument.ToLower().Equals("twist")){
 		Send("Direction\nUntil\n"+Up_Vector.ToString());
 		Send("Up\nUntil\n"+Forward_Vector.ToString());
+	} else if(argument.ToLower().Equals("lock")){
+		Send("Go\nUntil\n"+Controller.GetPosition().ToString());
 	} else if(argument.ToLower().Equals("belly")){
 		Send("Up\nUntil\n"+Down_Vector.ToString());
 	} else if(argument.ToLower().Equals("stop")){
+		Send("Go\nStop");
 		Send("Direction\nStop");
 		Send("Up\nStop");
 		Vector3D grav=-1*Controller.GetNaturalGravity();
