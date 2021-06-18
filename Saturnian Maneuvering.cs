@@ -974,13 +974,13 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_pitch+=Math.Min(Math.Max(Ctrl.RotationIndicator.X/100,-1),1);
 	if(Math.Abs(input_pitch)<0.05f){
+		input_pitch=current_pitch*0.99f;
 		if(Do_Direction){
 			double difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
 			if(Math.Abs(difference)>Acceptable_Angle/2)
-				input_pitch=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+				input_pitch+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
 		else{
-			input_pitch=current_pitch*0.99f;
 			float orbit_multx=1;
 			if(Safety){
 				if((((Elevation-MySize)<Controller.GetShipSpeed()*2&&(Elevation-MySize)<50)||Controller.DampenersOverride&&!Controller.IsUnderControl)&&GetAngle(Gravity,Forward_Vector)<120&&Pitch_Time>=1){
@@ -1003,15 +1003,14 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_yaw+=Math.Min(Math.Max(Ctrl.RotationIndicator.Y/100,-1),1);
 	if(Math.Abs(input_yaw)<0.05f){
+		input_yaw=current_yaw*0.99f;
 		if(Do_Direction){
 			double difference=(GetAngle(Left_Vector,Target_Direction)-GetAngle(Right_Vector,Target_Direction))/2;
 			if(difference<Acceptable_Angle&&GetAngle(Forward_Vector,Target_Direction)>180-Acceptable_Angle)
 				difference=90;
 			if(Math.Abs(difference)>Acceptable_Angle/2)
-				input_yaw=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+				input_yaw+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
-		else
-			input_yaw=current_yaw*0.99f;
 	}
 	else{
 		Yaw_Time=0;
@@ -1020,15 +1019,17 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_roll+=Ctrl.RollIndicator;
 	if(Math.Abs(input_roll)<0.05f){
+		input_roll=current_roll*0.99f;
 		if(Do_Up){
+			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<Acceptable_Angle*2){
 			double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
-			if(difference<Acceptable_Angle&&GetAngle(Up_Vector,Target_Up)>180-Acceptable_Angle)
-				difference=90;
-			if(Math.Abs(difference)>Acceptable_Angle/2)
-				input_roll=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+				if(difference<Acceptable_Angle&&GetAngle(Up_Vector,Target_Up)>180-Acceptable_Angle)
+					difference=90;
+				if(Math.Abs(difference)>Acceptable_Angle/2)
+					input_roll+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+			}
 		}
 		else{ 
-			input_roll=current_roll*0.99f;
 			if(Safety&&Gravity.Length()>0&&Roll_Time>=1){
 				double difference=GetAngle(Left_Vector,Gravity)-GetAngle(Right_Vector,Gravity);
 				if(Math.Abs(difference)>Acceptable_Angle){
