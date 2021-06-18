@@ -1021,12 +1021,15 @@ void SetGyroscopes(){
 	if(Math.Abs(input_roll)<0.05f){
 		input_roll=current_roll*0.99f;
 		if(Do_Up){
-			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<Acceptable_Angle*2){
-			double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
+			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<Acceptable_Angle*5){
+				double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
 				if(difference<Acceptable_Angle&&GetAngle(Up_Vector,Target_Up)>180-Acceptable_Angle)
 					difference=90;
+				float direction_multx=1.0f;
+				if(Do_Direction&&GetAngle(Forward_Vector,Target_Direction)>Acceptable_Angle)
+					direction_multx/=(float)(GetAngle(Forward_Vector,Target_Direction)/Acceptable_Angle);
 				if(Math.Abs(difference)>Acceptable_Angle/2)
-					input_roll+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+					input_roll+=10*gyro_multx*direction_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 			}
 		}
 		else{ 
