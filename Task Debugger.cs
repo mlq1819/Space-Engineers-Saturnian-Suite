@@ -837,10 +837,12 @@ void Send(string argument){
 	List<IMyProgrammableBlock> ProgBlocks=GenericMethods<IMyProgrammableBlock>.GetAllIncluding("");
 	int i=0;
 	foreach(IMyProgrammableBlock prog in ProgBlocks){
+		if(prog==Me)
+			continue;
 		if(prog.TryRun(argument))
 			i++;
 	}
-	Write("Ran\n\""+argument+"\"\non "+i.ToString()+"/"+ProgBlocks.Count.ToString()+" machines");
+	Write("Ran\n\""+argument+"\"\non "+i.ToString()+"/"+(ProgBlocks.Count-1).ToString()+" machines");
 }
 
 void Main_Program(string argument){
@@ -851,7 +853,7 @@ void Main_Program(string argument){
 		FactoryReset();
 	}
 	else if(argument.ToLower().Equals("direction")){
-		Send("Direction\n"+Up_Vector.ToString());
+		Send("Direction\nUntil\n"+Up_Vector.ToString());
 	} else if(argument.ToLower().Equals("stop direction")){
 		Send("Direction\nStop");
 	}

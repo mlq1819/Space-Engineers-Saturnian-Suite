@@ -1624,15 +1624,19 @@ void TaskParser(string argument){
 	foreach(string task in tasks){
 		if(task.Trim().Length==0)
 			continue;
-		Task t;
+		Task t=null;
 		if(Task.TryParse(task,out t)){
 			if(t.Duration==Quantifier.Stop)
 				PerformTask(t);
 			else
 				Task_Queue.Enqueue(t);
 		}
-		else
-			Notifications.Add(new Notification("Failed to parse \""+task+"\"",5));
+		else{
+			if(t==null)
+				Notifications.Add(new Notification("Failed to parse \""+task+"\"",15));
+			else
+				Notifications.Add(new Notification("Failed to parse \""+task+"\": Got\""+t.ToString()+"\"",15));
+		}
 	}
 }
 
