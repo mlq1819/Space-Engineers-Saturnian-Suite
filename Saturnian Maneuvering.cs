@@ -1676,7 +1676,7 @@ void ProcessTasks(){
 					break;
 				case Quantifier.Until:
 					Recycling.Enqueue(task);
-					Write("Ran task "+task.Type.ToUpper());
+					Write("Ran task "+task.Type.ToUpper()+" [u]");
 					break;
 				default:
 					Notifications.Add(new Notification("Ran task "+task.Type.ToUpper(),10));
