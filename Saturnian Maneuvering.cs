@@ -1117,11 +1117,7 @@ double Distance_Speed_Limit(double distance){
 float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
 	double R_ESL=Math.Min(Elevation,Math.Min(esl,Distance_Speed_Limit(Relative_Distance)));
 	float distance_multx=1.0f;
-	Write("R_ESL:"+Math.Round(R_ESL,1).ToString()+"mps");
-	double Target_Speed=R_ESL;
-	if(Relative_Distance<0)
-		Target_Speed*=-1;
-	
+	double Target_Speed=0;
 	double speed_change=Relative_Speed-Relative_Target_Speed;
 	double deacceleration=Math.Abs(speed_change*Controller.CalculateShipMass().PhysicalMass);
 	double time=0;
