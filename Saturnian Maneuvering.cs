@@ -982,21 +982,24 @@ void SetGyroscopes(){
 	
 	if(Math.Abs(input_pitch)<0.05f){
 		input_pitch=current_pitch*0.99f;
+		bool do_adjust_pitch=Do_Direction;
+		double v_difference=0;
 		if(Do_Direction){
-			double difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
-			bool do_adjust_pitch=true;
+			v_difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
 			if(Gravity.Length()>0){
 				double target_grav=Math.Abs(90-GetAngle(Target_Direction,Gravity));
 				if(target_grav<45){
 					double grav_difference=(GetAngle(Up_Vector,Gravity)-GetAngle(Down_Vector,Gravity))/2;
-					if(grav_difference<30&&Math.Abs(difference-Direction_Angle)>15)
+					if(grav_difference<30&&Math.Abs(v_difference-Direction_Angle)>15)
 						do_adjust_pitch=false;
-					else if(Direction_Angle>90&&difference>90)
+					else if(Direction_Angle>90&&v_difference>90)
 						do_adjust_pitch=false;
 				}
 			}
-			if(do_adjust_pitch&&Math.Abs(difference)>Acceptable_Angle/2)
-				input_pitch+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+		}
+		if(do_adjust_pitch){
+			if(Math.Abs(v_difference)>Acceptable_Angle/2)
+				input_pitch+=10*gyro_multx*((float)Math.Min(Math.Max(v_difference,-90),90)/90.0f);
 		}
 		else{
 			float orbit_multx=1;
@@ -1554,13 +1557,13 @@ class Task{
 			
 			output.Add(new TaskFormat(
 			"Direction",
-			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
 			new Vector2(1,1)
 			)); //Params: Vector3D
 			
 			output.Add(new TaskFormat(
 			"Up",
-			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
 			new Vector2(1,1)
 			)); //Params: Vector3D
 			
@@ -1588,14 +1591,14 @@ bool Task_Send(Task task){
 bool Task_Direction(Task task){
 	Vector3D direction=new Vector3D(0,0,0);
 	if(task.Qualifiers[0].IndexOf("At ")==0){
-		if(Vector3D.TryParse(task.Qualifiers[0].Substring(3),out direction)){
+		if(Vector3D.TryParse(task.Qualifiers.Last().Substring(3),out direction)){
 			Target_Direction=direction-Controller.GetPosition();
 			Target_Direction.Normalize();
 			Do_Direction=true;
 			return true;
 		}
 	}
-	else if(Vector3D.TryParse(task.Qualifiers[0],out direction)){
+	else if(Vector3D.TryParse(task.Qualifiers.Last(),out direction)){
 		Target_Direction=direction;
 		if(Target_Direction.Length()==0)
 			return false;
@@ -1609,7 +1612,7 @@ bool Task_Direction(Task task){
 //Tells the ship to orient to a specific up direction
 bool Task_Up(Task task){
 	Vector3D direction=new Vector3D(0,0,0);
-	if(Vector3D.TryParse(task.Qualifiers[0],out direction)){
+	if(Vector3D.TryParse(task.Qualifiers.Last(),out direction)){
 		Target_Up=direction;
 		Target_Up.Normalize();
 		Do_Up=true;
@@ -1669,7 +1672,7 @@ void ProcessTasks(){
 						task.Qualifiers[0]=num.ToString();
 						Recycling.Enqueue(task);
 					}
-					Write("Ran task "+task.Type.ToUpper());
+					Write("Ran task "+task.Type.ToUpper()+" ["+num.ToString()+"]");
 					break;
 				case Quantifier.Until:
 					Recycling.Enqueue(task);

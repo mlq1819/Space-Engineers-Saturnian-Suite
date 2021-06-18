@@ -899,6 +899,9 @@ void Main_Program(string argument){
 	} else if(argument.ToLower().Equals("stop")){
 		Send("Direction\nStop");
 		Send("Up\nStop");
+		Vector3D grav=-1*Controller.GetNaturalGravity();
+		grav.Normalize();
+		Send("Up\nNumbered\n500\n"+grav.ToString());
 	}
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
