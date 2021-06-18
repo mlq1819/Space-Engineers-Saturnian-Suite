@@ -911,7 +911,6 @@ void Main_Program(string argument){
 		}
 		Send("Go\nUntil\n"+target.ToString());
 		Send("Match\nUntil");
-	}
 	} else if(argument.ToLower().Equals("stop")){
 		Send("Go\nStop");
 		Send("Direction\nStop");
