@@ -1097,16 +1097,56 @@ void SetGyroscopes(){
 	Gyroscope.Roll=(float)output.Z;
 }
 
+
+double Distance_Speed_Limit(double distance){
+	distance=Math.Abs(distance);
+	if(distance<5)
+		return distance;
+	if(distance<25)
+		return 10;
+	if(distance<50)
+		return 20;
+	if(distance<100)
+		return 25;
+	if(distance<250)
+		return 40;
+	if(distance<500)
+		return 50;
+	return distance/10;
+}
 float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
-	double R_ESL=Math.Min(Elevation,Math.Min(esl,Math.Abs(Relative_Distance)*5));
-	if(Relative_Distance<0){
+	double R_ESL=Math.Min(Elevation,Math.Min(esl,Distance_Speed_Limit(Relative_Distance)));
+	float distance_multx=1.0f;
+	Write("R_ESL:"+Math.Round(R_ESL,1).ToString()+"mps");
+	double Target_Speed=R_ESL;
+	if(Relative_Distance<0)
+		Target_Speed*=-1;
+	
+	double speed_change=Relative_Speed-Relative_Target_Speed;
+	double deacceleration=Math.Abs(speed_change*Controller.CalculateShipMass().PhysicalMass);
+	double time=0;
+	//difference is required change in velocity; must be "0" when the target is reached
+	if(speed_change>0)
+		time=deacceleration/T1;
+	else if(speed_change<0)
+		time=deacceleration/T2;
+	//deacceleration is the required change in force; divided by the thruster power, this is now the ammount of time required to make that change
+	double acceleration_distance=(Math.Abs(Relative_Speed)+Target_Speed)*time/2;
+	//acceleration_distance is the distance that will be covered during that change in speed
+	bool increase=acceleration_distance<Math.Abs(Relative_Distance)*1.05+MySize+5;
+	//increase determines whether to accelerate or deaccelerate, based on whether the acceleration distance is smaller than the distance to the target (with some wiggle room);
+	if(!increase){
+		distance_multx*=-1;
+	}
+	if(Relative_Distance<Relative_Target_Speed){
 		if((CurrentVelocity+V1-RestingVelocity).Length()<=R_ESL)
-			return -0.95f*T1;
+			return -0.95f*T1*distance_multx;
 	}
-	else if(Relative_Distance>0){
+	else if(Relative_Distance>Relative_Target_Speed){
 		if((CurrentVelocity+V2-RestingVelocity).Length()<=R_ESL)
-			return 0.95f*T2;
+			return 0.95f*T2*distance_multx;
 	}
+	
 	/*
 	double deacceleration=0;
 	double difference=Relative_Speed-Relative_Target_Speed;
@@ -1114,7 +1154,7 @@ float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed
 		deacceleration=Math.Abs(difference)/T1;
 	else if(difference<0)
 		deacceleration=Math.Abs(difference)/T2;
-	if(true||((difference>0)^(Relative_Distance<0))){
+	if(((difference>0)^(Relative_Distance<0))){
 		double time=difference/deacceleration;
 		time=(Relative_Distance-(difference*time/2))/difference;
 		if(time>0&&((!Match_Direction)||GetAngle(Forward_Vector,Target_Direction)<=Acceptable_Angle)&&difference<=0.05){
@@ -1217,10 +1257,19 @@ void SetThrusters(){
 	}
 	
 	if(Do_Position){
-		double old_ir=input_right,old_iu=input_up,old_if=input_forward;
-		input_right+=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
-		input_up+=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
-		input_forward-=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
+		if(Target_Distance>1500)
+			Write("Target Position: "+Math.Round(Target_Distance/1000,1)+"kM");
+		else
+			Write("Target Position: "+Math.Round(Target_Distance,0)+"M");
+		float thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
+		if(Math.Abs(thrust_value)>=1)
+			input_right=thrust_value-(float)Adjusted_Gravity.X;
+		thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
+		if(Math.Abs(thrust_value)>=1)
+			input_up=thrust_value-(float)Adjusted_Gravity.Y;
+		thrust_value=-1*Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
+		if(Math.Abs(thrust_value)>=1)
+			input_forward=thrust_value+(float)Adjusted_Gravity.Z;
 	}
 	else{
 		foreach(IMyShipController Ctrl in Controllers){
