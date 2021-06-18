@@ -964,14 +964,20 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_pitch+=Math.Min(Math.Max(Ctrl.RotationIndicator.X/100,-1),1);
 	if(Math.Abs(input_pitch)<0.05f){
-		input_pitch=current_pitch*0.99f;
-		float orbit_multx=1;
+		Write("Do_Direction:"+Do_Direction.ToString());
+		Write("Target Angle:"+Math.Round(GetAngle(Target_Direction,Forward_Vector),1)+"°");
 		if(Do_Direction&&Target_Direction.Length()>0){
-			double difference=GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction);
-			if(difference>Acceptable_Angle/2)
-				input_pitch-=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+			double difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
+			Write("Vertical_Difference:"+Math.Round(difference/2,1).ToString()+"°");
+			Write("gyro_multx:"+Math.Round(gyro_multx,5).ToString());
+			Write("input_pitch:"+Math.Round(input_pitch,5).ToString());
+			if(Math.Abs(difference)>Acceptable_Angle/2)
+				input_pitch=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+			Write("input_pitch:"+Math.Round(input_pitch,5).ToString());
 		}
 		else{
+			input_pitch=current_pitch*0.99f;
+			float orbit_multx=1;
 			if(Safety){
 				if((((Elevation-MySize)<Controller.GetShipSpeed()*2&&(Elevation-MySize)<50)||Controller.DampenersOverride&&!Controller.IsUnderControl)&&GetAngle(Gravity,Forward_Vector)<120&&Pitch_Time>=1){
 					double difference=Math.Abs(GetAngle(Gravity,Forward_Vector));
@@ -993,12 +999,14 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_yaw+=Math.Min(Math.Max(Ctrl.RotationIndicator.Y/100,-1),1);
 	if(Math.Abs(input_yaw)<0.05f){
-		input_yaw=current_yaw*0.99f;
 		if(Do_Direction&&Target_Direction.Length()>0){
-			double difference=GetAngle(Left_Vector,Target_Direction)-GetAngle(Right_Vector,Target_Direction);
-			if(difference>Acceptable_Angle/2)
-				input_yaw-=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+			double difference=(GetAngle(Left_Vector,Target_Direction)-GetAngle(Right_Vector,Target_Direction))/2;
+			Write("Horizontal_Difference:"+Math.Round(difference/2,1).ToString()+"°");
+			if(Math.Abs(difference)>Acceptable_Angle/2)
+				input_yaw=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
+		else
+			input_yaw=current_yaw*0.99f;
 	}
 	else{
 		Yaw_Time=0;
@@ -1007,16 +1015,18 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_roll+=Ctrl.RollIndicator;
 	if(Math.Abs(input_roll)<0.05f){
-		input_roll=current_roll*0.99f;
 		if(Do_Up&&Target_Up.Length()>0){
-			double difference=GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up);
-			if(difference>Acceptable_Angle/2)
-				input_roll+=10*gyro_multx*((float)Math.Min(Math.Abs((90-difference)/90),1));
+			double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
+			if(Math.Abs(difference)>Acceptable_Angle/2)
+				input_roll=-10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
-		else if(Safety&&Gravity.Length()>0&&Roll_Time>=1){
-			double difference=GetAngle(Left_Vector,Gravity)-GetAngle(Right_Vector,Gravity);
-			if(Math.Abs(difference)>Acceptable_Angle){
-				input_roll-=(float)Math.Min(Math.Max(difference*5,-5),25)*gyro_multx*5;
+		else{ 
+			input_roll=current_roll*0.99f;
+			if(Safety&&Gravity.Length()>0&&Roll_Time>=1){
+				double difference=GetAngle(Left_Vector,Gravity)-GetAngle(Right_Vector,Gravity);
+				if(Math.Abs(difference)>Acceptable_Angle){
+					input_roll-=(float)Math.Min(Math.Max(difference*5,-5),25)*gyro_multx*5;
+				}
 			}
 		}
 	}
@@ -1237,7 +1247,7 @@ void UpdateProgramInfo(){
 			break;
 	}
 	Write("",false,false);
-	Echo(Program_Name+" OS Cycle-"+cycle.ToString()+" ("+loading_char+")");
+	Echo(Program_Name+" OS\nCycle-"+cycle.ToString()+" ("+loading_char+")");
 	Me.GetSurface(1).WriteText(Program_Name+" OS\nCycle-"+cycle.ToString()+" ("+loading_char+")",false);
 	seconds_since_last_update=Runtime.TimeSinceLastRun.TotalSeconds + (Runtime.LastRunTimeMs / 1000);
 	Display_Timer-=seconds_since_last_update;
@@ -1404,6 +1414,10 @@ struct TaskFormat{
 			if(QualifierLimits.Y>=0&&input.Qualifiers.Count-1>QualifierLimits.Y)
 				return false;
 		}
+		else if(input.Duration==Quantifier.Stop){
+			if(input.Qualifiers.Count!=0)
+				return false;
+		}
 		else{
 			if(input.Qualifiers.Count<QualifierLimits.X)
 				return false;
@@ -1560,7 +1574,7 @@ bool PerformTask(Task task){
 		bool found=false;
 		while(Task_Queue.Count>0){
 			Task t=Task_Queue.Dequeue();
-			if(found||!t.Type.Equals(task.Type))
+			if(!t.Type.Equals(task.Type))
 				Recycling.Enqueue(t);
 			else
 				found=true;
