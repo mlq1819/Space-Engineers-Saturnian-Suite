@@ -973,11 +973,25 @@ void SetGyroscopes(){
 	
 	foreach(IMyShipController Ctrl in Controllers)
 		input_pitch+=Math.Min(Math.Max(Ctrl.RotationIndicator.X/100,-1),1);
+	
+	double Direction_Angle=GetAngle(Forward_Vector,Target_Direction);
+	
 	if(Math.Abs(input_pitch)<0.05f){
 		input_pitch=current_pitch*0.99f;
 		if(Do_Direction){
 			double difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
-			if(Math.Abs(difference)>Acceptable_Angle/2)
+			bool do_adjust_pitch=true;
+			if(Gravity.Length()>0){
+				double target_grav=Math.Abs(90-GetAngle(Target_Direction,Gravity));
+				if(target_grav<45){
+					double grav_difference=(GetAngle(Up_Vector,Gravity)-GetAngle(Down_Vector,Gravity))/2;
+					if(grav_difference<30&&Math.Abs(difference-Direction_Angle)>15)
+						do_adjust_pitch=false;
+					else if(Direction_Angle>90&&difference>90)
+						do_adjust_pitch=false;
+				}
+			}
+			if(do_adjust_pitch&&Math.Abs(difference)>Acceptable_Angle/2)
 				input_pitch+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
 		else{
@@ -1006,8 +1020,14 @@ void SetGyroscopes(){
 		input_yaw=current_yaw*0.99f;
 		if(Do_Direction){
 			double difference=(GetAngle(Left_Vector,Target_Direction)-GetAngle(Right_Vector,Target_Direction))/2;
-			if(difference<Acceptable_Angle&&GetAngle(Forward_Vector,Target_Direction)>180-Acceptable_Angle)
-				difference=90;
+			if(Direction_Angle>90){
+				if(difference<0)
+					difference=-180-difference;
+				else if(difference>0)
+					difference=180-difference;
+				else
+					difference=180;
+			}
 			if(Math.Abs(difference)>Acceptable_Angle/2)
 				input_yaw+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
@@ -1021,15 +1041,21 @@ void SetGyroscopes(){
 	if(Math.Abs(input_roll)<0.05f){
 		input_roll=current_roll*0.99f;
 		if(Do_Up){
-			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<Acceptable_Angle*5){
+			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<90){
 				double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
-				if(difference<Acceptable_Angle&&GetAngle(Up_Vector,Target_Up)>180-Acceptable_Angle)
-					difference=90;
+				if(GetAngle(Up_Vector,Target_Up)>90){
+					if(difference<0)
+						difference=-180-difference;
+					else if(difference>0)
+						difference=180-difference;
+					else
+						difference=180;
+				}
 				float direction_multx=1.0f;
-				if(Do_Direction&&GetAngle(Forward_Vector,Target_Direction)>Acceptable_Angle)
-					direction_multx/=(float)(GetAngle(Forward_Vector,Target_Direction)/Acceptable_Angle);
+				if(Do_Direction&&Direction_Angle>Acceptable_Angle)
+					direction_multx/=(float)(Direction_Angle/Acceptable_Angle);
 				if(Math.Abs(difference)>Acceptable_Angle/2)
-					input_roll+=10*gyro_multx*direction_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+					input_roll+=30*gyro_multx*direction_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 			}
 		}
 		else{ 
@@ -1669,8 +1695,11 @@ void TaskParser(string argument){
 		if(Task.TryParse(task,out t)){
 			if(t.Duration==Quantifier.Stop)
 				PerformTask(t);
-			else
+			else{
+				Task stopper=new Task(t.Type,Quantifier.Stop);
+				PerformTask(stopper);
 				Task_Queue.Enqueue(t);
+			}
 		}
 		else{
 			if(t==null)
