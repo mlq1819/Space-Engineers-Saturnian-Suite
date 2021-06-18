@@ -852,10 +852,20 @@ void Main_Program(string argument){
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
-	else if(argument.ToLower().Equals("direction")){
+	else if(argument.ToLower().Equals("left")){
+		Send("Direction\nUntil\n"+Left_Vector.ToString());
+	} else if(argument.ToLower().Equals("right")){
+		Send("Direction\nUntil\n"+Right_Vector.ToString());
+	} else if(argument.ToLower().Equals("up")){
 		Send("Direction\nUntil\n"+Up_Vector.ToString());
-	} else if(argument.ToLower().Equals("stop direction")){
+	} else if(argument.ToLower().Equals("full up reverse")){
+		Send("Direction\nUntil\n"+Up_Vector.ToString());
+		Send("Up\nUntil\n"+Forward_Vector.ToString());
+	} else if(argument.ToLower().Equals("belly")){
+		Send("Up\nUntil\n"+Down_Vector.ToString());
+	} else if(argument.ToLower().Equals("stop")){
 		Send("Direction\nStop");
+		Send("Up\nStop");
 	}
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
