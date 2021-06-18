@@ -1591,8 +1591,10 @@ void ProcessTasks(){
 			Notifications.Add(new Notification("Discarded invalid Task: \""+task.ToString()+"\"",5));
 			continue;
 		}
-		if(!PerformTask(task))
+		if(!PerformTask(task)){
 			Recycling.Enqueue(task);
+			Write("Failed to run task "+task.Type.ToUpper());
+		}
 		else{
 			switch(task.Duration){
 				case Quantifier.Numbered:
@@ -1603,9 +1605,14 @@ void ProcessTasks(){
 						task.Qualifiers[0]=num.ToString();
 						Recycling.Enqueue(task);
 					}
+					Write("Ran task "+task.Type.ToUpper());
 					break;
 				case Quantifier.Until:
 					Recycling.Enqueue(task);
+					Write("Ran task "+task.Type.ToUpper());
+					break;
+				default:
+					Notifications.Add(new Notification("Ran task "+task.Type.ToUpper(),10));
 					break;
 			}
 		}
