@@ -273,7 +273,7 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	public static double GetAngle(Vector3D v1, Vector3D v2){
 		v1.Normalize();
 		v2.Normalize();
-		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*57.295755,5);
+		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*(180/Math.PI),5);
 		if(output.ToString().Equals("NaN")){
 			Random Rnd=new Random();
 			Vector3D v3=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
@@ -913,12 +913,15 @@ void Main_Program(string argument){
 		Send("Match\nUntil");
 	} else if(argument.ToLower().Equals("stop")){
 		Send("Go\nStop");
+		Vector3D home=new Vector3D(-277208,-2403240,386270);
+		int timer=(int)(500+(Controller.GetPosition()-home).Length()*20);
+		Send("Go\nNumbered\n"+timer.ToString()+"\n"+home.ToString());
 		Send("Direction\nStop");
 		Send("Match\nStop");
 		Send("Up\nStop");
 		Vector3D grav=-1*Controller.GetNaturalGravity();
 		grav.Normalize();
-		Send("Up\nNumbered\n500\n"+grav.ToString());
+		Send("Up\nNumbered\n"+timer.ToString()+"\n"+grav.ToString());
 	}
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }

@@ -277,7 +277,7 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	private static double GetAngle(Vector3D v1,Vector3D v2, int i){
 		v1.Normalize();
 		v2.Normalize();
-		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*57.295755,5);
+		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*180/Math.PI,5);
 		if(i>0&&output.ToString().Equals("NaN")){
 			Random Rnd=new Random();
 			Vector3D v3=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
@@ -1760,23 +1760,30 @@ bool Task_Go(Task task){
 			Vector3D target_direction=Target_Position-PlanetCenter;
 			target_direction.Normalize();
 			double planet_angle=GetAngle(me_direction,target_direction);
-			if(planet_angle>7.5){
-				double planet_distance=2*sea_distance*Math.PI*(planet_angle/360);
+			Write("Planetary Angle: "+Math.Round(planet_angle,1).ToString()+"°");
+			if(planet_angle>2.5){
+				//double planet_distance=2*sea_distance*Math.PI*(planet_angle/360);
 				Vector3D position_direction=Target_Position-Controller.GetPosition();
 				position_direction.Normalize();
+				double target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
+				Write("Sealevel:"+Math.Round(Sealevel,0).ToString()+"M");
+				Write("target_sealevel:"+Math.Round(target_sealevel,0).ToString()+"M");
 				double grav_angle=GetAngle(Gravity,position_direction);
 				while(grav_angle<90){
-					position_direction=position_direction*30-grav_angle*planet_angle;
+					position_direction=position_direction*30-Gravity_Direction*planet_angle;
 					position_direction.Normalize();
-					GetAngle(Gravity,position_direction);
+					grav_angle=GetAngle(Gravity,position_direction);
 				}
+				double goal_height=0;
+				if(planet_angle<10)
+					goal_height=(target_sealevel+Sealevel)/2;
 				Target_Position=position_direction*Math.Min(Target_Distance,2000)+PlanetCenter;
-				double target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
+				/*target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
 				if(target_sealevel>100){
 					target_direction=Target_Position-PlanetCenter;
 					target_direction.Normalize();
-					Target_Position=target_direction*sea_distance+PlanetCenter;
-				}
+					Target_Position=target_direction*sea_distance+goal_height+PlanetCenter;
+				}*/
 			}
 		}
 		return true;
