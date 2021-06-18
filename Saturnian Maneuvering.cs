@@ -1747,6 +1747,32 @@ bool Task_Go(Task task){
 	if(Vector3D.TryParse(task.Qualifiers.Last(),out position)){
 		Target_Position=position;
 		Do_Position=true;
+		if(Sealevel<1000){
+			double sea_distance=(Controller.GetPosition()-PlanetCenter).Length()-Sealevel;
+			Vector3D me_direction=Controller.GetPosition()-PlanetCenter;
+			me_direction.Normalize();
+			Vector3D target_direction=Target_Position-PlanetCenter;
+			target_direction.Normalize();
+			double planet_angle=GetAngle(me_direction,target_direction);
+			if(planet_angle>7.5){
+				double planet_distance=2*sea_distance*Math.PI*(planet_angle/360);
+				Vector3D position_direction=Target_Position-Controller.GetPosition();
+				position_direction.Normalize();
+				double grav_angle=GetAngle(Gravity,position_direction);
+				while(grav_angle<90){
+					position_direction=position_direction*30-grav_angle*planet_angle;
+					position_direction.Normalize();
+					GetAngle(Gravity,position_direction);
+				}
+				Target_Position=position_direction*Math.Min(Target_Distance,2000);
+				double target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
+				if(target_sealevel>100){
+					target_direction=Target_Position-PlanetCenter;
+					target_direction.Normalize();
+					Target_Position=target_direction*sea_distance;
+				}
+			}
+		}
 		return true;
 	}
 	return false;
