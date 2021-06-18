@@ -1770,12 +1770,12 @@ bool Task_Go(Task task){
 					position_direction.Normalize();
 					GetAngle(Gravity,position_direction);
 				}
-				Target_Position=position_direction*Math.Min(Target_Distance,2000);
+				Target_Position=position_direction*Math.Min(Target_Distance,2000)+PlanetCenter;
 				double target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
 				if(target_sealevel>100){
 					target_direction=Target_Position-PlanetCenter;
 					target_direction.Normalize();
-					Target_Position=target_direction*sea_distance;
+					Target_Position=target_direction*sea_distance+PlanetCenter;
 				}
 			}
 		}
@@ -1905,8 +1905,9 @@ void TaskParser(string argument){
 		else{
 			if(t==null)
 				Notifications.Add(new Notification("Failed to parse \""+task+"\"",15));
-			else
+			else{
 				Notifications.Add(new Notification("Failed to parse \""+task+"\": Got\""+t.ToString()+"\"",15));
+			}
 		}
 	}
 }

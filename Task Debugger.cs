@@ -907,7 +907,7 @@ void Main_Program(string argument){
 			Vector3D target_direction=target-PlanetCenter;
 			target_direction.Normalize();
 			double target_sealevel=(target-PlanetCenter).Length()-sea_distance;
-			target=(sea_distance+Sealevel)*target_direction;
+			target=(sea_distance+Sealevel)*target_direction+PlanetCenter;
 		}
 		Send("Go\nUntil\n"+target.ToString());
 		Send("Match\nUntil");
