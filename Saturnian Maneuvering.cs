@@ -1005,7 +1005,7 @@ void SetGyroscopes(){
 			}
 		}
 		if(do_adjust_pitch){
-			if(Math.Abs(v_difference)>Acceptable_Angle/2)
+			if(Math.Abs(v_difference)>Math.Min(1,Acceptable_Angle/2))
 				input_pitch+=10*gyro_multx*((float)Math.Min(Math.Max(v_difference,-90),90)/90.0f);
 		}
 		else{
@@ -1042,7 +1042,7 @@ void SetGyroscopes(){
 				else
 					difference=180;
 			}
-			if(Math.Abs(difference)>Acceptable_Angle/2)
+			if(Math.Abs(difference)>Math.Min(1,Acceptable_Angle/2))
 				input_yaw+=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
 	}
@@ -1068,7 +1068,7 @@ void SetGyroscopes(){
 				float direction_multx=1.0f;
 				if(Do_Direction&&Direction_Angle>Acceptable_Angle)
 					direction_multx/=(float)(Direction_Angle/Acceptable_Angle);
-				if(Math.Abs(difference)>Acceptable_Angle/2)
+				if(Math.Abs(difference)>Math.Min(1,Acceptable_Angle/2))
 					input_roll+=30*gyro_multx*direction_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 			}
 		}
