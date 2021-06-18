@@ -273,7 +273,17 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	public static double GetAngle(Vector3D v1, Vector3D v2){
 		v1.Normalize();
 		v2.Normalize();
-		return Math.Round(Math.Acos(v1.X*v2.X + v1.Y*v2.Y + v1.Z*v2.Z)*57.295755,5);
+		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*57.295755,5);
+		if(output.ToString().Equals("NaN")){
+			Random Rnd=new Random();
+			Vector3D v3=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
+			v3.Normalize();
+			if(Rnd.Next(0,1)==1)
+				output=GetAngle(v1+v3/720,v2);
+			else
+				output=GetAngle(v1,v2+v3/720);
+		}
+		return output;
 	}
 }
 
