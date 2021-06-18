@@ -1098,16 +1098,26 @@ void SetGyroscopes(){
 }
 
 float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
+	double R_ESL=Math.Min(Elevation,Math.Min(esl,Math.Abs(Relative_Distance)*5));
+	if(Relative_Distance<0){
+		if((CurrentVelocity+V1-RestingVelocity).Length()<=R_ESL)
+			return -0.95f*T1;
+	}
+	else if(Relative_Distance>0){
+		if((CurrentVelocity+V2-RestingVelocity).Length()<=R_ESL)
+			return 0.95f*T2;
+	}
+	/*
 	double deacceleration=0;
 	double difference=Relative_Speed-Relative_Target_Speed;
 	if(difference>0)
 		deacceleration=Math.Abs(difference)/T1;
 	else if(difference<0)
 		deacceleration=Math.Abs(difference)/T2;
-	if((difference>0)^(Relative_Distance<0)){
+	if(true||((difference>0)^(Relative_Distance<0))){
 		double time=difference/deacceleration;
 		time=(Relative_Distance-(difference*time/2))/difference;
-		if(time>0&&(!Match_Direction||GetAngle(Forward_Vector,Target_Direction)<=Acceptable_Angle)&&Relative_Speed-Relative_Target_Speed<=0.05){
+		if(time>0&&((!Match_Direction)||GetAngle(Forward_Vector,Target_Direction)<=Acceptable_Angle)&&difference<=0.05){
 			if(difference>0){
 				if((CurrentVelocity+V1-RestingVelocity).Length()<=Math.Min(Elevation,Math.Min(esl,Target_Distance)))
 					return -0.95f*T1;
@@ -1117,7 +1127,7 @@ float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed
 					return 0.95f*T2;
 			}
 		}
-	}
+	}*/
 	return 0;
 }
 
@@ -1188,7 +1198,7 @@ void SetThrusters(){
 	Display(3,"Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
 	
 	
-	if(RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit){
+	if(RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit&&!Do_Position){
 		for(int i=0;i<All_Thrusters.Length;i++){
 			foreach(IMyThrust Thruster in All_Thrusters[i])
 				Thruster.ThrustOverride=0;
@@ -1207,9 +1217,10 @@ void SetThrusters(){
 	}
 	
 	if(Do_Position){
-		input_right=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
-		input_up=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
-		input_forward=-1*Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
+		double old_ir=input_right,old_iu=input_up,old_if=input_forward;
+		input_right+=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
+		input_up+=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
+		input_forward-=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
 	}
 	else{
 		foreach(IMyShipController Ctrl in Controllers){
@@ -1682,7 +1693,7 @@ bool Task_Up(Task task){
 //Tells the ship to fly to a specific location
 bool Task_Go(Task task){
 	Vector3D position=new Vector3D(0,0,0);
-	if(Vector3D.TryParse(task.Qualifiers.Last().Substring(3),out position)){
+	if(Vector3D.TryParse(task.Qualifiers.Last(),out position)){
 		Target_Position=position;
 		Do_Position=true;
 		return true;
@@ -1763,6 +1774,7 @@ void Task_Resetter(){
 	Do_Direction=false;
 	Do_Up=false;
 	Do_Position=false;
+	Match_Direction=false;
 }
 
 void Task_Pruner(Task task){
