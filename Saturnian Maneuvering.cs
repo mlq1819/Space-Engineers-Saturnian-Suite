@@ -973,20 +973,9 @@ void SetGyroscopes(){
 	
 	foreach(IMyShipController Ctrl in Controllers)
 		input_pitch+=Math.Min(Math.Max(Ctrl.RotationIndicator.X/100,-1),1);
-	Write("Do_Direction:"+Do_Direction.ToString());
 	if(Math.Abs(input_pitch)<0.05f){
 		if(Do_Direction){
-			Write("Target_Direction: {X:"+Math.Round(Target_Direction.X,3).ToString()+" Y:"+Math.Round(Target_Direction.Y,3).ToString()+" Z:"+Math.Round(Target_Direction.Z,3).ToString()+"}");
-			Write("Forward_Vector: {X:"+Math.Round(Forward_Vector.X,3).ToString()+" Y:"+Math.Round(Forward_Vector.Y,3).ToString()+" Z:"+Math.Round(Forward_Vector.Z,3).ToString()+"}");
-			Write("Target Angle:"+Math.Round(GetAngle(Target_Direction,Forward_Vector),1)+"°");
 			double difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
-			Write("Forward_Vector Length:"+Forward_Vector.Length().ToString());
-			Write("Target_Direction Length:"+Target_Direction.Length().ToString());
-			Write("Vertical Difference:"+Math.Round(difference,1).ToString()+"°");
-			if(difference.ToString().Equals("NaN")){
-				Write("Up_Angle:"+Math.Round(GetAngle(Up_Vector,Target_Direction),1)+"°");
-				Write("Down_Angle:"+Math.Round(GetAngle(Down_Vector,Target_Direction),1)+"°");
-			}
 			if(Math.Abs(difference)>Acceptable_Angle/2)
 				input_pitch=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
@@ -1033,8 +1022,10 @@ void SetGyroscopes(){
 	if(Math.Abs(input_roll)<0.05f){
 		if(Do_Up){
 			double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
+			if(difference<Acceptable_Angle&&GetAngle(Up_Vector,Target_Up)>180-Acceptable_Angle)
+				difference=90;
 			if(Math.Abs(difference)>Acceptable_Angle/2)
-				input_roll=-10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
+				input_roll=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
 		else{ 
 			input_roll=current_roll*0.99f;
