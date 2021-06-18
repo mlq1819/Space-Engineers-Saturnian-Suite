@@ -943,6 +943,7 @@ double Yaw_Time=1.0f;
 double Roll_Time=1.0f;
 bool Do_Direction=false;
 Vector3D Target_Direction=new Vector3D(0,0,0);
+bool Match_Direction=false;
 bool Do_Up=false;
 Vector3D Target_Up=new Vector3D(0,0,0);
 void SetGyroscopes(){
@@ -959,6 +960,12 @@ void SetGyroscopes(){
 			gyro_count+=Gyro.GyroPower/100.0f;
 	}
 	float gyro_multx=(float)Math.Max(0.1f, Math.Min(1, 1.5f/(Controller.CalculateShipMass().PhysicalMass/gyro_count/1000000)));
+	
+	if(Match_Direction){
+		Do_Direction=true;
+		Target_Direction=Target_Position-Controller.GetPosition();
+		Target_Direction.Normalize();
+	}
 	
 	float input_pitch=0;
 	float input_yaw=0;
@@ -1090,7 +1097,42 @@ void SetGyroscopes(){
 	Gyroscope.Roll=(float)output.Z;
 }
 
+double Match_Thrust(double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
+	double deacceleration=0;
+	double difference=Relative_Speed-Relative_Target_Speed;
+	if(difference>0)
+		deacceleration=Math.Abs(difference)/T1;
+	else if(difference<0)
+		deacceleration=Math.Abs(difference)/T2;
+	if((difference>0)^(Relative_Distance<0)){
+		double time=difference/deacceleration;
+		time=(Relative_Distance-(difference*time/2))/difference;
+		if(time>0&&(!Match_Direction||GetAngle(Forward_Vector,Target_Direction<=Acceptable_Angle))&&Relative_Speed-Relative_Target_Speed<=0.05){
+			if(difference>0){
+				if((CurrentVelocity+V1-RestingVelocity).Length()<=Math.Min(Elevation,Math.Min(effective_speed_limit,Target_Distance)))
+					return -0.95f*T1;
+			}
+			else {
+				if((CurrentVelocity+V2-RestingVelocity).Length()<=Math.Min(Elevation, Math.Min(effective_speed_limit,Target_Distance)))
+					return 0.95f*T2;
+			}
+		}
+	}
+}
+
 bool Safety=true;
+bool Do_Position=false;
+Vector3D Target_Position=new Vector3D(0,0,0);
+Vector3D Relative_Target_Position{
+	get{
+		return GlobalToLocalPosition(Target_Position);
+	}
+}
+double Target_Distance{
+	get{
+		return (Target_Position-Controller.GetPosition()).Length();
+	}
+}
 void SetThrusters(){
 	float input_forward=0.0f;
 	float input_up=0.0f;
@@ -1108,6 +1150,8 @@ void SetThrusters(){
 			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Math.Max(Elevation-Ev_Df,0)/200)*Speed_Limit);
 		if(Time_To_Crash<30&&Time_To_Crash>=0)
 			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Time_To_Crash/30)*Speed_Limit);
+		if(Do_Position)
+			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Target_Distance/4)*4);
 	}
 	if(Controller.DampenersOverride){
 		Display(3,"Cruise Control: Off");
@@ -1161,52 +1205,59 @@ void SetThrusters(){
 		}
 	}
 	
-	foreach(IMyShipController Ctrl in Controllers){
-		if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.X)>0.5f){
-			if(Ctrl.MoveIndicator.X>0){
-				if((!Safety)||(CurrentVelocity+Right_Vector-RestingVelocity).Length()<=effective_speed_limit)
-					input_right=0.95f*Right_Thrust;
-				else
-					input_right=Math.Min(input_right,0);
-			} else {
-				if((!Safety)||(CurrentVelocity+Left_Vector-RestingVelocity).Length()<=effective_speed_limit)
-					input_right=-0.95f*Left_Thrust;
-				else
-					input_right=Math.Max(input_right,0);
+	if(Match_Position){
+		input_right=Match_Thrust(Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
+		input_up=Match_Thrust(Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
+		input_forward=-1*Match_Thrust(Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
+	}
+	else{
+		foreach(IMyShipController Ctrl in Controllers){
+			if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.X)>0.5f){
+				if(Ctrl.MoveIndicator.X>0){
+					if((!Safety)||(CurrentVelocity+Right_Vector-RestingVelocity).Length()<=effective_speed_limit)
+						input_right=0.95f*Right_Thrust;
+					else
+						input_right=Math.Min(input_right,0);
+				} else {
+					if((!Safety)||(CurrentVelocity+Left_Vector-RestingVelocity).Length()<=effective_speed_limit)
+						input_right=-0.95f*Left_Thrust;
+					else
+						input_right=Math.Max(input_right,0);
+				}
 			}
 		}
-	}
-	
-	foreach(IMyShipController Ctrl in Controllers){
-		if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.Y)>0.5f){
-			if(Ctrl.MoveIndicator.Y>0){
-				bool grav=GetAngle(Up_Vector,Gravity_Direction)>150;
-				if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit||(grav&&(Elevation<100+Ev_Df)))
-					input_up=0.95f*Up_Thrust;
-				else
-					input_up=Math.Min(input_up,0);
-			} else {
-				if((!Safety)||(CurrentVelocity+Down_Vector-RestingVelocity).Length()<=effective_speed_limit)
-					input_up=-0.95f*Down_Thrust;
-				else
-					input_up=Math.Max(input_up,0);
+		
+		foreach(IMyShipController Ctrl in Controllers){
+			if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.Y)>0.5f){
+				if(Ctrl.MoveIndicator.Y>0){
+					bool grav=GetAngle(Up_Vector,Gravity_Direction)>150;
+					if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit||(grav&&(Elevation<100+Ev_Df)))
+						input_up=0.95f*Up_Thrust;
+					else
+						input_up=Math.Min(input_up,0);
+				} else {
+					if((!Safety)||(CurrentVelocity+Down_Vector-RestingVelocity).Length()<=effective_speed_limit)
+						input_up=-0.95f*Down_Thrust;
+					else
+						input_up=Math.Max(input_up,0);
+				}
 			}
 		}
-	}
-	
-	foreach(IMyShipController Ctrl in Controllers){
-		if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.Z)>0.5f){
-			if(Ctrl.MoveIndicator.Z<0){
-				if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit)
-					input_forward=0.95f*Forward_Thrust;
-				else
-					input_forward=Math.Min(input_forward,0);
-			} 
-			else{
-				if((!Safety)||(CurrentVelocity+Down_Vector-RestingVelocity).Length()<=effective_speed_limit)
-					input_forward=-0.95f*Backward_Thrust;
-				else
-					input_forward=Math.Max(input_forward,0);
+		
+		foreach(IMyShipController Ctrl in Controllers){
+			if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.Z)>0.5f){
+				if(Ctrl.MoveIndicator.Z<0){
+					if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit)
+						input_forward=0.95f*Forward_Thrust;
+					else
+						input_forward=Math.Min(input_forward,0);
+				} 
+				else{
+					if((!Safety)||(CurrentVelocity+Down_Vector-RestingVelocity).Length()<=effective_speed_limit)
+						input_forward=-0.95f*Backward_Thrust;
+					else
+						input_forward=Math.Max(input_forward,0);
+				}
 			}
 		}
 	}
@@ -1621,6 +1672,17 @@ bool Task_Up(Task task){
 	return false;
 }
 
+//Tells the ship to fly to a specific location
+bool Task_Go(Task task){
+	Vector3D position=new Vector3D(0,0,0);
+	if(Vector3D.TryParse(task.Qualifiers.Last().Substring(3),out position)){
+		Target_Position=position;
+		Do_Position=true;
+		return true;
+	}
+	return false;
+}
+
 bool PerformTask(Task task){
 	if(task.Duration==Quantifier.Stop){
 		Queue<Task> Recycling=new Queue<Task>();
@@ -1691,6 +1753,7 @@ void ProcessTasks(){
 void Task_Resetter(){
 	Do_Direction=false;
 	Do_Up=false;
+	Do_Position=false;
 }
 
 void Task_Pruner(Task task){
