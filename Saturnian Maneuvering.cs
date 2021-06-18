@@ -961,7 +961,7 @@ void SetGyroscopes(){
 	}
 	float gyro_multx=(float)Math.Max(0.1f, Math.Min(1, 1.5f/(Controller.CalculateShipMass().PhysicalMass/gyro_count/1000000)));
 	
-	if(Match_Direction){
+	if(Match_Direction&&Do_Position){
 		Do_Direction=true;
 		Target_Direction=Target_Position-Controller.GetPosition();
 		Target_Direction.Normalize();
@@ -1687,6 +1687,12 @@ class Task{
 			new Vector2(1,1)
 			)); //Params: Vector3D
 			
+			output.Add(new TaskFormat(
+			"Match",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(0,0)
+			)); //No Params
+			
 			return output;
 		}
 	}
@@ -1778,6 +1784,12 @@ bool Task_Go(Task task){
 	return false;
 }
 
+//Tells the ship to match position
+bool Task_Match(Task task){
+	Match_Direction=true;
+	return true;
+}
+
 bool PerformTask(Task task){
 	if(task.Duration==Quantifier.Stop){
 		Queue<Task> Recycling=new Queue<Task>();
@@ -1802,6 +1814,8 @@ bool PerformTask(Task task){
 			return Task_Up(task);
 		case "Go":
 			return Task_Go(task);
+		case "Match":
+			return Task_Match(task);
 	}
 	return false;
 }

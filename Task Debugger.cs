@@ -898,9 +898,13 @@ void Main_Program(string argument){
 		Send("Go\nUntil\n"+Controller.GetPosition().ToString());
 	} else if(argument.ToLower().Equals("belly")){
 		Send("Up\nUntil\n"+Down_Vector.ToString());
+	} else if(argument.ToLower().Equals("far")){
+		
+	}
 	} else if(argument.ToLower().Equals("stop")){
 		Send("Go\nStop");
 		Send("Direction\nStop");
+		Send("Match\nStop");
 		Send("Up\nStop");
 		Vector3D grav=-1*Controller.GetNaturalGravity();
 		grav.Normalize();
