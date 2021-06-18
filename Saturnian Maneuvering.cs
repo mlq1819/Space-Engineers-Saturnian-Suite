@@ -1100,6 +1100,12 @@ void SetGyroscopes(){
 
 double Distance_Speed_Limit(double distance){
 	distance=Math.Abs(distance);
+	if(distance<0.5)
+		return 2*distance;
+	if(distance<1.5)
+		return 1;
+	if(distance<2.5)
+		return 2.5;
 	if(distance<5)
 		return distance;
 	if(distance<25)
