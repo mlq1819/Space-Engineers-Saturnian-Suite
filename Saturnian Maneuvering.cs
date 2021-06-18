@@ -274,20 +274,24 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 		return SortByDistance(unsorted,P.Me);
 	}
 	
-	public static double GetAngle(Vector3D v1, Vector3D v2){
+	private static double GetAngle(Vector3D v1,Vector3D v2, int i){
 		v1.Normalize();
 		v2.Normalize();
 		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*57.295755,5);
-		if(output.ToString().Equals("NaN")){
+		if(i>0&&output.ToString().Equals("NaN")){
 			Random Rnd=new Random();
 			Vector3D v3=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
 			v3.Normalize();
 			if(Rnd.Next(0,1)==1)
-				output=GetAngle(v1+v3/720,v2);
+				output=GetAngle(v1+v3/360,v2,i-1);
 			else
-				output=GetAngle(v1,v2+v3/720);
+				output=GetAngle(v1,v2+v3/360,i-1);
 		}
 		return output;
+	}
+	
+	public static double GetAngle(Vector3D v1, Vector3D v2){
+		return GetAngle(v1,v2,10);
 	}
 }
 
@@ -1686,6 +1690,26 @@ void Task_Resetter(){
 	Do_Up=false;
 }
 
+void Task_Pruner(Task task){
+	bool duplicate=false;
+	foreach(Task t in Task_Queue){
+		if(t.Type==task.Type){
+			duplicate=true;
+			break;
+		}
+	}
+	if(duplicate){
+		Queue<Task> Recycling=new Queue<Task>();
+		while(Task_Queue.Count>0){
+			Task t=Task_Queue.Dequeue();
+			if(!t.Type.Equals(task.Type))
+				Recycling.Enqueue(t);
+		}
+		while(Recycling.Count>0)
+			Task_Queue.Enqueue(Recycling.Dequeue());
+	}
+}
+
 void TaskParser(string argument){
 	string[] tasks=argument.Split('•');
 	foreach(string task in tasks){
@@ -1696,8 +1720,7 @@ void TaskParser(string argument){
 			if(t.Duration==Quantifier.Stop)
 				PerformTask(t);
 			else{
-				Task stopper=new Task(t.Type,Quantifier.Stop);
-				PerformTask(stopper);
+				Task_Pruner(t);
 				Task_Queue.Enqueue(t);
 			}
 		}
