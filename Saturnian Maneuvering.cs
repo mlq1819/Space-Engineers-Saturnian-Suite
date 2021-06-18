@@ -277,7 +277,17 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	public static double GetAngle(Vector3D v1, Vector3D v2){
 		v1.Normalize();
 		v2.Normalize();
-		return Math.Round(Math.Acos(v1.X*v2.X + v1.Y*v2.Y + v1.Z*v2.Z)*57.295755,5);
+		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*57.295755,5);
+		if(output.ToString().Equals("NaN")){
+			Random Rnd=new Random();
+			Vector3D v3=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
+			v3.Normalize();
+			if(Rnd.Next(0,1)==1)
+				output=GetAngle(v1+v3/720,v2);
+			else
+				output=GetAngle(v1,v2+v3/720);
+		}
+		return output;
 	}
 }
 
@@ -963,17 +973,22 @@ void SetGyroscopes(){
 	
 	foreach(IMyShipController Ctrl in Controllers)
 		input_pitch+=Math.Min(Math.Max(Ctrl.RotationIndicator.X/100,-1),1);
+	Write("Do_Direction:"+Do_Direction.ToString());
 	if(Math.Abs(input_pitch)<0.05f){
-		Write("Do_Direction:"+Do_Direction.ToString());
-		Write("Target Angle:"+Math.Round(GetAngle(Target_Direction,Forward_Vector),1)+"°");
-		if(Do_Direction&&Target_Direction.Length()>0){
+		if(Do_Direction){
+			Write("Target_Direction: {X:"+Math.Round(Target_Direction.X,3).ToString()+" Y:"+Math.Round(Target_Direction.Y,3).ToString()+" Z:"+Math.Round(Target_Direction.Z,3).ToString()+"}");
+			Write("Forward_Vector: {X:"+Math.Round(Forward_Vector.X,3).ToString()+" Y:"+Math.Round(Forward_Vector.Y,3).ToString()+" Z:"+Math.Round(Forward_Vector.Z,3).ToString()+"}");
+			Write("Target Angle:"+Math.Round(GetAngle(Target_Direction,Forward_Vector),1)+"°");
 			double difference=(GetAngle(Up_Vector,Target_Direction)-GetAngle(Down_Vector,Target_Direction))/2;
-			Write("Vertical_Difference:"+Math.Round(difference/2,1).ToString()+"°");
-			Write("gyro_multx:"+Math.Round(gyro_multx,5).ToString());
-			Write("input_pitch:"+Math.Round(input_pitch,5).ToString());
+			Write("Forward_Vector Length:"+Forward_Vector.Length().ToString());
+			Write("Target_Direction Length:"+Target_Direction.Length().ToString());
+			Write("Vertical Difference:"+Math.Round(difference,1).ToString()+"°");
+			if(difference.ToString().Equals("NaN")){
+				Write("Up_Angle:"+Math.Round(GetAngle(Up_Vector,Target_Direction),1)+"°");
+				Write("Down_Angle:"+Math.Round(GetAngle(Down_Vector,Target_Direction),1)+"°");
+			}
 			if(Math.Abs(difference)>Acceptable_Angle/2)
 				input_pitch=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
-			Write("input_pitch:"+Math.Round(input_pitch,5).ToString());
 		}
 		else{
 			input_pitch=current_pitch*0.99f;
@@ -999,9 +1014,10 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_yaw+=Math.Min(Math.Max(Ctrl.RotationIndicator.Y/100,-1),1);
 	if(Math.Abs(input_yaw)<0.05f){
-		if(Do_Direction&&Target_Direction.Length()>0){
+		if(Do_Direction){
 			double difference=(GetAngle(Left_Vector,Target_Direction)-GetAngle(Right_Vector,Target_Direction))/2;
-			Write("Horizontal_Difference:"+Math.Round(difference/2,1).ToString()+"°");
+			if(difference<Acceptable_Angle&&GetAngle(Forward_Vector,Target_Direction)>180-Acceptable_Angle)
+				difference=90;
 			if(Math.Abs(difference)>Acceptable_Angle/2)
 				input_yaw=10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
 		}
@@ -1015,7 +1031,7 @@ void SetGyroscopes(){
 	foreach(IMyShipController Ctrl in Controllers)
 		input_roll+=Ctrl.RollIndicator;
 	if(Math.Abs(input_roll)<0.05f){
-		if(Do_Up&&Target_Up.Length()>0){
+		if(Do_Up){
 			double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
 			if(Math.Abs(difference)>Acceptable_Angle/2)
 				input_roll=-10*gyro_multx*((float)Math.Min(Math.Max(difference,-90),90)/90.0f);
@@ -1263,7 +1279,6 @@ void UpdateProgramInfo(){
 }
 
 void UpdateSystemData(){
-	Write("", false, false);
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
 	Forward_Vector.Normalize();
@@ -1547,8 +1562,18 @@ bool Task_Send(Task task){
 //Tells the ship to orient to a specific forward direction
 bool Task_Direction(Task task){
 	Vector3D direction=new Vector3D(0,0,0);
-	if(Vector3D.TryParse(task.Qualifiers[0],out direction)){
+	if(task.Qualifiers[0].IndexOf("At ")==0){
+		if(Vector3D.TryParse(task.Qualifiers[0].Substring(3),out direction)){
+			Target_Direction=direction-Controller.GetPosition();
+			Target_Direction.Normalize();
+			Do_Direction=true;
+			return true;
+		}
+	}
+	else if(Vector3D.TryParse(task.Qualifiers[0],out direction)){
 		Target_Direction=direction;
+		if(Target_Direction.Length()==0)
+			return false;
 		Target_Direction.Normalize();
 		Do_Direction=true;
 		return true;

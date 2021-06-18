@@ -555,7 +555,6 @@ void UpdateProgramInfo(){
 }
 
 void UpdateSystemData(){
-	Write("", false, false);
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
 	Forward_Vector.Normalize();
@@ -736,6 +735,12 @@ class Task{
 			new Vector2(1,-1)
 			)); //Params: ProgName, [Arguments]
 			
+			output.Add(new TaskFormat(
+			"SendAll",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Once,Quantifier.Numbered}),
+			new Vector2(0,-1)
+			)); //Params: ProgName, [Arguments]
+			
 			return output;
 		}
 	}
@@ -754,6 +759,17 @@ bool Task_Send(Task task){
 		arguments+=task.Qualifiers[i];
 	}
 	return target.TryRun(arguments);
+}
+
+//Sends an argument to all programmable blocks
+bool Task_SendAll(Task task){
+	string arguments="";
+	for(int i=0;i<task.Qualifiers.Count;i++){
+		if(i!=0)
+			arguments+='\n';
+		arguments+=task.Qualifiers[i];
+	}
+	return Send(arguments,false);
 }
 
 bool PerformTask(Task task){
@@ -833,7 +849,7 @@ void TaskParser(string argument){
 	}
 }
 
-void Send(string argument){
+bool Send(string argument, bool do_thing=true){
 	List<IMyProgrammableBlock> ProgBlocks=GenericMethods<IMyProgrammableBlock>.GetAllIncluding("");
 	int i=0;
 	foreach(IMyProgrammableBlock prog in ProgBlocks){
@@ -843,6 +859,11 @@ void Send(string argument){
 			i++;
 	}
 	Write("Ran\n\""+argument+"\"\non "+i.ToString()+"/"+(ProgBlocks.Count-1).ToString()+" machines");
+	if(do_thing&&i==0){
+		Runtime.UpdateFrequency=UpdateFrequency.Once;
+		Task_Queue.Enqueue(new Task("SendAll",Quantifier.Once,new List<string>(argument.Split('\n'))));
+	}
+	return i>0;
 }
 
 void Main_Program(string argument){
@@ -858,7 +879,9 @@ void Main_Program(string argument){
 		Send("Direction\nUntil\n"+Right_Vector.ToString());
 	} else if(argument.ToLower().Equals("up")){
 		Send("Direction\nUntil\n"+Up_Vector.ToString());
-	} else if(argument.ToLower().Equals("full up reverse")){
+	} else if(argument.ToLower().Equals("back")){
+		Send("Direction\nUntil\n"+Backward_Vector.ToString());
+	} else if(argument.ToLower().Equals("twist")){
 		Send("Direction\nUntil\n"+Up_Vector.ToString());
 		Send("Up\nUntil\n"+Forward_Vector.ToString());
 	} else if(argument.ToLower().Equals("belly")){
