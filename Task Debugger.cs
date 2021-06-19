@@ -899,7 +899,7 @@ void Main_Program(string argument){
 	} else if(argument.ToLower().Equals("belly")){
 		Send("Up\nUntil\n"+Down_Vector.ToString());
 	} else if(argument.ToLower().Equals("far")){
-		Vector3D target=Controller.GetPosition()+20000*Forward_Vector;
+		Vector3D target=Controller.GetPosition()+12000*Forward_Vector;
 		Vector3D PlanetCenter;
 		double Sealevel;
 		if(Controller.TryGetPlanetPosition(out PlanetCenter)&&Controller.TryGetPlanetElevation(MyPlanetElevation.Sealevel,out Sealevel)){
@@ -910,7 +910,7 @@ void Main_Program(string argument){
 			target=(sea_distance+Sealevel)*target_direction+PlanetCenter;
 		}
 		Send("Go\nUntil\n"+target.ToString());
-		Send("Match\nNumbered\n1000");
+		Send("Match\nUntil");
 	} else if(argument.ToLower().Equals("stop")){
 		Send("Go\nStop");
 		Vector3D home=new Vector3D(-277208,-2403240,386270);
@@ -918,7 +918,7 @@ void Main_Program(string argument){
 		int timer=(int)(500+(Controller.GetPosition()-home).Length()*20);
 		double distance=(Controller.GetPosition()-home).Length();
 		if(distance>20)
-			timer+=(int)(Math.Pow(distance,2)*-.00011413+distance*1.03478+79.35);
+			timer+=(int)(distance/600+500);
 		Send("Go\nNumbered\n"+timer.ToString()+"\n"+home.ToString());
 		Send("Direction\nStop");
 		Send("Match\nStop");
