@@ -899,7 +899,7 @@ void Main_Program(string argument){
 	} else if(argument.ToLower().Equals("belly")){
 		Send("Up\nUntil\n"+Down_Vector.ToString());
 	} else if(argument.ToLower().Equals("far")){
-		Vector3D target=Controller.GetPosition()+5000*Forward_Vector;
+		Vector3D target=Controller.GetPosition()+20000*Forward_Vector;
 		Vector3D PlanetCenter;
 		double Sealevel;
 		if(Controller.TryGetPlanetPosition(out PlanetCenter)&&Controller.TryGetPlanetElevation(MyPlanetElevation.Sealevel,out Sealevel)){

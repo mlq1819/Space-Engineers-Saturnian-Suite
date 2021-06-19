@@ -1815,7 +1815,7 @@ bool Task_Go(Task task){
 				}
 				if(Elevation<250+MySize/2){
 					//This increases the cruising altitude if the elevation is too low, for collision avoidance
-					my_radius+=Math.Max(Math.Min(3.75*300-(Elevation-MySize/2),1000),250);
+					my_radius+=Math.Max(Math.Min(7.5*300-(Elevation-MySize/2),2000),250);
 					MyPosition=(my_radius)*me_direction+PlanetCenter;
 				}
 				Target_Position=(my_radius)*target_direction+PlanetCenter;
