@@ -961,7 +961,7 @@ void SetGyroscopes(){
 	}
 	float gyro_multx=(float)Math.Max(0.1f, Math.Min(1, 1.5f/(Controller.CalculateShipMass().PhysicalMass/gyro_count/1000000)));
 	
-	if(Match_Direction&&Do_Position){
+	if(Match_Direction&&Do_Position&&Target_Distance>20){
 		Do_Direction=true;
 		Target_Direction=Target_Position-Controller.GetPosition();
 		Target_Direction.Normalize();
@@ -1120,7 +1120,7 @@ double Distance_Speed_Limit(double distance){
 		return 50;
 	return distance/10;
 }
-float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2){
+float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed,double Relative_Distance,float T1,float T2,Vector3D V1,Vector3D V2,float Relative_Gravity){
 	double R_ESL=Math.Min(Elevation,Math.Min(esl,Distance_Speed_Limit(Relative_Distance)));
 	float distance_multx=1.0f;
 	double Target_Speed=0;
@@ -1129,9 +1129,9 @@ float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed
 	double time=0;
 	//difference is required change in velocity; must be "0" when the target is reached
 	if(speed_change>0)
-		time=deacceleration/T1;
+		time=deacceleration/(T1-Relative_Gravity);
 	else if(speed_change<0)
-		time=deacceleration/T2;
+		time=deacceleration/(T2+Relative_Gravity);
 	//deacceleration is the required change in force; divided by the thruster power, this is now the ammount of time required to make that change
 	double acceleration_distance=(Math.Abs(Relative_Speed)+Target_Speed)*time/2;
 	//acceleration_distance is the distance that will be covered during that change in speed
@@ -1148,28 +1148,6 @@ float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed
 		if((CurrentVelocity+V2-RestingVelocity).Length()<=R_ESL)
 			return 0.95f*T2*distance_multx;
 	}
-	
-	/*
-	double deacceleration=0;
-	double difference=Relative_Speed-Relative_Target_Speed;
-	if(difference>0)
-		deacceleration=Math.Abs(difference)/T1;
-	else if(difference<0)
-		deacceleration=Math.Abs(difference)/T2;
-	if(((difference>0)^(Relative_Distance<0))){
-		double time=difference/deacceleration;
-		time=(Relative_Distance-(difference*time/2))/difference;
-		if(time>0&&((!Match_Direction)||GetAngle(Forward_Vector,Target_Direction)<=Acceptable_Angle)&&difference<=0.05){
-			if(difference>0){
-				if((CurrentVelocity+V1-RestingVelocity).Length()<=Math.Min(Elevation,Math.Min(esl,Target_Distance)))
-					return -0.95f*T1;
-			}
-			else {
-				if((CurrentVelocity+V2-RestingVelocity).Length()<=Math.Min(Elevation, Math.Min(esl,Target_Distance)))
-					return 0.95f*T2;
-			}
-		}
-	}*/
 	return 0;
 }
 
@@ -1263,13 +1241,13 @@ void SetThrusters(){
 			Write("Target Position: "+Math.Round(Target_Distance/1000,1)+"kM");
 		else
 			Write("Target Position: "+Math.Round(Target_Distance,0)+"M");
-		float thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector);
+		float thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector,-1*(float)Adjusted_Gravity.X);
 		if(Math.Abs(thrust_value)>=1)
 			input_right=thrust_value-(float)Adjusted_Gravity.X;
-		thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector);
+		thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector,-1*(float)Adjusted_Gravity.Y);
 		if(Math.Abs(thrust_value)>=1)
 			input_up=thrust_value-(float)Adjusted_Gravity.Y;
-		thrust_value=-1*Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector);
+		thrust_value=-1*Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector,(float)Adjusted_Gravity.Z);
 		if(Math.Abs(thrust_value)>=1)
 			input_forward=thrust_value+(float)Adjusted_Gravity.Z;
 	}
@@ -1837,7 +1815,7 @@ bool Task_Go(Task task){
 				}
 				if(Elevation<250+MySize/2){
 					//This increases the cruising altitude if the elevation is too low, for collision avoidance
-					my_radius+=250+MySize/2-Elevation;
+					my_radius+=1000+MySize/2-Elevation;
 					MyPosition=(my_radius)*me_direction+PlanetCenter;
 				}
 				Target_Position=(my_radius)*target_direction+PlanetCenter;
