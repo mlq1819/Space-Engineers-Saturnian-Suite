@@ -8,6 +8,7 @@ string Program_Name="Saturnian Navigation";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
 Color DEFAULT_BACKGROUND_COLOR=new Color(44,0,88,255);
 double Acceptable_Angle=5;
+int Graph_Length_Seconds=180;
 
 class Prog{
 	public static MyGridProgram P;
@@ -406,6 +407,31 @@ string GetRemovedString(string big_string, string small_string){
 	return output;
 }
 
+struct CustomPanel{
+	public IMyTextSurface Display;
+	public bool Trans;
+	public CustomPanel(IMyTextSurface d,bool t=false){
+		Display=d;
+		Trans=t;
+	}
+	public CustomPanel(IMyTextPanel p){
+		Display=p as IMyTextSurface;
+		Trans=p.CustomName.ToLower().Contains("transparent");
+	}
+}
+
+struct Altitude_Data{
+	public TimeSpan Timestamp;
+	public double Sealevel;
+	public double Elevation;
+	
+	public Altitude_Data(double S,double E,TimeSpan start){
+		Sealevel=S;
+		Elevation=E;
+		Timestamp=start;
+	}
+}
+
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
@@ -414,6 +440,11 @@ Random Rnd;
 
 IMyShipController Controller;
 List<IMyShipController> Controllers;
+
+List<CustomPanel> AltitudeLCDs;
+
+Queue<Altitude_Data> Altitude_Graph;
+double Altitude_Timer=0;
 
 List<IMyThrust>[] All_Thrusters=new List<IMyThrust>[6];
 List<IMyThrust> Forward_Thrusters{
@@ -668,12 +699,32 @@ void Reset(){
 	Controllers=new List<IMyShipController>();
 	for(int i=0;i<All_Thrusters.Length;i++)
 		All_Thrusters[i]=new List<IMyThrust>();
+	AltitudeLCDs=new List<CustomPanel>();
+	Altitude_Graph=new Queue<Altitude_Data>();
 	Notifications=new List<Notification>();
 }
 
 double MySize=0;
 bool Setup(){
 	Reset();
+	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude");
+	foreach(IMyTextPanel Panel in LCDs)
+		AltitudeLCDs.Add(new CustomPanel(Panel));
+	foreach(CustomPanel Panel in AltitudeLCDs){
+		if(Panel.Trans){
+			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
+			Panel.Display.BackgroundColor=new Color(0,0,0,0);
+		}
+		else{
+			Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
+			Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+		}
+		Panel.Display.Font="Monospace";
+		Panel.Display.Alignment=TextAlignment.LEFT;
+		Panel.Display.ContentType=ContentType.TEXT_AND_IMAGE;
+		Panel.Display.TextPadding=0;
+		Panel.Display.FontSize=0.5f;
+	}
 	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
 	if(Controller==null)
 		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
@@ -736,6 +787,7 @@ public Program(){
 		Me.GetSurface(i).BackgroundColor=DEFAULT_BACKGROUND_COLOR;
 		Me.GetSurface(i).Alignment=TextAlignment.CENTER;
 		Me.GetSurface(i).ContentType=ContentType.TEXT_AND_IMAGE;
+		Me.GetSurface(i).Font="Debug";
 	}
 	Me.GetSurface(1).FontSize=2.2f;
 	Me.GetSurface(1).TextPadding=30.0f;
@@ -828,11 +880,140 @@ void UpdateProgramInfo(){
 		Current_Display=(Current_Display%Display_Count)+1;
 		Display_Timer=5;
 	}
+	if(Altitude_Timer>0)
+		Altitude_Timer-=seconds_since_last_update;
 	Write("Display "+Current_Display.ToString()+"/"+Display_Count.ToString());
+	UpdateMyDisplay();
 	Echo(ToString(FromSeconds(seconds_since_last_update))+" since last cycle");
 	Time_Since_Start=UpdateTimeSpan(Time_Since_Start,seconds_since_last_update);
 	Echo(ToString(Time_Since_Start)+" since last reboot\n");
 	Me.GetSurface(1).WriteText("\n"+ToString(Time_Since_Start)+" since last reboot",true);
+}
+
+void UpdateMyDisplay(){
+	IMyTextSurface Display=Me.GetSurface(0);
+	if(Current_Display==3){
+		Display.FontColor=DEFAULT_TEXT_COLOR;
+		Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+		Display.Alignment=TextAlignment.LEFT;
+		Display.ContentType=ContentType.TEXT_AND_IMAGE;
+		Display.Font="Monospace";
+		Display.TextPadding=0;
+		Display.FontSize=0.5f;
+	}
+	else{
+		Display.FontColor=DEFAULT_TEXT_COLOR;
+		Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+		Display.Alignment=TextAlignment.CENTER;
+		Display.ContentType=ContentType.TEXT_AND_IMAGE;
+		Display.Font="Debug";
+		Display.TextPadding=2;
+		Display.FontSize=1;
+	}
+}
+
+string Graph_Text="";
+
+void MarkAltitude(bool do_new=true){
+	const int XLEN=48;
+	const int XFULL=51;
+	if(Gravity.Length()==0)
+		return;
+	if(do_new)
+		Altitude_Timer=((double)Graph_Length_Seconds)/XFULL;
+	while(Altitude_Graph.Count>0&&Time_Since_Start.TotalSeconds-Altitude_Graph.Peek().Timestamp.TotalSeconds>Graph_Length_Seconds)
+		Altitude_Graph.Dequeue();
+	if(do_new&&Altitude_Graph.Count<XLEN&&Gravity.Length()>0)
+		Altitude_Graph.Enqueue(new Altitude_Data(Sealevel,Elevation,Time_Since_Start));
+	if(Altitude_Graph.Count==0)
+		return;
+	double max=500;
+	double min=double.MaxValue;
+	foreach(Altitude_Data Data in Altitude_Graph){
+		max=Math.Max(max,Data.Sealevel-Data.Elevation);
+		min=Math.Min(min,Data.Sealevel-Data.Elevation);
+	}
+	max+=100;
+	min=Math.Max(min-100,-1100);
+	max=Math.Ceiling(max/100)*100;
+	min=Math.Floor(min/100)*100;
+	double interval=(max-min)/34.0;
+	//50 wide, 30 tall
+	char[][] Graph=new char[35][];
+	for(int y=0;y<35;y++){
+		Graph[y]=new char[XFULL];
+		double altitude=(min+y*interval);
+		int alt_num=(int)Math.Floor(altitude/1000);
+		int low_alt=(int)Math.Floor((altitude-interval)/1000);
+		char alt_10s=((Math.Abs(alt_num)/10)%10).ToString()[0];
+		if(alt_num<0)
+			alt_10s='-';
+		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
+		for(int x=0;x<XFULL;x++){
+			Graph[y][x]=' ';
+			if(x<2){
+				if(alt_num!=low_alt||(min==0&&y==0)){
+					if(x==0)
+						Graph[y][x]=alt_10s;
+					else
+						Graph[y][x]=alt_1s;
+				}
+				else if(((int)Math.Floor(altitude/500))!=((int)Math.Floor((altitude-interval)/500)))
+					Graph[y][x]='-';
+				else if(x==1&&((int)Math.Floor(altitude/250))!=((int)Math.Floor((altitude-interval)/250)))
+					Graph[y][x]='-';
+			}
+			else if(x==2){
+				Graph[y][x]='|';
+			}
+		}
+	}
+	
+	// if(Orbiting){
+		// double Orbital_Altitude=0;
+		
+		// int Y=(int)Math.Round((Orbital_Altitude-min)/interval,0);
+		// if(Y>=0&&Y<35){
+			// for(int X=3;X<XFULL;X++){
+				// if(X%2==0)
+					// Graph[Y][X]='=';
+			// }
+		// }
+	// }
+	
+	double time_interval=Graph_Length_Seconds/((double)XLEN);
+	double End=Time_Since_Start.TotalSeconds;
+	double Start=End-Graph_Length_Seconds;
+	
+	foreach(Altitude_Data Point in Altitude_Graph){
+		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
+		int Y_E=(int)Math.Round((Point.Sealevel-Point.Elevation)/interval,0);
+		int Y_S=(int)Math.Round((Point.Sealevel-min)/interval,0);
+		if(X>=0&&X<XLEN){
+			if(Y_S>=0&&Y_S<35)
+				Graph[Y_S][X+3]='○';
+			if(Y_E>=0&&Y_E<35)
+				Graph[Y_E][X+3]='_';
+		}
+	}
+	if(do_new){
+		string time=Math.Round(Altitude_Timer,3).ToString();
+		for(int i=1;i<=time.Length;i++)
+			Graph[34][XFULL-i]=time[time.Length-i];
+	}
+	string text="";
+	for(int y=34;y>=0;y--){
+		if(y<34)
+			text+='\n';
+		for(int x=0;x<XFULL;x++){
+			text+=Graph[y][x];
+		}
+	}
+	Graph_Text=text;
+	foreach(CustomPanel Panel in AltitudeLCDs){
+		Panel.Display.WriteText(text,false);
+	}
+	
 }
 
 bool Safety=true;
@@ -948,7 +1129,10 @@ public void Main(string argument,UpdateType updateSource){
 			else
 				Main_Program(argument);
 		}
-		PrintNotifications();
+		if(Current_Display==3)
+			Me.GetSurface(0).WriteText(Graph_Text,false);
+		else
+			PrintNotifications();
 	}
 	catch(Exception E){
 		Write(E.ToString());
@@ -1236,8 +1420,8 @@ void Main_Program(string argument){
 	else if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
-	
-	
+	if(Altitude_Timer<=0)
+		MarkAltitude();
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
