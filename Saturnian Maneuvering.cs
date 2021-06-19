@@ -274,7 +274,7 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 		return SortByDistance(unsorted,P.Me);
 	}
 	
-	private static double GetAngle(Vector3D v1,Vector3D v2, int i){
+	private static double GetAngle(Vector3D v1,Vector3D v2,int i){
 		v1.Normalize();
 		v2.Normalize();
 		double output=Math.Round(Math.Acos(v1.X*v2.X+v1.Y*v2.Y+v1.Z*v2.Z)*180/Math.PI,5);
@@ -1457,7 +1457,7 @@ void UpdateSystemData(){
 				double from_center=(Controller.GetPosition()-PlanetCenter).Length();
 				Vector3D next_position=Controller.GetPosition()+1*CurrentVelocity;
 				double Elevation_per_second=(from_center-(next_position-PlanetCenter).Length());
-				Time_To_Crash=Elevation/Elevation_per_second;
+				Time_To_Crash=(Elevation-MySize/2)/Elevation_per_second;
 				bool need_print=true;
 				if(_Autoland)
 					Write("Autoland Enabled");
@@ -1747,44 +1747,106 @@ bool Task_Up(Task task){
 	return false;
 }
 
+
+struct Plane{
+	public double A;
+	public double B;
+	public double C;
+	public double D;
+	
+	public Plane(double a,double b,double c,double d){
+		A=a;
+		B=b;
+		C=c;
+		D=d;
+	}
+	
+	public Plane(Vector3D a,Vector3D b,Vector3D c){
+		A=(b.Y-a.Y)*(c.Z-a.Z)-(c.Y-a.Y)(b.Z-a.Z);
+		B=(b.Z-a.Z)(c.X-a.X)-(c.Z-a.Z)(b.X-a.X);
+		C=(b.X-a.X)(c.Y-a.Y)-(c.X-a.X)(b.Y-a.Y);
+		D=-1*(A*a.X+B*a.Y+C*a.Z);
+	}
+	
+	//Creates a Tangent Plane at the given point with the given normal
+	public Plane(Vector3D Point,Vector3D Normal){
+		A=Normal.X;
+		B=Normal.Y;
+		C=Normal.Z;
+		D=-1*(Normal.X*Point.X+Normal.Y*Point.Y+Normal.Z*Point.Z);
+	}
+	
+	//Creates a Normal Vector from the plane
+	public Vector3D Normal(){
+		Vector3D output=new Vector3D(A,B,C);
+		output.Normalize();
+		return output;
+	}
+}
+struct Sphere{
+	public Vector3D Center;
+	public double Radius;
+	
+	public SphereEquation(Vector3D c,double r){
+		Center=c;
+		Radius=r;
+	}
+	
+	public bool On(Vector3D p){
+		return Math.Abs(Math.Pow(p.X-Center.X,2)+Math.Pow(p.Y-Center.Y,2)+Math.Pow(p.Z-Center.Z,2)-Radius)<0.00001;
+	}
+}
+struct Line{
+	public Vector3D R;
+	public Vector3D V;
+	
+	//Tangent Line on the Circle, where Vector3D Point is on the circle that results from the intersection of Plane P and Sphere S
+	public Line(Plane P,Sphere S,Vector3D Point){
+		Vector3D Tangent_Normal=Point-S.Center;
+		Tangent_Normal.Normalize();
+		V=Vector3D.Cross(P.Normal(),Tangent_Normal);
+		R=Point;
+	}
+}
+
+Vector3D True_Target_Position=new Vector3D(0,0,0);
 //Tells the ship to fly to a specific location
 bool Task_Go(Task task){
 	Vector3D position=new Vector3D(0,0,0);
 	if(Vector3D.TryParse(task.Qualifiers.Last(),out position)){
 		Target_Position=position;
+		True_Target_Position=position;
 		Do_Position=true;
-		if(Sealevel<1000){
-			double sea_distance=(Controller.GetPosition()-PlanetCenter).Length()-Sealevel;
-			Vector3D me_direction=Controller.GetPosition()-PlanetCenter;
-			me_direction.Normalize();
+		if(Sealevel<2000){
+			Vector3D MyPosition=Controller.GetPosition();
+			double my_radius=MyPosition-PlanetCenter.Length();
 			Vector3D target_direction=Target_Position-PlanetCenter;
 			target_direction.Normalize();
 			double planet_angle=GetAngle(me_direction,target_direction);
 			Write("Planetary Angle: "+Math.Round(planet_angle,1).ToString()+"°");
-			if(planet_angle>2.5){
-				//double planet_distance=2*sea_distance*Math.PI*(planet_angle/360);
-				Vector3D position_direction=Target_Position-Controller.GetPosition();
-				position_direction.Normalize();
-				double target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
-				Write("Sealevel:"+Math.Round(Sealevel,0).ToString()+"M");
-				Write("target_sealevel:"+Math.Round(target_sealevel,0).ToString()+"M");
-				double grav_angle=GetAngle(Gravity,position_direction);
-				while(grav_angle<90){
-					position_direction=position_direction*30-Gravity_Direction*planet_angle;
-					position_direction.Normalize();
-					grav_angle=GetAngle(Gravity,position_direction);
-				}
-				double goal_height=0;
-				if(planet_angle<10)
-					goal_height=(target_sealevel+Sealevel)/2;
-				Target_Position=position_direction*Math.Min(Target_Distance,2000)+PlanetCenter;
-				/*target_sealevel=(Target_Position-PlanetCenter).Length()-sea_distance;
-				if(target_sealevel>100){
-					target_direction=Target_Position-PlanetCenter;
-					target_direction.Normalize();
-					Target_Position=target_direction*sea_distance+goal_height+PlanetCenter;
-				}*/
+			//This offsets the angle so we can create a full Plane from the 3 points: Center,Here,Target
+			while(planet_angle==180){
+				Vector3D offset=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
+				offset.Normalize();
+				Target_Position+=offset;
+				target_direction=Target_Position-PlanetCenter;
+				target_direction.Normalize();
+				planet_angle=GetAngle(me_direction,target_direction);
 			}
+			Target_Position=(my_radius)*target_direction+PlanetCenter;
+			//Target is now at same altitude with respect to sealevel
+			Plane Bisect=new Plane(Target_Position,MyPosition,PlanetCenter);
+			//This plane now bisects the planet along both the current location and target
+			Sphere Planet=new Sphere(PlanetCenter,my_radius);
+			//This sphere now represents the planet at the current elevation
+			Line Tangent=new Line(Bisect,Planet,MyPosition);
+			//This line now represents the tangent of the planet in a direction that lines up with the target
+			Vector3D Goal_Direction=Tangent.V;
+			Vector3D My_Direction=Target_Position-MyPosition;
+			My_Direction.Normalize();
+			if(GetAngle(Goal_Direction,My_Direction)>GetAngle(-1*Goal_Direction,My_Direction))
+				Goal_Direction*=-1;
+			Target_Position=Goal_Direction*2000+MyPosition;
 		}
 		return true;
 	}

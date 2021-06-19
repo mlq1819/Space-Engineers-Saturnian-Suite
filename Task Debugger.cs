@@ -914,6 +914,7 @@ void Main_Program(string argument){
 	} else if(argument.ToLower().Equals("stop")){
 		Send("Go\nStop");
 		Vector3D home=new Vector3D(-277208,-2403240,386270);
+		//home=new Vector3D(11917,21876,54866);
 		int timer=(int)(500+(Controller.GetPosition()-home).Length()*20);
 		Send("Go\nNumbered\n"+timer.ToString()+"\n"+home.ToString());
 		Send("Direction\nStop");
