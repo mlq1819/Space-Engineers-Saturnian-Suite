@@ -767,6 +767,7 @@ void Reset(){
 	Operational=false;
 	Runtime.UpdateFrequency=UpdateFrequency.None;
 	Controller=null;
+	Controllers=new List<IMyShipController>();
 	if(Gyroscope!=null)
 		Gyroscope.GyroOverride=false;
 	Gyroscope=null;
