@@ -1747,7 +1747,6 @@ bool Task_Up(Task task){
 	return false;
 }
 
-
 struct Plane{
 	public double A;
 	public double B;
@@ -1762,9 +1761,9 @@ struct Plane{
 	}
 	
 	public Plane(Vector3D a,Vector3D b,Vector3D c){
-		A=(b.Y-a.Y)*(c.Z-a.Z)-(c.Y-a.Y)(b.Z-a.Z);
-		B=(b.Z-a.Z)(c.X-a.X)-(c.Z-a.Z)(b.X-a.X);
-		C=(b.X-a.X)(c.Y-a.Y)-(c.X-a.X)(b.Y-a.Y);
+		A=(b.Y-a.Y)*(c.Z-a.Z)-(c.Y-a.Y)*(b.Z-a.Z);
+		B=(b.Z-a.Z)*(c.X-a.X)-(c.Z-a.Z)*(b.X-a.X);
+		C=(b.X-a.X)*(c.Y-a.Y)-(c.X-a.X)*(b.Y-a.Y);
 		D=-1*(A*a.X+B*a.Y+C*a.Z);
 	}
 	
@@ -1787,7 +1786,7 @@ struct Sphere{
 	public Vector3D Center;
 	public double Radius;
 	
-	public SphereEquation(Vector3D c,double r){
+	public Sphere(Vector3D c,double r){
 		Center=c;
 		Radius=r;
 	}
@@ -1819,34 +1818,43 @@ bool Task_Go(Task task){
 		Do_Position=true;
 		if(Sealevel<2000){
 			Vector3D MyPosition=Controller.GetPosition();
-			double my_radius=MyPosition-PlanetCenter.Length();
+			double my_radius=(MyPosition-PlanetCenter).Length();
 			Vector3D target_direction=Target_Position-PlanetCenter;
 			target_direction.Normalize();
+			Vector3D me_direction=MyPosition-PlanetCenter;
+			me_direction.Normalize();
 			double planet_angle=GetAngle(me_direction,target_direction);
 			Write("Planetary Angle: "+Math.Round(planet_angle,1).ToString()+"°");
-			//This offsets the angle so we can create a full Plane from the 3 points: Center,Here,Target
-			while(planet_angle==180){
-				Vector3D offset=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
-				offset.Normalize();
-				Target_Position+=offset;
-				target_direction=Target_Position-PlanetCenter;
-				target_direction.Normalize();
-				planet_angle=GetAngle(me_direction,target_direction);
+			if(planet_angle>2.5||Elevation-MySize/2<Math.Max(30,Target_Distance/10)){
+				while(planet_angle==180){
+					//This offsets the angle so we can create a full Plane from the 3 points: Center,Here,Target
+					Vector3D offset=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
+					offset.Normalize();
+					Target_Position+=offset;
+					target_direction=Target_Position-PlanetCenter;
+					target_direction.Normalize();
+					planet_angle=GetAngle(me_direction,target_direction);
+				}
+				if(Elevation<250+MySize/2){
+					//This increases the cruising altitude if the elevation is too low, for collision avoidance
+					my_radius+=250+MySize/2-Elevation;
+					MyPosition=(my_radius)*me_direction+PlanetCenter;
+				}
+				Target_Position=(my_radius)*target_direction+PlanetCenter;
+				//Target is now at same altitude with respect to sealevel
+				Plane Bisect=new Plane(Target_Position,MyPosition,PlanetCenter);
+				//This plane now bisects the planet along both the current location and target
+				Sphere Planet=new Sphere(PlanetCenter,my_radius);
+				//This sphere now represents the planet at the current elevation
+				Line Tangent=new Line(Bisect,Planet,MyPosition);
+				//This line now represents the tangent of the planet in a direction that lines up with the target
+				Vector3D Goal_Direction=Tangent.V;
+				Vector3D My_Direction=Target_Position-MyPosition;
+				My_Direction.Normalize();
+				if(GetAngle(Goal_Direction,My_Direction)>GetAngle(-1*Goal_Direction,My_Direction))
+					Goal_Direction*=-1;
+				Target_Position=Goal_Direction*2000+MyPosition;
 			}
-			Target_Position=(my_radius)*target_direction+PlanetCenter;
-			//Target is now at same altitude with respect to sealevel
-			Plane Bisect=new Plane(Target_Position,MyPosition,PlanetCenter);
-			//This plane now bisects the planet along both the current location and target
-			Sphere Planet=new Sphere(PlanetCenter,my_radius);
-			//This sphere now represents the planet at the current elevation
-			Line Tangent=new Line(Bisect,Planet,MyPosition);
-			//This line now represents the tangent of the planet in a direction that lines up with the target
-			Vector3D Goal_Direction=Tangent.V;
-			Vector3D My_Direction=Target_Position-MyPosition;
-			My_Direction.Normalize();
-			if(GetAngle(Goal_Direction,My_Direction)>GetAngle(-1*Goal_Direction,My_Direction))
-				Goal_Direction*=-1;
-			Target_Position=Goal_Direction*2000+MyPosition;
 		}
 		return true;
 	}

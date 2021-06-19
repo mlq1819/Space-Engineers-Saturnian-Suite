@@ -916,6 +916,9 @@ void Main_Program(string argument){
 		Vector3D home=new Vector3D(-277208,-2403240,386270);
 		//home=new Vector3D(11917,21876,54866);
 		int timer=(int)(500+(Controller.GetPosition()-home).Length()*20);
+		double distance=(Controller.GetPosition()-home).Length();
+		if(distance>20)
+			timer+=(int)(Math.Pow(distance,2)*-.00019801+distance*1.97797+60.520);
 		Send("Go\nNumbered\n"+timer.ToString()+"\n"+home.ToString());
 		Send("Direction\nStop");
 		Send("Match\nStop");
