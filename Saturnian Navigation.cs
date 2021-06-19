@@ -7,7 +7,6 @@
 string Program_Name="Saturnian Navigation";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
 Color DEFAULT_BACKGROUND_COLOR=new Color(44,0,88,255);
-double Speed_Limit=100;
 double Acceptable_Angle=5;
 
 class Prog{
@@ -667,6 +666,8 @@ void Reset(){
 	Runtime.UpdateFrequency=UpdateFrequency.None;
 	Controller=null;
 	Controllers=new List<IMyShipController>();
+	for(int i=0;i<All_Thrusters.Length;i++)
+		All_Thrusters[i]=new List<IMyThrust>();
 	Notifications=new List<Notification>();
 }
 
@@ -740,7 +741,7 @@ public Program(){
 	Me.GetSurface(1).TextPadding=30.0f;
 	Echo("Beginning initialization");
 	Rnd=new Random();
-	string[] args=this.Storage.Split('•');
+	/*string[] args=this.Storage.Split('•');
 	foreach(string arg in args){
 		if(!arg.Contains(':'))
 			continue;
@@ -748,11 +749,9 @@ public Program(){
 		string name=arg.Substring(0,index);
 		string data=arg.Substring(index+1);
 		switch(name){
-			case "RestingSpeed":
-				double.TryParse(data,out RestingSpeed);
-				break;
+			
 		}
-	}
+	}*/
 	Notifications=new List<Notification>();
 	Task_Queue=new Queue<Task>();
 	TaskParser(Me.CustomData);
@@ -769,8 +768,6 @@ public void Save(){
 
 bool _Autoland=false;
 bool Autoland(){
-	if((!_Autoland)&&!Control_Thrusters)
-		return false;
 	if(!Safety)
 		return false;
 	_Autoland=!_Autoland;
@@ -883,7 +880,6 @@ void UpdateSystemData(){
 				if(Time_To_Crash>0){
 					if(Safety&&Time_To_Crash<(5+CurrentSpeed/5)&&Controller.GetShipSpeed()>5){
 						Controller.DampenersOverride=true;
-						RestingSpeed=0;
 						for(int i=0;i<Notifications.Count;i++){
 							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nEnabling Dampeners...")){
 								Notifications.RemoveAt(i--);
