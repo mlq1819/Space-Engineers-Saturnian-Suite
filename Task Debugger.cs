@@ -918,13 +918,13 @@ void Main_Program(string argument){
 		int timer=500;
 		double distance=(Controller.GetPosition()-home).Length();
 		if(distance>20)
-			timer+=600;
+			timer+=750;
 		if(distance>100)
-			timer+=600;
+			timer+=750;
 		if(distance>500)
-			timer+=600;
+			timer+=750;
 		if(distance>1000)
-			timer+=(int)(distance/100*60);
+			timer+=(int)(distance/100*65);
 		Send("Go\nNumbered\n"+timer.ToString()+"\n"+home.ToString());
 		Send("Direction\nStop");
 		Send("Match\nStop");
