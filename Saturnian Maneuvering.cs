@@ -897,7 +897,6 @@ public void Save(){
 		foreach(IMyThrust Thruster in All_Thrusters[i])
 			ResetThruster(Thruster);
 	}
-	bool ship=!Me.CubeGrid.IsStatic;
 	Me.CustomData="";
 	foreach(Task T in Task_Queue){
 		Me.CustomData+=T.ToString()+'•';
