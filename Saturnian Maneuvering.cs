@@ -1173,6 +1173,11 @@ double Target_Distance{
 		return (Target_Position-Controller.GetPosition()).Length();
 	}
 }
+double True_Target_Distance{
+	get{
+		return (True_Target_Position-Controller.GetPosition()).Length();
+	}
+}
 void SetThrusters(){
 	float input_forward=0.0f;
 	float input_up=0.0f;
@@ -1191,7 +1196,7 @@ void SetThrusters(){
 		if(Time_To_Crash<30&&Time_To_Crash>=0)
 			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Time_To_Crash/30)*Speed_Limit);
 		if(Do_Position)
-			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(Target_Distance/4)*4);
+			effective_speed_limit=Math.Min(effective_speed_limit,Math.Sqrt(True_Target_Distance/4)*4);
 	}
 	if(Controller.DampenersOverride){
 		Display(3,"Cruise Control: Off");
@@ -1247,9 +1252,9 @@ void SetThrusters(){
 	
 	if(Do_Position){
 		if(Target_Distance>1500)
-			Write("Target Position: "+Math.Round(Target_Distance/1000,1)+"kM");
+			Write("Target Position: "+Math.Round(True_Target_Distance/1000,1)+"kM");
 		else
-			Write("Target Position: "+Math.Round(Target_Distance,0)+"M");
+			Write("Target Position: "+Math.Round(True_Target_Distance,0)+"M");
 		float thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector,-1*(float)Adjusted_Gravity.X);
 		if(Math.Abs(thrust_value)>=1)
 			input_right=thrust_value-(float)Adjusted_Gravity.X;
