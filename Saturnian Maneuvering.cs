@@ -962,9 +962,18 @@ void SetGyroscopes(){
 	float gyro_multx=(float)Math.Max(0.1f, Math.Min(1, 1.5f/(Controller.CalculateShipMass().PhysicalMass/gyro_count/1000000)));
 	
 	if(Match_Direction&&Do_Position&&Target_Distance>20){
-		Do_Direction=true;
-		Target_Direction=Target_Position-Controller.GetPosition();
-		Target_Direction.Normalize();
+		bool do_Match=true;
+		Vector3D target_direction=Target_Position-Controller.GetPosition();
+		target_direction.Normalize();
+		if(Gravity.Length()>0){
+			double Grav_Angle=GetAngle(target_direction,Gravity_Direction);
+			if(Grav_Angle<60)
+				do_Match=false;
+		}
+		if(do_Match){
+			Do_Direction=true;
+			Target_Direction=target_direction;
+		}
 	}
 	
 	float input_pitch=0;
