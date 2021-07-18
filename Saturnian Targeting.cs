@@ -1078,30 +1078,30 @@ class MotorTurret:RotorTurret{
 		IMyMotorStator yaw=Yaw;
 		if(!yaw.IsAttached)
 			return false;
-		IMyMotorStator pitch=GenericMethods<IMyMotorStator>.GetGrid("",yaw.TopGrid,yaw.Top);
+		IMyMotorStator pitch=GenericMethods<IMyMotorStator>.GetGrid("",yaw.TopGrid,yaw,double.MaxValue);
 		if(pitch==null||!pitch.IsAttached)
 			return false;
-		List<IMySmallGatlingGun> guns=GenericMethods<IMySmallGatlingGun>.GetAllGrid("",pitch.TopGrid,pitch.Top);
+		List<IMySmallGatlingGun> guns=GenericMethods<IMySmallGatlingGun>.GetAllGrid("",pitch.TopGrid,pitch,double.MaxValue);
 		if(guns.Count==0)
 			return false;
-		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch.Top);
+		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch,double.MaxValue);
 		if(remote==null)
 			return false;
 		Output=new MotorTurret(yaw,pitch,guns,remote);
 		return true;
 	}
 	
-	public bool Initialize(){
+	public override bool Initialize(){
 		return false;
 	}
 	
-	public bool Vector3D Aim(Vector3D Target){
+	public override bool Aim(Vector3D Target){
 		return false;
 	}
 }
 
 class GyroTurret:RotorTurret{
-	public IMyGryo Gyroscope;
+	public IMyGyro Gyroscope;
 	
 	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote){
 		Gyroscope=gyro;
@@ -1113,27 +1113,27 @@ class GyroTurret:RotorTurret{
 		IMyMotorStator yaw=Yaw;
 		if(!yaw.IsAttached)
 			return false;
-		IMyMotorStator pitch=GenericMethods<IMyMotorStator>.GetGrid("",yaw.TopGrid,yaw.Top);
+		IMyMotorStator pitch=GenericMethods<IMyMotorStator>.GetGrid("",yaw.TopGrid,yaw,double.MaxValue);
 		if(pitch==null||!pitch.IsAttached)
 			return false;
-		List<IMySmallGatlingGun> guns=GenericMethods<IMySmallGatlingGun>.GetAllGrid("",pitch.TopGrid,pitch.Top);
+		List<IMySmallGatlingGun> guns=GenericMethods<IMySmallGatlingGun>.GetAllGrid("",pitch.TopGrid,pitch,double.MaxValue);
 		if(guns.Count==0)
 			return false;
-		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch.Top);
+		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch,double.MaxValue);
 		if(remote==null)
 			return false;
-		IMyGyro gyro=GenericMethods<IMyGryo>.GetGrid("",pitch.TopGrid,pitch.Top);
-		if(gryo==null)
+		IMyGyro gyro=GenericMethods<IMyGyro>.GetGrid("",pitch.TopGrid,remote,double.MaxValue);
+		if(gyro==null)
 			return false;
 		Output=new GyroTurret(yaw,pitch,guns,remote,gyro);
 		return true;
 	}
 	
-	public bool Initialize(){
+	public override bool Initialize(){
 		return false;
 	}
 	
-	public bool Vector3D Aim(Vector3D Target){
+	public override bool Aim(Vector3D Target){
 		return false;
 	}
 }
