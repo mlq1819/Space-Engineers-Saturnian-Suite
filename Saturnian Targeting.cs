@@ -990,7 +990,7 @@ enum RTStatus{
 	Ready=3
 }
 abstract class RotorTurret{
-	List<IMySmallGatlingGun> Guns;
+	public List<IMySmallGatlingGun> Guns;
 	IMyMotorStator YawMotor;
 	IMyMotorStator PitchMotor;
 	public IMyRemoteControl Remote;
@@ -1064,6 +1064,14 @@ abstract class RotorTurret{
 	public abstract bool Initialize();
 	
 	public abstract bool Aim(Vector3D Target);
+	
+	public bool Reset(){
+		return Aim(Default_Vector*10+Remote.GetPosition());
+	}
+	
+	public static double GetAngle(Vector3D v1,Vector3D v2){
+		return GenericMethods<IMyTerminalBlock>.GetAngle(v1,v2);
+	}
 }
 
 class MotorTurret:RotorTurret{
@@ -1103,6 +1111,9 @@ class GyroTurret:RotorTurret{
 	
 	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote){
 		Gyroscope=gyro;
+		Gyroscope.Pitch=0;
+		Gyroscope.Yaw=0;
+		Gyroscope.Roll=0;
 		Status=RTStatus.Ready;
 	}
 	
@@ -1128,11 +1139,32 @@ class GyroTurret:RotorTurret{
 	}
 	
 	public override bool Initialize(){
-		return false;
+		return true;
 	}
 	
 	public override bool Aim(Vector3D Target){
-		return false;
+		Vector3D Direction=Target-Remote.GetPosition();
+		Direction.Normalize();
+		
+		float input_pitch=0;
+		double difference_vert=GetAngle(Up_Vector,Direction)-GetAngle(Down_Vector,Direction);
+		input_pitch-=20*((float)Math.Min(Math.Abs((90-difference_vert)/90),1));
+		
+		float input_yaw=0;
+		double difference_horz=GetAngle(Left_Vector,Direction)-GetAngle(Right_Vector,Direction);
+		input_yaw-=20*((float)Math.Min(Math.Abs((90-difference_horz)/90),1));
+		
+		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
+		Vector3D global=Vector3D.TransformNormal(input,Remote.WorldMatrix);
+		Vector3D output=Vector3D.TransformNormal(global,MatrixD.Invert(Gyroscope.WorldMatrix));
+		output.Normalize();
+		output*=input.Length();
+		
+		Gyroscope.Pitch=(float)output.X;
+		Gyroscope.Yaw=(float)output.Y;
+		Gyroscope.Roll=(float)output.Z;
+		
+		return GetAngle(Direction,Forward_Vector)<=1;
 	}
 }
 
