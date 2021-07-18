@@ -502,10 +502,12 @@ void Reset(){
 	Controller=null;
 	Controllers=new List<IMyShipController>();
 	WeaponLCDs=new List<CustomPanel>();
+	GatlingTurrets=new List<IMyLargeGatlingTurret>();
+	MissileTurrets=new List<IMyLargeMissileTurret>();
+	InteriorTurrets=new List<IMyLargeInteriorTurret>();
 	Notifications=new List<Notification>();
 }
 
-double MySize=0;
 bool Setup(){
 	Reset();
 	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Targeting");
@@ -546,6 +548,10 @@ bool Setup(){
 	Forward=Controller.Orientation.Forward;
 	Up=Controller.Orientation.Up;
 	Left=Controller.Orientation.Left;
+	GatlingTurrets=GenericMethods<IMyLargeGatlingTurret>.GetAllIncluding("");
+	MissileTurrets=GenericMethods<IMyLargeMissileTurret>.GetAllIncluding("");
+	InteriorTurrets=GenericMethods<IMyLargeInteriorTurret>.GetAllIncluding("");
+	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -702,10 +708,7 @@ public void Main(string argument,UpdateType updateSource){
 			else
 				Main_Program(argument);
 		}
-		if(Current_Display==3)
-			Me.GetSurface(0).WriteText(Graph_Text,false);
-		else
-			PrintNotifications();
+		PrintNotifications();
 	}
 	catch(Exception E){
 		Write(E.ToString());
@@ -974,14 +977,14 @@ void TaskParser(string argument){
 	}
 }
 
-
+/*
 enum RTStatus{
 	Init0=0,
 	InitYaw=1,
 	InitPitch=2,
 	Ready=3
 }
-virtual class RotorTurret{
+abstract class RotorTurret{
 	List<IMySmallGatlingGun> Guns;
 	IMyMotorStator YawMotor;
 	IMyMotorStator PitchMotor;
@@ -1048,17 +1051,25 @@ virtual class RotorTurret{
 		}
 	}
 	
-	virtual public bool Initialize();
-	
-	//400 mps leading
-	virtual public bool Vector3D Aim(Vector3D Target);
-}
-class MotorTurret:RotorTurret{
-	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote){
+	protected RotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote){
 		YawMotor=yawmotor;
 		PitchMotor=pitchmotor;
 		Guns=guns;
 		Remote=remote;
+	}
+	
+	public abstract bool Initialize(){
+		return false;
+	}
+	
+	//400 mps leading
+	public abstract bool Vector3D Aim(Vector3D){
+		return false;
+	}
+}
+
+class MotorTurret:RotorTurret{
+	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote):base(yawmotor,pitchmotor,guns,remote){
 		Status=RTStatus.Init0;
 	}
 	
@@ -1092,11 +1103,7 @@ class MotorTurret:RotorTurret{
 class GyroTurret:RotorTurret{
 	public IMyGryo Gyroscope;
 	
-	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyGyro gyro){
-		YawMotor=yawmotor;
-		PitchMotor=pitchmotor;
-		Guns=guns;
-		Remote=remote;
+	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote){
 		Gyroscope=gyro;
 		Status=RTStatus.Ready;
 	}
@@ -1129,7 +1136,7 @@ class GyroTurret:RotorTurret{
 	public bool Vector3D Aim(Vector3D Target){
 		return false;
 	}
-}
+}*/
 
 
 void Main_Program(string argument){
