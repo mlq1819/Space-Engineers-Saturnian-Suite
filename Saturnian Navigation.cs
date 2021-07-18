@@ -3,7 +3,7 @@
 * Built by mlq1616
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite handles navigation, major autopiloting, etc. 
-* 
+* Include "Altitude" in LCD name to add to group.
 */
 string Program_Name="Saturnian Navigation";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
