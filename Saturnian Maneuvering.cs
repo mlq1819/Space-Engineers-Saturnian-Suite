@@ -3,6 +3,7 @@
 * Built by mlq1616
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite handles thruster and gyroscope controls. 
+* Includes Autoland, basic Autopiloting
 */
 string Program_Name="Saturnian Maneuvering";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
