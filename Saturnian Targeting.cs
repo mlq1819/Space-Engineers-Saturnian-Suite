@@ -1025,7 +1025,7 @@ abstract class RotorTurret{
 	}
 	public Vector3D Forward_Vector{
 		get{
-			return Prog.LocalToGlobal(new Vector3D(0,0,-1),Guns[0]);
+			return Prog.LocalToGlobal(new Vector3D(0,0,-1),Remote);
 		}
 	}
 	public Vector3D Backward_Vector{
@@ -1033,10 +1033,9 @@ abstract class RotorTurret{
 			return -1*Forward_Vector;
 		}
 	}
-	protected Vector3D up_vector_init; //(0,1,0)
 	public Vector3D Up_Vector{
 		get{
-			return Prog.LocalToGlobal(up_vector_init,Guns[0]);
+			return Prog.LocalToGlobal(new Vector3D(0,1,0),Remote);
 		}
 	}
 	public Vector3D Down_Vector{
@@ -1044,10 +1043,9 @@ abstract class RotorTurret{
 			return -1*Up_Vector;
 		}
 	}
-	protected Vector3D left_vector_init; //(-1,0,0)
 	public Vector3D Left_Vector{
 		get{
-			return Prog.LocalToGlobal(left_vector_init,Guns[0]);
+			return Prog.LocalToGlobal(new Vector3D(-1,0,0),Remote);
 		}
 	}
 	public Vector3D Right_Vector{
