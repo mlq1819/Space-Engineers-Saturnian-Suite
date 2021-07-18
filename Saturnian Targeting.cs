@@ -19,6 +19,11 @@ class Prog{
 	public static TimeSpan UpdateTimeSpan(TimeSpan old,double seconds){
 		return old+FromSeconds(seconds);
 	}
+	public static Vector3D LocalToGlobal(Vector3D Local,IMyCubeBlock Ref){
+	Vector3D Global=Vector3D.Transform(Local, Ref.WorldMatrix)-Ref.GetPosition();
+	Global.Normalize();
+	return Global*Local.Length();
+}
 }
 
 class GenericMethods<T> where T : class, IMyTerminalBlock{
@@ -977,7 +982,7 @@ void TaskParser(string argument){
 	}
 }
 
-/*
+
 enum RTStatus{
 	Init0=0,
 	InitYaw=1,
@@ -1015,12 +1020,12 @@ abstract class RotorTurret{
 	
 	public Vector3D Default_Vector{
 		get{
-			return LocalToGlobal(new Vector(0,0,-1),YawMotor);
+			return Prog.LocalToGlobal(new Vector3D(0,0,-1),YawMotor);
 		}
 	}
 	public Vector3D Forward_Vector{
 		get{
-			return LocalToGlobal(new Vector3D(0,0,-1),Guns[0]);
+			return Prog.LocalToGlobal(new Vector3D(0,0,-1),Guns[0]);
 		}
 	}
 	public Vector3D Backward_Vector{
@@ -1031,7 +1036,7 @@ abstract class RotorTurret{
 	protected Vector3D up_vector_init; //(0,1,0)
 	public Vector3D Up_Vector{
 		get{
-			return LocalToGlobal(up_vector_init,Guns[0]);
+			return Prog.LocalToGlobal(up_vector_init,Guns[0]);
 		}
 	}
 	public Vector3D Down_Vector{
@@ -1042,7 +1047,7 @@ abstract class RotorTurret{
 	protected Vector3D left_vector_init; //(-1,0,0)
 	public Vector3D Left_Vector{
 		get{
-			return LocalToGlobal(left_vector_init,Guns[0]);
+			return Prog.LocalToGlobal(left_vector_init,Guns[0]);
 		}
 	}
 	public Vector3D Right_Vector{
@@ -1058,14 +1063,9 @@ abstract class RotorTurret{
 		Remote=remote;
 	}
 	
-	public abstract bool Initialize(){
-		return false;
-	}
+	public abstract bool Initialize();
 	
-	//400 mps leading
-	public abstract bool Vector3D Aim(Vector3D){
-		return false;
-	}
+	public abstract bool Aim(Vector3D Target);
 }
 
 class MotorTurret:RotorTurret{
@@ -1136,7 +1136,7 @@ class GyroTurret:RotorTurret{
 	public bool Vector3D Aim(Vector3D Target){
 		return false;
 	}
-}*/
+}
 
 
 void Main_Program(string argument){
