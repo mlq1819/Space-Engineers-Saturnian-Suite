@@ -4,6 +4,7 @@
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite handles rotor-turrets, turret controlling, etc.
 * Include "Targeting" in LCD name to add to group.
+* Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for the first Rotor. The second Motor can be a Hinge.
 */
 string Program_Name="Saturnian Targeting";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
@@ -429,6 +430,22 @@ IMyShipController Controller;
 List<IMyShipController> Controllers;
 
 List<CustomPanel> WeaponLCDs;
+
+List<IMyLargeTurretBase> AllTurrets{
+	get{
+		List<IMyLargeTurretBase> Output=new List<IMyLargeTurretBase>();
+		foreach(IMyLargeGatlingTurret T in GatlingTurrets)
+			Output.Add((IMyLargeTurretBase)T);
+		foreach(IMyLargeMissileTurret T in MissileTurrets)
+			Output.Add((IMyLargeTurretBase)T);
+		foreach(IMyLargeInteriorTurret T in InteriorTurrets)
+			Output.Add((IMyLargeTurretBase)T);
+		return Output;
+	}
+}
+List<IMyLargeGatlingTurret> GatlingTurrets;
+List<IMyLargeMissileTurret> MissileTurrets;
+List<IMyLargeInteriorTurret> InteriorTurrets;
 
 Base6Directions.Direction Forward;
 Base6Directions.Direction Backward{
@@ -956,6 +973,164 @@ void TaskParser(string argument){
 		}
 	}
 }
+
+
+enum RTStatus{
+	Init0=0,
+	InitYaw=1,
+	InitPitch=2,
+	Ready=3
+}
+virtual class RotorTurret{
+	List<IMySmallGatlingGun> Guns;
+	IMyMotorStator YawMotor;
+	IMyMotorStator PitchMotor;
+	public IMyRemoteControl Remote;
+	private double Default_Yaw=0;
+	private double Default_Pitch=0;
+	public double Yaw{
+		get{
+			double yaw=(YawMotor.Angle*180/Math.PI)-Default_Yaw;
+			while(yaw<-180)
+				yaw+=360;
+			while(yaw>180)
+				yaw-=360;
+			return yaw;
+		}
+	}
+	public double Pitch{
+		get{
+			double pitch=(PitchMotor.Angle*180/Math.PI)-Default_Pitch;
+			while(pitch<-180)
+				pitch+=360;
+			while(pitch>180)
+				pitch-=360;
+			return pitch;
+		}
+	}
+	public RTStatus Status;
+	
+	public Vector3D Default_Vector{
+		get{
+			return LocalToGlobal(new Vector(0,0,-1),YawMotor);
+		}
+	}
+	public Vector3D Forward_Vector{
+		get{
+			return LocalToGlobal(new Vector3D(0,0,-1),Guns[0]);
+		}
+	}
+	public Vector3D Backward_Vector{
+		get{
+			return -1*Forward_Vector;
+		}
+	}
+	protected Vector3D up_vector_init; //(0,1,0)
+	public Vector3D Up_Vector{
+		get{
+			return LocalToGlobal(up_vector_init,Guns[0]);
+		}
+	}
+	public Vector3D Down_Vector{
+		get{
+			return -1*Up_Vector;
+		}
+	}
+	protected Vector3D left_vector_init; //(-1,0,0)
+	public Vector3D Left_Vector{
+		get{
+			return LocalToGlobal(left_vector_init,Guns[0]);
+		}
+	}
+	public Vector3D Right_Vector{
+		get{
+			return -1*Left_Vector;
+		}
+	}
+	
+	virtual public bool Initialize();
+	
+	//400 mps leading
+	virtual public bool Vector3D Aim(Vector3D Target);
+}
+class MotorTurret:RotorTurret{
+	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote){
+		YawMotor=yawmotor;
+		PitchMotor=pitchmotor;
+		Guns=guns;
+		Remote=remote;
+		Status=RTStatus.Init0;
+	}
+	
+	public static bool TryGet(IMyMotorStator Yaw,out MotorTurret Output){
+		Output=null;
+		IMyMotorStator yaw=Yaw;
+		if(!yaw.IsAttached)
+			return false;
+		IMyMotorStator pitch=GenericMethods<IMyMotorStator>.GetGrid("",yaw.TopGrid,yaw.Top);
+		if(pitch==null||!pitch.IsAttached)
+			return false;
+		List<IMySmallGatlingGun> guns=GenericMethods<IMySmallGatlingGun>.GetAllGrid("",pitch.TopGrid,pitch.Top);
+		if(guns.Count==0)
+			return false;
+		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch.Top);
+		if(remote==null)
+			return false;
+		Output=new MotorTurret(yaw,pitch,guns,remote);
+		return true;
+	}
+	
+	public bool Initialize(){
+		return false;
+	}
+	
+	public bool Vector3D Aim(Vector3D Target){
+		return false;
+	}
+}
+
+class GyroTurret:RotorTurret{
+	public IMyGryo Gyroscope;
+	
+	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyGyro gyro){
+		YawMotor=yawmotor;
+		PitchMotor=pitchmotor;
+		Guns=guns;
+		Remote=remote;
+		Gyroscope=gyro;
+		Status=RTStatus.Ready;
+	}
+	
+	public static bool TryGet(IMyMotorStator Yaw,out GyroTurret Output){
+		Output=null;
+		IMyMotorStator yaw=Yaw;
+		if(!yaw.IsAttached)
+			return false;
+		IMyMotorStator pitch=GenericMethods<IMyMotorStator>.GetGrid("",yaw.TopGrid,yaw.Top);
+		if(pitch==null||!pitch.IsAttached)
+			return false;
+		List<IMySmallGatlingGun> guns=GenericMethods<IMySmallGatlingGun>.GetAllGrid("",pitch.TopGrid,pitch.Top);
+		if(guns.Count==0)
+			return false;
+		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch.Top);
+		if(remote==null)
+			return false;
+		IMyGyro gyro=GenericMethods<IMyGryo>.GetGrid("",pitch.TopGrid,pitch.Top);
+		if(gryo==null)
+			return false;
+		Output=new GyroTurret(yaw,pitch,guns,remote,gyro);
+		return true;
+	}
+	
+	public bool Initialize(){
+		return false;
+	}
+	
+	public bool Vector3D Aim(Vector3D Target){
+		return false;
+	}
+}
+
 
 void Main_Program(string argument){
 	ProcessTasks();
