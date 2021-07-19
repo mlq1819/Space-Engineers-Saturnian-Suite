@@ -1204,7 +1204,6 @@ abstract class RotorTurret{
 		}
 	}
 	
-	public Queue<VelocityTuple> Velocities=new Queue<VelocityTuple>();
 	public bool ValidTarget(MyDetectedEntityInfo Entity){
 		if(Entity.Type==MyDetectedEntityType.None)
 			return true;
@@ -1248,16 +1247,9 @@ abstract class RotorTurret{
 		return clear;
 	}
 	
+	public VelocityTuple SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
 	public void UpdateTimers(double seconds){
-		Queue<VelocityTuple> velocities=new Queue<VelocityTuple>();
-		foreach(VelocityTuple V in Velocities)
-			velocities.Enqueue(V);
-		while(velocities.Count>0){
-			VelocityTuple V=velocities.Dequeue();
-			V.Timer+=seconds;
-			if(V.Timer<=1.05)
-				Velocities.Enqueue(V);
-		}
+		SavedVelocity.Timer+=seconds;
 		if(Camera!=null&&Camera.EnableRaycast){
 			double c_timer=CameraTimer;
 			double t_timer=TargetTimer;
@@ -1273,16 +1265,10 @@ abstract class RotorTurret{
 			TargetTimer=t_timer;
 		}
 	}
-	protected Vector3D GetPredictedVelocity(Vector3D Velocity){
-		if(Velocity.Length()==0)
-			return Velocity;
-		Velocities.Enqueue(new VelocityTuple(Velocity));
-		if(Velocities.Count<=1)
-			return Velocity;
-		VelocityTuple V=Velocities.Peek();
-		Vector3D difference=Velocity-V.Velocity;
-		difference/=V.Timer;
-		return Velocity+(difference*2/3);
+	protected Vector3D GetPredictedVelocity(Vector3D Velocity,double Distance){
+		Vector3D difference=(Velocity-SavedVelocity.Velocity)/SavedVelocity.Timer;
+		SavedVelocity=new VelocityTuple(Velocity);
+		return Velocity+(difference*Distance/400);
 	}
 	
 	public bool Link(IMyLargeTurretBase turret){
@@ -1294,7 +1280,7 @@ abstract class RotorTurret{
 	}
 	
 	public bool Reset(){
-		Velocities.Clear();
+		SavedVelocity.Timer=0;
 		return Aim(Default_Vector*10+Remote.GetPosition());
 	}
 	
@@ -1385,9 +1371,8 @@ class GyroTurret:RotorTurret{
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity){
-		Velocity=GetPredictedVelocity(Velocity);
-		
 		double Distance=(Target-Remote.GetPosition()).Length();
+		Velocity=GetPredictedVelocity(Velocity,Distance);
 		Target+=Velocity*Distance/400;
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
