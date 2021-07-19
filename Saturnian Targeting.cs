@@ -1033,6 +1033,15 @@ void TaskParser(string argument){
 	}
 }
 
+class VelocityTuple{
+	public Vector3D Velocity;
+	public double Timer;
+	
+	public VelocityTuple(Vector3D v,double t=0){
+		Velocity=v;
+		Timer=t;
+	}
+}
 
 enum RTStatus{
 	Init0=0,
@@ -1195,6 +1204,7 @@ abstract class RotorTurret{
 		}
 	}
 	
+	public Queue<VelocityTuple> Velocities=new Queue<VelocityTuple>();
 	public bool ValidTarget(MyDetectedEntityInfo Entity){
 		if(Entity.Type==MyDetectedEntityType.None)
 			return true;
@@ -1238,7 +1248,40 @@ abstract class RotorTurret{
 		return clear;
 	}
 	
-	
+	public void UpdateTimers(double seconds){
+		Queue<VelocityTuple> velocities=new Queue<VelocityTuple>();
+		foreach(VelocityTuple V in Velocities)
+			velocities.Enqueue(V);
+		while(velocities.Count>0){
+			VelocityTuple V=velocities.Dequeue();
+			V.Timer+=seconds;
+			if(V.Timer<=1.05)
+				Velocities.Enqueue(V);
+		}
+		if(Camera!=null&&Camera.EnableRaycast){
+			double c_timer=CameraTimer;
+			double t_timer=TargetTimer;
+			double pool=seconds;
+			if(c_timer<t_timer){
+				double difference=Math.Min(pool,t_timer-c_timer/3);
+				pool-=difference;
+				c_timer+=difference;
+			}
+			c_timer+=pool/2;
+			t_timer+=pool/2;
+			CameraTimer=c_timer;
+			TargetTimer=t_timer;
+		}
+	}
+	protected Vector3D GetPredictedVelocity(Vector3D Velocity){
+		Velocities.Enqueue(new VelocityTuple(Velocity));
+		if(Velocities.Count<=1)
+			return Velocity;
+		VelocityTuple V=Velocities.Peek();
+		Vector3D difference=Velocity-V.Velocity;
+		difference/=V.Timer;
+		return Velocity+difference;
+	}
 	
 	public bool Link(IMyLargeTurretBase turret){
 		Turret=turret;
@@ -1339,24 +1382,22 @@ class GyroTurret:RotorTurret{
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity){
+		Velocity=GetPredictedVelocity(Velocity);
+		
 		double Distance=(Target-Remote.GetPosition()).Length();
 		Target+=Velocity*Distance/400;
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
 		Direction.Normalize();
 		
-		Prog.P.Echo("Speed:"+Math.Round(Velocity.Length(),1).ToString()+"MpS");
-		
-		Vector3D Aimed_Target=Target;//+Velocity*Distance/800;
+		Vector3D Aimed_Target=Target;
 		
 		double Angle=GetAngle(Direction,Forward_Vector);
 		double AngularVelocity=Remote.GetShipVelocities().AngularVelocity.Length();
-		Prog.P.Echo("AngularVelocity:"+Math.Round(AngularVelocity,3).ToString());
+		
 		float Yaw_Multx=1;
-		if(Angle>0.5&&AngularVelocity<0.1){
-			//Aimed_Target+=3*Math.Min(800/Distance,16)*(Angle-1)*Velocity;
+		if(Angle>0.5&&AngularVelocity<0.1)
 			Yaw_Multx*=(float)Math.Min(800/Distance,16)*5;
-		}
 		
 		Vector3D Aimed_Direction=Aimed_Target-Remote.GetPosition();
 		double Aimed_Distance=Aimed_Direction.Length();
@@ -1392,7 +1433,7 @@ class GyroTurret:RotorTurret{
 				else
 					difference_horz=-5;
 			}
-			input_yaw+=2*Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+			input_yaw+=5*Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		}
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
@@ -1406,15 +1447,13 @@ class GyroTurret:RotorTurret{
 		Gyroscope.Roll=(float)output.Z;
 		
 		double Max_Allowed_Angle=1;
-		double Distance_Comp=Math.Min(Math.Max(400/Distance,1),8); //This allows for less precision on closer targets
-		double Speed_Comp=Velocity.Length()/20; //This allows for less precision on faster targets
+		double Distance_Comp=Math.Min(Math.Max(400/Distance,1),8);
+		double Speed_Comp=Velocity.Length()/20;
 		Max_Allowed_Angle+=Math.Sqrt(Math.Pow(Distance_Comp,2)+Math.Pow(Speed_Comp,2));
 		
 		double Targeted_Angle=GetAngle(Direction,Forward_Vector);
-		Prog.P.Echo("Target Angle:"+Math.Round(Targeted_Angle,2).ToString()+"° / "+Math.Round(Max_Allowed_Angle,2).ToString()+"°");
 		
 		bool Clear_Shot=ClearVision();
-		Prog.P.Echo("Clear Shot:"+Clear_Shot.ToString());
 		
 		return Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle;
 	}
@@ -1482,21 +1521,7 @@ void Main_Program(string argument){
 	UpdateSystemData();
 	Setup_Timer+=seconds_since_last_update;
 	for(int i=0;i<RotorTurrets.Count;i++){
-		RotorTurret R=RotorTurrets[i];
-		if(R!=null&&R.Camera!=null&&R.Camera.EnableRaycast){
-			double c_timer=R.CameraTimer;
-			double t_timer=R.TargetTimer;
-			double pool=seconds_since_last_update;
-			if(c_timer<t_timer){
-				double difference=Math.Min(pool,t_timer-c_timer/3);
-				pool-=difference;
-				c_timer+=difference;
-			}
-			c_timer+=pool/2;
-			t_timer+=pool/2;
-			R.CameraTimer=c_timer;
-			R.TargetTimer=t_timer;
-		}
+		RotorTurrets[i].UpdateTimers(seconds_since_last_update);
 	}
 	if(Setup_Timer>30){
 		Setup_Timer=0;
