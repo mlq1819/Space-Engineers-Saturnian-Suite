@@ -255,7 +255,7 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	
 	public static List<T> GetAllGrid(string name,IMyCubeGrid Grid,IMyTerminalBlock Ref,double mx_d){
 		List<T> output=new List<T>();
-		List<T> input=GetAllContaining(name,Ref,mx_d);
+		List<T> input=GetAllIncluding(name,Ref,mx_d);
 		foreach(T Block in input){
 			if(Block.CubeGrid==Grid)
 				output.Add(Block);
@@ -1247,7 +1247,7 @@ class GyroTurret:RotorTurret{
 		while(difference_vert>180)
 			difference_vert-=360;
 		if(Math.Abs(difference_vert)>0.1)
-			input_pitch+=2*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
+			input_pitch+=2.5f*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
 		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
 		double difference_horz=(GetAngle(Left_Vector,Direction)-GetAngle(Right_Vector,Direction))/2;
 		double difference_fb=GetAngle(Forward_Vector,Direction)-GetAngle(Backward_Vector,Direction);
@@ -1262,7 +1262,7 @@ class GyroTurret:RotorTurret{
 		while(difference_horz>180)
 			difference_horz-=360;
 		if(Math.Abs(difference_horz)>0.1)
-			input_yaw+=2*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+			input_yaw+=10*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
 		Vector3D global=Vector3D.TransformNormal(input,Remote.WorldMatrix);
@@ -1339,7 +1339,7 @@ void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	Setup_Timer+=seconds_since_last_update;
-	if(Setup_Timer>60){
+	if(Setup_Timer>30){
 		Setup_Timer=0;
 		Turret_Setup();
 	}
