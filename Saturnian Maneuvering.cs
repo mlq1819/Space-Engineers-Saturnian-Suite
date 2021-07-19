@@ -844,13 +844,6 @@ bool Setup(){
 	SetThrusterList(Left_Thrusters,"Left");
 	SetThrusterList(Right_Thrusters,"Right");
 	
-	List<IMyTerminalBlock> AllTerminalBlocks=new List<IMyTerminalBlock>();
-	GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(AllTerminalBlocks);
-	MySize=0;
-	foreach(IMyTerminalBlock Block in AllTerminalBlocks){
-		double distance=(Controller.GetPosition()-Block.GetPosition()).Length();
-		MySize=Math.Max(MySize,distance);
-	}
 	Acceptable_Angle=Math.Min(Math.Max(0.5,200/MySize),10);
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
