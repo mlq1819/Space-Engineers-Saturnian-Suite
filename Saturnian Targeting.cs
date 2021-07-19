@@ -1315,6 +1315,18 @@ class GyroTurret:RotorTurret{
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
 		Direction.Normalize();
+		double Angle=GetAngle(Direction,Forward_Vector);
+		double AngularVelocity=Remote.GetShipVelocities().AngularVelocity.Length();
+		float Yaw_Multx=1;
+		if(Angle<10&&Angle>2){
+			Target+=2*(Angle-1)*Velocity;
+			Direction=Target-Remote.GetPosition();
+			Distance=Direction.Length();
+			Direction.Normalize();
+			Yaw_Multx*=3;
+		}
+		if(AngularVelocity<1)
+			Yaw_Multx*=5;
 		
 		Gyroscope.GyroOverride=true;
 		
@@ -1339,9 +1351,6 @@ class GyroTurret:RotorTurret{
 		if(Math.Abs(difference_horz)>0.1)
 			input_yaw+=2*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		else if(Math.Abs(difference_horz)>0.1){
-			float Yaw_Multx=1;
-			if(Remote.GetShipVelocities().AngularVelocity.Length()<1)
-				Yaw_Multx=5;
 			input_yaw+=Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		}
 		
@@ -1356,9 +1365,9 @@ class GyroTurret:RotorTurret{
 		Gyroscope.Roll=(float)output.Z;
 		
 		double Max_Allowed_Angle=1;
-		Max_Allowed_Angle+=Math.Max(400/Distance,1); //This allows for less precision on closer targets; within 100 meters: 5°; within 50: 9°
-		Max_Allowed_Angle+=Velocity.Length()/10; //This allows for less precision on faster targets
-		
+		double Distance_Comp=Math.Min(Math.Max(800/Distance,1),16); //This allows for less precision on closer targets; within 200 meters: 5°; within 100: 9°; within 50: 17°
+		double Speed_Comp=Velocity.Length()/10; //This allows for less precision on faster targets
+		Max_Allowed_Angle+=Math.Sqrt(Math.Pow(Distance_Comp,2)+Math.Pow(Speed_Comp,2));
 		
 		double Targeted_Angle=GetAngle(Direction,Forward_Vector);
 		Prog.P.Echo("Target Angle:"+Math.Round(Targeted_Angle,2).ToString()+"° / "+Math.Round(Max_Allowed_Angle,2).ToString()+"°");
