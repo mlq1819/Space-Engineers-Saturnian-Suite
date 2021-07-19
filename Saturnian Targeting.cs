@@ -32,7 +32,11 @@ class Prog{
 		}
 		return output;
 	}
-	
+	public static Vector3D GlobalToLocal(Vector3D Global,IMyCubeBlock Ref){
+		Vector3D Local=Vector3D.Transform(Global+Ref.GetPosition(), MatrixD.Invert(Ref.WorldMatrix));
+		Local.Normalize();
+		return Local*Global.Length();
+	}
 	public static Vector3D LocalToGlobal(Vector3D Local,IMyCubeBlock Ref){
 	Vector3D Global=Vector3D.Transform(Local, Ref.WorldMatrix)-Ref.GetPosition();
 	Global.Normalize();
@@ -531,6 +535,8 @@ bool ControllerFunction(IMyShipController ctr){
 }
 
 UpdateFrequency GetUpdateFrequency(){
+	if(RotorTurrets.Count>0)
+		return UpdateFrequency.Update1;
 	return UpdateFrequency.Update10;
 }
 
@@ -1059,6 +1065,11 @@ abstract class RotorTurret{
 	public IMyRemoteControl Remote;
 	private double Default_Yaw=0;
 	private double Default_Pitch=0;
+	public double Angle{
+		get{
+			return GetAngle(Forward_Vector,Default_Vector);
+		}
+	}
 	public double Yaw{
 		get{
 			double yaw=(YawMotor.Angle*180/Math.PI)-Default_Yaw;
@@ -1084,7 +1095,7 @@ abstract class RotorTurret{
 	
 	public Vector3D Default_Vector{
 		get{
-			return Prog.LocalToGlobal(new Vector3D(0,0,-1),YawMotor);
+			return Prog.LocalToGlobal(new Vector3D(0,0,1),YawMotor);
 		}
 	}
 	public Vector3D Forward_Vector{
@@ -1229,13 +1240,29 @@ class GyroTurret:RotorTurret{
 		
 		Gyroscope.GyroOverride=true;
 		
-		float input_pitch=0;
+		float input_pitch=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).X*0.99f;
 		double difference_vert=GetAngle(Up_Vector,Direction)-GetAngle(Down_Vector,Direction);
-		input_pitch-=20*((float)Math.Min(Math.Abs((90-difference_vert)/90),1));
-		
-		float input_yaw=0;
-		double difference_horz=GetAngle(Left_Vector,Direction)-GetAngle(Right_Vector,Direction);
-		input_yaw-=20*((float)Math.Min(Math.Abs((90-difference_horz)/90),1));
+		while(difference_vert<-180)
+			difference_vert+=360;
+		while(difference_vert>180)
+			difference_vert-=360;
+		if(Math.Abs(difference_vert)>0.1)
+			input_pitch+=2*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
+		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
+		double difference_horz=(GetAngle(Left_Vector,Direction)-GetAngle(Right_Vector,Direction))/2;
+		double difference_fb=GetAngle(Forward_Vector,Direction)-GetAngle(Backward_Vector,Direction);
+		if(difference_fb>0){
+			if(difference_horz>0)
+				difference_horz=360-difference_horz;
+			else
+				difference_horz=-360-difference_horz;
+		}
+		while(difference_horz<-180)
+			difference_horz+=360;
+		while(difference_horz>180)
+			difference_horz-=360;
+		if(Math.Abs(difference_horz)>0.1)
+			input_yaw+=2*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
 		Vector3D global=Vector3D.TransformNormal(input,Remote.WorldMatrix);
@@ -1295,7 +1322,7 @@ bool Link(string argument){
 	return RT.Link(Turret);
 }
 
-
+double Setup_Timer=0;
 string TurretStatus(IMyLargeTurretBase T){
 	string status="Idle";
 	if(!T.IsFunctional)
@@ -1311,13 +1338,16 @@ string TurretStatus(IMyLargeTurretBase T){
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
+	Setup_Timer+=seconds_since_last_update;
+	if(Setup_Timer>60){
+		Setup_Timer=0;
+		Turret_Setup();
+	}
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
 	else if(argument.ToLower().IndexOf("link:")==0)
 		Link(argument);
-	else if(cycle%360==0)
-		Turret_Setup();
 	if(RotorTurrets.Count>0){
 		string put="s";
 		if(RotorTurrets.Count==1)
@@ -1352,13 +1382,13 @@ void Main_Program(string argument){
 			if(T.Status==RTStatus.Linked){
 				string T_Name=GetRemovedString(T.Turret.CustomName," Turret").Trim();
 				if(T_Name.Length>12)
-					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(T_Name.Length-9)+"...["+TurretStatus(T.Turret)+"]");
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(T_Name.Length-9)+"...["+TurretStatus(T.Turret)+"] ("+Math.Round(T.Angle,1).ToString()+"°)");
 				else
-					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name+"["+TurretStatus(T.Turret)+"]");
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name+"["+TurretStatus(T.Turret)+"] ("+Math.Round(T.Angle,1).ToString()+"°)");
 			}
 				
 			else
-				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString());
+				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString()+" ("+Math.Round(T.Angle,1).ToString()+"°)");
 		}
 		display_number++;
 	}
@@ -1395,6 +1425,12 @@ void Main_Program(string argument){
 				if(R.Aim(R.Turret.GetTargetedEntity().Position))
 					Firing=true;
 			}
+			else
+				R.Reset();
+		}
+		else{
+			if(!R.Remote.IsUnderControl)
+				R.Reset();
 		}
 		foreach(IMySmallGatlingGun Gun in R.Guns){
 			if(Gun.GetValue<bool>("Shoot")!=Firing)
