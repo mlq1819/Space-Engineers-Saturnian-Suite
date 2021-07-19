@@ -1315,23 +1315,29 @@ class GyroTurret:RotorTurret{
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
 		Direction.Normalize();
+		
+		Vector3D Aimed_Target=Target+Velocity*Distance/800;
+		
 		double Angle=GetAngle(Direction,Forward_Vector);
 		double AngularVelocity=Remote.GetShipVelocities().AngularVelocity.Length();
+		Prog.P.Echo("AngularVelocity:"+Math.Round(AngularVelocity,3).ToString());
 		float Yaw_Multx=1;
-		if(Angle<10&&Angle>2){
-			Target+=2*(Angle-1)*Velocity;
-			Direction=Target-Remote.GetPosition();
-			Distance=Direction.Length();
-			Direction.Normalize();
-			Yaw_Multx*=3;
+		if(Angle>0.5&&AngularVelocity<0.1){
+			Aimed_Target+=3*Math.Min(800/Distance,16)*(Angle-1)*Velocity;
+			Yaw_Multx*=(float)Math.Min(800/Distance,16)*5;
 		}
-		if(AngularVelocity<1)
-			Yaw_Multx*=5;
+		
+		Vector3D Aimed_Direction=Aimed_Target-Remote.GetPosition();
+		double Aimed_Distance=Aimed_Direction.Length();
+		Aimed_Direction.Normalize();
+		
+		if(AngularVelocity<0.1)
+			Yaw_Multx*=3;
 		
 		Gyroscope.GyroOverride=true;
 		
 		float input_pitch=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).X*0.99f;
-		double difference_vert=GetAngle(Up_Vector,Direction)-GetAngle(Down_Vector,Direction);
+		double difference_vert=GetAngle(Up_Vector,Aimed_Direction)-GetAngle(Down_Vector,Aimed_Direction);
 		while(difference_vert<-180)
 			difference_vert+=360;
 		while(difference_vert>180)
@@ -1339,19 +1345,23 @@ class GyroTurret:RotorTurret{
 		if(Math.Abs(difference_vert)>0.1)
 			input_pitch+=2.5f*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
 		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
-		double difference_horz=(GetAngle(Left_Vector,Direction)-GetAngle(Right_Vector,Direction))/2;
-		double difference_fb=GetAngle(Forward_Vector,Direction)-GetAngle(Backward_Vector,Direction);
+		double difference_horz=(GetAngle(Left_Vector,Aimed_Direction)-GetAngle(Right_Vector,Aimed_Direction))/2;
+		double difference_fb=GetAngle(Forward_Vector,Aimed_Direction)-GetAngle(Backward_Vector,Aimed_Direction);
 		if(difference_fb>90)
 			difference_horz=270;
 		while(difference_horz<-180)
 			difference_horz+=360;
 		while(difference_horz>180)
 			difference_horz-=360;
-		
-		if(Math.Abs(difference_horz)>0.1)
-			input_yaw+=2*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
-		else if(Math.Abs(difference_horz)>0.1){
-			input_yaw+=Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+		Prog.P.Echo("difference_horz:"+Math.Round(difference_horz,1).ToString()+"°");
+		if(Math.Abs(difference_horz)>0.1){
+			if(Math.Abs(difference_horz)<5&&Math.Abs(difference_horz)>1){
+				if(difference_horz>0)
+					difference_horz=5;
+				else
+					difference_horz=-5;
+			}
+			input_yaw+=2*Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		}
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
@@ -1365,8 +1375,8 @@ class GyroTurret:RotorTurret{
 		Gyroscope.Roll=(float)output.Z;
 		
 		double Max_Allowed_Angle=1;
-		double Distance_Comp=Math.Min(Math.Max(800/Distance,1),16); //This allows for less precision on closer targets; within 200 meters: 5°; within 100: 9°; within 50: 17°
-		double Speed_Comp=Velocity.Length()/10; //This allows for less precision on faster targets
+		double Distance_Comp=Math.Min(Math.Max(400/Distance,1),8); //This allows for less precision on closer targets
+		double Speed_Comp=Velocity.Length()/20; //This allows for less precision on faster targets
 		Max_Allowed_Angle+=Math.Sqrt(Math.Pow(Distance_Comp,2)+Math.Pow(Speed_Comp,2));
 		
 		double Targeted_Angle=GetAngle(Direction,Forward_Vector);
