@@ -1318,7 +1318,6 @@ void Main_Program(string argument){
 		Link(argument);
 	else if(cycle%360==0)
 		Turret_Setup();
-	int display_number=2;
 	if(RotorTurrets.Count>0){
 		string put="s";
 		if(RotorTurrets.Count==1)
@@ -1345,14 +1344,15 @@ void Main_Program(string argument){
 	}
 	if(RotorTurrets.Count+AllTurrets.Count==0)
 		Display(1,"0 Turrets");
+	int display_number=2;
 	if(RotorTurrets.Count>0){
 		Display(display_number,"---Rotor Turrets---");
 		for(int i=0;i<RotorTurrets.Count;i++){
 			RotorTurret T=RotorTurrets[i];
 			if(T.Status==RTStatus.Linked){
 				string T_Name=GetRemovedString(T.Turret.CustomName," Turret").Trim();
-				if(T_Name.Length>10)
-					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(0,7)+"...["+TurretStatus(T.Turret)+"]");
+				if(T_Name.Length>12)
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(T_Name.Length-9)+"...["+TurretStatus(T.Turret)+"]");
 				else
 					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name+"["+TurretStatus(T.Turret)+"]");
 			}
