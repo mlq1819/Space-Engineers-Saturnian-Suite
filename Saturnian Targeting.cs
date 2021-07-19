@@ -1388,6 +1388,19 @@ void Main_Program(string argument){
 	}
 	
 	
+	foreach(RotorTurret R in RotorTurrets){
+		bool Firing=false;
+		if(R.Turret!=null){
+			if(R.Turret.HasTarget){
+				if(R.Aim(R.Turret.GetTargetedEntity().Position))
+					Firing=true;
+			}
+		}
+		foreach(IMySmallGatlingGun Gun in R.Guns){
+			if(Gun.GetValue<bool>("Shoot")!=Firing)
+				Gun.SetValue<bool>("Shoot",Firing);
+		}
+	}
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
