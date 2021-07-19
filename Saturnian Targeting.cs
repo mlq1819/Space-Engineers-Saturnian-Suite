@@ -5,6 +5,12 @@
 * This suite handles rotor-turrets, turret controlling, etc.
 * Include "Targeting" in LCD name to add to group.
 * Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for the first Rotor. The second Motor can be a Hinge.
+
+TODO:
+- MotorTurret Aiming
+- User controls all turrets at once
+- 
+
 */
 string Program_Name="Saturnian Targeting";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
@@ -19,6 +25,14 @@ class Prog{
 	public static TimeSpan UpdateTimeSpan(TimeSpan old,double seconds){
 		return old+FromSeconds(seconds);
 	}
+	public static string GetRemovedString(string big_string, string small_string){
+		string output=big_string;
+		if(big_string.Contains(small_string)){
+			output=big_string.Substring(0, big_string.IndexOf(small_string))+big_string.Substring(big_string.IndexOf(small_string)+small_string.Length);
+		}
+		return output;
+	}
+	
 	public static Vector3D LocalToGlobal(Vector3D Local,IMyCubeBlock Ref){
 	Vector3D Global=Vector3D.Transform(Local, Ref.WorldMatrix)-Ref.GetPosition();
 	Global.Normalize();
@@ -394,7 +408,11 @@ void Write(string text,bool new_line=true,bool append=true){
 		Me.GetSurface(0).WriteText(text, append);
 }
 
-int Display_Count=3;
+int Display_Count{
+	get{
+		return TurretTypes+1;
+	}
+}
 int Current_Display=1;
 double Display_Timer=5;
 void Display(int display_number,string text,bool new_line=true,bool append=true){
@@ -451,6 +469,21 @@ List<IMyLargeTurretBase> AllTurrets{
 List<IMyLargeGatlingTurret> GatlingTurrets;
 List<IMyLargeMissileTurret> MissileTurrets;
 List<IMyLargeInteriorTurret> InteriorTurrets;
+List<RotorTurret> RotorTurrets;
+int TurretTypes{
+	get{
+		int output=0;
+		if(GatlingTurrets.Count>0)
+			output++;
+		if(MissileTurrets.Count>0)
+			output++;
+		if(InteriorTurrets.Count>0)
+			output++;
+		if(RotorTurrets.Count>0)
+			output++;
+		return output;
+	}
+}
 
 Base6Directions.Direction Forward;
 Base6Directions.Direction Backward{
@@ -510,6 +543,7 @@ void Reset(){
 	GatlingTurrets=new List<IMyLargeGatlingTurret>();
 	MissileTurrets=new List<IMyLargeMissileTurret>();
 	InteriorTurrets=new List<IMyLargeInteriorTurret>();
+	RotorTurrets=new List<RotorTurret>();
 	Notifications=new List<Notification>();
 }
 
@@ -556,6 +590,17 @@ bool Setup(){
 	GatlingTurrets=GenericMethods<IMyLargeGatlingTurret>.GetAllIncluding("");
 	MissileTurrets=GenericMethods<IMyLargeMissileTurret>.GetAllIncluding("");
 	InteriorTurrets=GenericMethods<IMyLargeInteriorTurret>.GetAllIncluding("");
+	List<IMyMotorStator> AllMotors=GenericMethods<IMyMotorStator>.GetAllGrid("",Me.CubeGrid);
+	foreach(IMyMotorStator Motor in AllMotors){
+		GyroTurret G;
+		if(GyroTurret.TryGet(Motor,out G))
+			RotorTurrets.Add(G);
+		else{
+			MotorTurret M;
+			if(MotorTurret.TryGet(Motor,out M))
+				RotorTurrets.Add(M);
+		}
+	}
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
@@ -801,25 +846,21 @@ class Task{
 			return false;
 		}
 	}
-	
 	public Task(string T,Quantifier D){
 		Type=T;
 		Duration=D;
 		Qualifiers=new List<string>();
 	}
-	
 	public Task(string T, Quantifier D, List<string> Q):this(T,D){
 		foreach(string s in Q)
 			Qualifiers.Add(s);
 	}
-	
 	public override string ToString(){
 		string output=Type+'\n'+Duration.ToString();
 		foreach(string Q in Qualifiers)
 			output+='\n'+Q;
 		return output;
 	}
-	
 	public static bool TryParse(string input,out Task output){
 		output=null;
 		string[] args=input.Split('\n');
@@ -987,10 +1028,28 @@ enum RTStatus{
 	Init0=0,
 	InitYaw=1,
 	InitPitch=2,
-	Ready=3
+	Unlinked=3,
+	Linked=4
 }
 abstract class RotorTurret{
 	public List<IMySmallGatlingGun> Guns;
+	public string Name{
+		get{
+			return YawMotor.CustomName;
+		}
+	}
+	public string DisplayName{
+		get{
+			string name=Name;
+			if(name.Contains("Advanced"))
+				name=Prog.GetRemovedString(name,"Advanced");
+			if(name.Contains("Rotor"))
+				return Prog.GetRemovedString(name,"Rotor").Trim();
+			else if(name.Contains("Hinge"))
+				return Prog.GetRemovedString(name,"Hinge").Trim();
+			return name.Trim();
+		}
+	}
 	IMyMotorStator YawMotor;
 	IMyMotorStator PitchMotor;
 	public IMyRemoteControl Remote;
@@ -1017,6 +1076,7 @@ abstract class RotorTurret{
 		}
 	}
 	public RTStatus Status;
+	public IMyLargeTurretBase Turret=null;
 	
 	public Vector3D Default_Vector{
 		get{
@@ -1059,11 +1119,21 @@ abstract class RotorTurret{
 		PitchMotor=pitchmotor;
 		Guns=guns;
 		Remote=remote;
+		if(Remote.CustomData.Length>0)
+			Turret=GenericMethods<IMyLargeTurretBase>.GetFull(Remote.CustomData);
 	}
 	
 	public abstract bool Initialize();
 	
 	public abstract bool Aim(Vector3D Target);
+	
+	public bool Link(IMyLargeTurretBase turret){
+		Turret=turret;
+		if(Status==RTStatus.Unlinked)
+			Status=RTStatus.Linked;
+		YawMotor.CustomData=Turret.CustomName;
+		return true;
+	}
 	
 	public bool Reset(){
 		return Aim(Default_Vector*10+Remote.GetPosition());
@@ -1114,7 +1184,11 @@ class GyroTurret:RotorTurret{
 		Gyroscope.Pitch=0;
 		Gyroscope.Yaw=0;
 		Gyroscope.Roll=0;
-		Status=RTStatus.Ready;
+		Gyroscope.GyroOverride=false;
+		if(Turret==null)
+			Status=RTStatus.Unlinked;
+		else
+			Status=RTStatus.Linked;
 	}
 	
 	public static bool TryGet(IMyMotorStator Yaw,out GyroTurret Output){
@@ -1146,6 +1220,8 @@ class GyroTurret:RotorTurret{
 		Vector3D Direction=Target-Remote.GetPosition();
 		Direction.Normalize();
 		
+		Gyroscope.GyroOverride=true;
+		
 		float input_pitch=0;
 		double difference_vert=GetAngle(Up_Vector,Direction)-GetAngle(Down_Vector,Direction);
 		input_pitch-=20*((float)Math.Min(Math.Abs((90-difference_vert)/90),1));
@@ -1168,13 +1244,115 @@ class GyroTurret:RotorTurret{
 	}
 }
 
+string[] SplitQuotes(string input,char c){
+	string[] quotes=input.Split('\"');
+	List<string> output=new List<string>();
+	for(int i=0;i<quotes.Length;i++){
+		if(i%2==0){
+			string[] args=quotes[i].Split(c);
+			for(int j=0;j<args.Length;j++){
+				if(args[j].Length>0)
+					output.Add(args[j]);
+			}
+		}
+		else if(quotes[i].Length>0)
+			output.Add(quotes[i]);
+	}
+	return output.ToArray();
+}
 
+bool Link(string argument){
+	string[] args=SplitQuotes(argument.Substring(5),' ');
+	if(args.Length!=3)
+		return false;
+	if(!args[1].ToLower().Equals("with"))
+		return false;
+	RotorTurret RT=null;
+	foreach(RotorTurret R in RotorTurrets){
+		if(R.Name.Equals(args[0])){
+			RT=R;
+			break;
+		}
+	}
+	if(RT==null)
+		return false;
+	IMyLargeTurretBase Turret=null;
+	foreach(IMyLargeTurretBase T in AllTurrets){
+		if(T.CustomName.Equals(args[2])){
+			Turret=T;
+			break;
+		}
+	}
+	if(Turret==null)
+		return false;
+	return RT.Link(Turret);
+}
+
+
+string TurretStatus(IMyLargeTurretBase T){
+	string status="Idle";
+	if(!T.IsFunctional)
+		status="Damaged";
+	else if(!T.IsWorking)
+		status="Offline";
+	else if(T.HasTarget)
+		status="Targeting";
+	else if(T.IsAimed)
+		status="Aimed";
+	return status;
+}
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
+	else if(argument.ToLower().IndexOf("link:")==0){
+		Link(argument);
+	}
+	int display_number=2;
+	Display(1,GatlingTurrets.Count.ToString()+" Gatling Turrets");
+	Display(1,MissileTurrets.Count.ToString()+" Missile Turrets");
+	Display(1,InteriorTurrets.Count.ToString()+" Interior Turrets");
+	Display(1,RotorTurrets.Count.ToString()+" Rotor Turrets");
+	
+	if(GatlingTurrets.Count>0){
+		Display(display_number,"---Gatling Turrets---");
+		for(int i=0;i<GatlingTurrets.Count;i++){
+			IMyLargeTurretBase T=GatlingTurrets[i];
+			Display(display_number,(i+1).ToString()+") "+T.CustomName+":"+TurretStatus(T));
+		}
+		display_number++;
+	}
+	if(MissileTurrets.Count>0){
+		Display(display_number,"---Missile Turrets---");
+		for(int i=0;i<MissileTurrets.Count;i++){
+			IMyLargeTurretBase T=MissileTurrets[i];
+			Display(display_number,(i+1).ToString()+") "+T.CustomName+":"+TurretStatus(T));
+		}
+		display_number++;
+	}
+	if(InteriorTurrets.Count>0){
+		Display(display_number,"---Interior Turrets---");
+		for(int i=0;i<InteriorTurrets.Count;i++){
+			IMyLargeTurretBase T=InteriorTurrets[i];
+			Display(display_number,(i+1).ToString()+") "+T.CustomName+":"+TurretStatus(T));
+		}
+		display_number++;
+	}
+	if(RotorTurrets.Count>0){
+		Display(display_number,"---Rotor Turrets---");
+		for(int i=0;i<RotorTurrets.Count;i++){
+			RotorTurret T=RotorTurrets[i];
+			if(T.Status==RTStatus.Linked)
+				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to ["+TurretStatus(T.Turret)+"]");
+			else
+				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString());
+		}
+		display_number++;
+	}
+	
+	
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
