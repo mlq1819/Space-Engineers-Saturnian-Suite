@@ -1176,8 +1176,11 @@ abstract class RotorTurret{
 		}
 	}
 	
-	public static bool ValidTarget(MyDetectedEntityInfo Entity){
+	
+	public bool ValidTarget(MyDetectedEntityInfo Entity){
 		if(Entity.Type==MyDetectedEntityType.None)
+			return true;
+		if(Entity.EntityId==Camera.CubeGrid.EntityId)
 			return true;
 		if(Entity.Relationship==MyRelationsBetweenPlayerAndBlock.Enemies)
 			return true;
@@ -1189,7 +1192,7 @@ abstract class RotorTurret{
 	}
 	public bool ClearVision(){
 		double timer=CameraTimer;
-		if(timer<1)
+		if(timer<1||Camera.AvailableScanRange<1000)
 			return CameraClear;
 		bool clear=true;
 		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+5*Forward_Vector+2.5*Left_Vector));
@@ -1307,8 +1310,9 @@ class GyroTurret:RotorTurret{
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity){
-		Velocity=Velocity-Remote.GetShipVelocities().LinearVelocity;
-		Vector3D Direction=(Target+Velocity)-Remote.GetPosition();
+		double Distance=Target-Remote.GetPosition();
+		Target+=Velocity*Distance/400;
+		Vector3D Direction=Target-Remote.GetPosition();
 		double Distance=Direction.Length();
 		double Velocity_Multx=Math.Max(Math.Min(400/Distance,10),1);
 		Direction=(Target+Velocity*Velocity_Multx)-Remote.GetPosition();
@@ -1426,10 +1430,10 @@ void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	Setup_Timer+=seconds_since_last_update;
-	foreach(RotorTurret R in RotorTurrets){
-		if(R!=null&&R.Camera!=null&&R.EnableRaycast){
-			CameraTimer+=seconds_since_last_update;
-		}
+	for(int i=0;i<RotorTurrets.Count;i++){
+		RotorTurret R=RotorTurrets[i];
+		if(R!=null&&R.Camera!=null&&R.Camera.EnableRaycast)
+			R.CameraTimer+=seconds_since_last_update;
 	}
 	if(Setup_Timer>30){
 		Setup_Timer=0;
