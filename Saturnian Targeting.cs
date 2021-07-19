@@ -1145,19 +1145,23 @@ abstract class RotorTurret{
 	
 	public abstract bool Aim(Vector3D Target,Vector3D Velocity);
 	
+	public bool Aim(Vector3D Target){
+		return Aim(Target,GetSpeed(Target));
+	}
+	
 	public double CameraTimer{
 		get{
 			if(Camera.CustomData.Length==0)
 				return 0;
 			string[] args=Camera.CustomData.Split('\n');
-			if(args.Length!=2)
+			if(args.Length!=3)
 				return 0;
 			double output=0;
 			double.TryParse(args[0],out output);
 			return output;
 		}
 		set{
-			Camera.CustomData=Math.Round(value,3).ToString()+'\n'+CameraClear.ToString();
+			Camera.CustomData=Math.Round(value,3).ToString()+'\n'+CameraClear.ToString()+'\n'+Math.Round(TargetTimer,3).ToString();
 		}
 	}
 	public bool CameraClear{
@@ -1165,17 +1169,31 @@ abstract class RotorTurret{
 			if(Camera.CustomData.Length==0)
 				return false;
 			string[] args=Camera.CustomData.Split('\n');
-			if(args.Length!=2)
+			if(args.Length!=3)
 				return false;
 			bool output=false;
 			bool.TryParse(args[1],out output);
 			return output;
 		}
 		set{
-			Camera.CustomData=Math.Round(CameraTimer,3).ToString()+'\n'+value.ToString();
+			Camera.CustomData=Math.Round(CameraTimer,3).ToString()+'\n'+value.ToString()+'\n'+Math.Round(TargetTimer,3).ToString();
 		}
 	}
-	
+	public double TargetTimer{
+		get{
+			if(Camera.CustomData.Length==0)
+				return 0;
+			string[] args=Camera.CustomData.Split('\n');
+			if(args.Length!=3)
+				return 0;
+			double output=0;
+			double.TryParse(args[2],out output);
+			return output;
+		}
+		set{
+			Camera.CustomData=Math.Round(CameraTimer,3).ToString()+'\n'+CameraClear.ToString()+'\n'+Math.Round(value,3).ToString();
+		}
+	}
 	
 	public bool ValidTarget(MyDetectedEntityInfo Entity){
 		if(Entity.Type==MyDetectedEntityType.None)
@@ -1189,6 +1207,19 @@ abstract class RotorTurret{
 		if(Entity.Relationship==MyRelationsBetweenPlayerAndBlock.Friends)
 			return false;
 		return true;
+	}
+	Vector3D Last_Velocity=new Vector3D(0,0,0);
+	public Vector3D GetSpeed(Vector3D Target){
+		if(TargetTimer>=1&&Camera.AvailableScanRange>=1000){
+			MyDetectedEntityInfo Entity=Camera.Raycast(Target);
+			if(Entity.Type!=MyDetectedEntityType.None&&ValidTarget(Entity)){
+				Last_Velocity=Entity.Velocity;
+			}
+			else
+				Last_Velocity=Last_Velocity*(2.0/3);
+			TargetTimer=0;
+		}
+		return Last_Velocity;
 	}
 	public bool ClearVision(){
 		double timer=CameraTimer;
@@ -1207,9 +1238,7 @@ abstract class RotorTurret{
 		return clear;
 	}
 	
-	public bool Aim(Vector3D Target){
-		return Aim(Target,new Vector3D(0,0,0));
-	}
+	
 	
 	public bool Link(IMyLargeTurretBase turret){
 		Turret=turret;
@@ -1316,14 +1345,16 @@ class GyroTurret:RotorTurret{
 		Distance=Direction.Length();
 		Direction.Normalize();
 		
-		Vector3D Aimed_Target=Target+Velocity*Distance/800;
+		Prog.P.Echo("Speed:"+Math.Round(Velocity.Length(),1).ToString()+"MpS");
+		
+		Vector3D Aimed_Target=Target;//+Velocity*Distance/800;
 		
 		double Angle=GetAngle(Direction,Forward_Vector);
 		double AngularVelocity=Remote.GetShipVelocities().AngularVelocity.Length();
 		Prog.P.Echo("AngularVelocity:"+Math.Round(AngularVelocity,3).ToString());
 		float Yaw_Multx=1;
 		if(Angle>0.5&&AngularVelocity<0.1){
-			Aimed_Target+=3*Math.Min(800/Distance,16)*(Angle-1)*Velocity;
+			//Aimed_Target+=3*Math.Min(800/Distance,16)*(Angle-1)*Velocity;
 			Yaw_Multx*=(float)Math.Min(800/Distance,16)*5;
 		}
 		
@@ -1452,8 +1483,20 @@ void Main_Program(string argument){
 	Setup_Timer+=seconds_since_last_update;
 	for(int i=0;i<RotorTurrets.Count;i++){
 		RotorTurret R=RotorTurrets[i];
-		if(R!=null&&R.Camera!=null&&R.Camera.EnableRaycast)
-			R.CameraTimer+=seconds_since_last_update;
+		if(R!=null&&R.Camera!=null&&R.Camera.EnableRaycast){
+			double c_timer=R.CameraTimer;
+			double t_timer=R.TargetTimer;
+			double pool=seconds_since_last_update;
+			if(c_timer<t_timer){
+				double difference=Math.Min(pool,t_timer-c_timer/3);
+				pool-=difference;
+				c_timer+=difference;
+			}
+			c_timer+=pool/2;
+			t_timer+=pool/2;
+			R.CameraTimer=c_timer;
+			R.TargetTimer=t_timer;
+		}
 	}
 	if(Setup_Timer>30){
 		Setup_Timer=0;
@@ -1538,7 +1581,7 @@ void Main_Program(string argument){
 		bool Firing=false;
 		if(R.Turret!=null){
 			if(R.Turret.HasTarget){
-				if(R.Aim(R.Turret.GetTargetedEntity().Position))
+				if(R.Aim(R.Turret.GetTargetedEntity().Position,R.Turret.GetTargetedEntity().Velocity))
 					Firing=true;
 			}
 			else
