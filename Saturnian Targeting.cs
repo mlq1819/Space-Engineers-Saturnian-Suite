@@ -1274,13 +1274,15 @@ abstract class RotorTurret{
 		}
 	}
 	protected Vector3D GetPredictedVelocity(Vector3D Velocity){
+		if(Velocity.Length()==0)
+			return Velocity;
 		Velocities.Enqueue(new VelocityTuple(Velocity));
 		if(Velocities.Count<=1)
 			return Velocity;
 		VelocityTuple V=Velocities.Peek();
 		Vector3D difference=Velocity-V.Velocity;
 		difference/=V.Timer;
-		return Velocity+difference;
+		return Velocity+(difference*2/3);
 	}
 	
 	public bool Link(IMyLargeTurretBase turret){
@@ -1292,6 +1294,7 @@ abstract class RotorTurret{
 	}
 	
 	public bool Reset(){
+		Velocities.Clear();
 		return Aim(Default_Vector*10+Remote.GetPosition());
 	}
 	
