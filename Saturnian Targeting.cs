@@ -1251,18 +1251,16 @@ class GyroTurret:RotorTurret{
 		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
 		double difference_horz=(GetAngle(Left_Vector,Direction)-GetAngle(Right_Vector,Direction))/2;
 		double difference_fb=GetAngle(Forward_Vector,Direction)-GetAngle(Backward_Vector,Direction);
-		if(difference_fb>0){
-			if(difference_horz>0)
-				difference_horz=360-difference_horz;
-			else
-				difference_horz=-360-difference_horz;
-		}
+		if(difference_fb>90)
+			difference_horz=270;
 		while(difference_horz<-180)
 			difference_horz+=360;
 		while(difference_horz>180)
 			difference_horz-=360;
 		if(Math.Abs(difference_horz)>0.1)
 			input_yaw+=10*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+		else if(Math.Abs(difference_horz)>0.1)
+			input_yaw+=5*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
 		Vector3D global=Vector3D.TransformNormal(input,Remote.WorldMatrix);
