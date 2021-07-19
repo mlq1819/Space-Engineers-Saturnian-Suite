@@ -534,6 +534,24 @@ UpdateFrequency GetUpdateFrequency(){
 	return UpdateFrequency.Update10;
 }
 
+void Turret_Setup(){
+	GatlingTurrets=GenericMethods<IMyLargeGatlingTurret>.GetAllIncluding("");
+	MissileTurrets=GenericMethods<IMyLargeMissileTurret>.GetAllIncluding("");
+	InteriorTurrets=GenericMethods<IMyLargeInteriorTurret>.GetAllIncluding("");
+	RotorTurrets=new List<RotorTurret>();
+	List<IMyMotorStator> AllMotors=GenericMethods<IMyMotorStator>.GetAllGrid("",Me.CubeGrid);
+	foreach(IMyMotorStator Motor in AllMotors){
+		GyroTurret G;
+		if(GyroTurret.TryGet(Motor,out G))
+			RotorTurrets.Add(G);
+		else{
+			MotorTurret M;
+			if(MotorTurret.TryGet(Motor,out M))
+				RotorTurrets.Add(M);
+		}
+	}
+}
+
 void Reset(){
 	Operational=false;
 	Runtime.UpdateFrequency=UpdateFrequency.None;
@@ -587,21 +605,7 @@ bool Setup(){
 	Forward=Controller.Orientation.Forward;
 	Up=Controller.Orientation.Up;
 	Left=Controller.Orientation.Left;
-	GatlingTurrets=GenericMethods<IMyLargeGatlingTurret>.GetAllIncluding("");
-	MissileTurrets=GenericMethods<IMyLargeMissileTurret>.GetAllIncluding("");
-	InteriorTurrets=GenericMethods<IMyLargeInteriorTurret>.GetAllIncluding("");
-	List<IMyMotorStator> AllMotors=GenericMethods<IMyMotorStator>.GetAllGrid("",Me.CubeGrid);
-	foreach(IMyMotorStator Motor in AllMotors){
-		GyroTurret G;
-		if(GyroTurret.TryGet(Motor,out G))
-			RotorTurrets.Add(G);
-		else{
-			MotorTurret M;
-			if(MotorTurret.TryGet(Motor,out M))
-				RotorTurrets.Add(M);
-		}
-	}
-	
+	Turret_Setup();
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -1050,8 +1054,8 @@ abstract class RotorTurret{
 			return name.Trim();
 		}
 	}
-	IMyMotorStator YawMotor;
-	IMyMotorStator PitchMotor;
+	protected IMyMotorStator YawMotor;
+	protected IMyMotorStator PitchMotor;
 	public IMyRemoteControl Remote;
 	private double Default_Yaw=0;
 	private double Default_Pitch=0;
@@ -1189,6 +1193,9 @@ class GyroTurret:RotorTurret{
 			Status=RTStatus.Unlinked;
 		else
 			Status=RTStatus.Linked;
+		if(Turret==null&&YawMotor.CustomData.Length>0){
+			Link(GenericMethods<IMyLargeTurretBase>.GetFull(YawMotor.CustomData.Trim()));
+		}
 	}
 	
 	public static bool TryGet(IMyMotorStator Yaw,out GyroTurret Output){
@@ -1307,15 +1314,54 @@ void Main_Program(string argument){
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
-	else if(argument.ToLower().IndexOf("link:")==0){
+	else if(argument.ToLower().IndexOf("link:")==0)
 		Link(argument);
-	}
+	else if(cycle%360==0)
+		Turret_Setup();
 	int display_number=2;
-	Display(1,GatlingTurrets.Count.ToString()+" Gatling Turrets");
-	Display(1,MissileTurrets.Count.ToString()+" Missile Turrets");
-	Display(1,InteriorTurrets.Count.ToString()+" Interior Turrets");
-	Display(1,RotorTurrets.Count.ToString()+" Rotor Turrets");
-	
+	if(RotorTurrets.Count>0){
+		string put="s";
+		if(RotorTurrets.Count==1)
+			put="";
+		Display(1,RotorTurrets.Count.ToString()+" Rotor Turret"+put);
+	}
+	if(GatlingTurrets.Count>0){
+		string put="s";
+		if(GatlingTurrets.Count==1)
+			put="";
+		Display(1,GatlingTurrets.Count.ToString()+" Gatling Turret"+put);
+	}
+	if(MissileTurrets.Count>0){
+		string put="s";
+		if(MissileTurrets.Count==1)
+			put="";
+		Display(1,MissileTurrets.Count.ToString()+" Missile Turret"+put);
+	}
+	if(InteriorTurrets.Count>0){
+		string put="s";
+		if(GatlingTurrets.Count==1)
+			put="";
+		Display(1,InteriorTurrets.Count.ToString()+" Interior Turret"+put);
+	}
+	if(RotorTurrets.Count+AllTurrets.Count==0)
+		Display(1,"0 Turrets");
+	if(RotorTurrets.Count>0){
+		Display(display_number,"---Rotor Turrets---");
+		for(int i=0;i<RotorTurrets.Count;i++){
+			RotorTurret T=RotorTurrets[i];
+			if(T.Status==RTStatus.Linked){
+				string T_Name=GetRemovedString(T.Turret.CustomName," Turret").Trim();
+				if(T_Name.Length>10)
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(0,7)+"...["+TurretStatus(T.Turret)+"]");
+				else
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name+"["+TurretStatus(T.Turret)+"]");
+			}
+				
+			else
+				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString());
+		}
+		display_number++;
+	}
 	if(GatlingTurrets.Count>0){
 		Display(display_number,"---Gatling Turrets---");
 		for(int i=0;i<GatlingTurrets.Count;i++){
@@ -1337,17 +1383,6 @@ void Main_Program(string argument){
 		for(int i=0;i<InteriorTurrets.Count;i++){
 			IMyLargeTurretBase T=InteriorTurrets[i];
 			Display(display_number,(i+1).ToString()+") "+T.CustomName+":"+TurretStatus(T));
-		}
-		display_number++;
-	}
-	if(RotorTurrets.Count>0){
-		Display(display_number,"---Rotor Turrets---");
-		for(int i=0;i<RotorTurrets.Count;i++){
-			RotorTurret T=RotorTurrets[i];
-			if(T.Status==RTStatus.Linked)
-				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to ["+TurretStatus(T.Turret)+"]");
-			else
-				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString());
 		}
 		display_number++;
 	}
