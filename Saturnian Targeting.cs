@@ -4,7 +4,7 @@
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite handles rotor-turrets, turret controlling, etc.
 * Include "Targeting" in LCD name to add to group.
-* Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for the first Rotor. The second Motor can be a Hinge.
+* Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for the first Rotor. The second Motor can be a Hinge. Rotor Turret must also have a Remote Control and a forward-facing Camera.
 
 TODO:
 - MotorTurret Aiming
@@ -1310,16 +1310,11 @@ class GyroTurret:RotorTurret{
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity){
-		double Distance=Target-Remote.GetPosition();
+		double Distance=(Target-Remote.GetPosition()).Length();
 		Target+=Velocity*Distance/400;
 		Vector3D Direction=Target-Remote.GetPosition();
-		double Distance=Direction.Length();
-		double Velocity_Multx=Math.Max(Math.Min(400/Distance,10),1);
-		Direction=(Target+Velocity*Velocity_Multx)-Remote.GetPosition();
 		Distance=Direction.Length();
 		Direction.Normalize();
-		Vector3D Aimed_Target=(Target-Remote.GetPosition()).Length()*Forward_Vector+Remote.GetPosition();
-		double Aimed_Distance=(Aimed_Target-Target).Length();
 		
 		Gyroscope.GyroOverride=true;
 		
@@ -1340,12 +1335,15 @@ class GyroTurret:RotorTurret{
 			difference_horz+=360;
 		while(difference_horz>180)
 			difference_horz-=360;
-		//float Yaw_Multx=(float)Math.Max(Math.Min(Aimed_Distance/2.5,10),1);
 		
 		if(Math.Abs(difference_horz)>0.1)
 			input_yaw+=2*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
-		else if(Math.Abs(difference_horz)>0.1)
-			input_yaw+=1*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+		else if(Math.Abs(difference_horz)>0.1){
+			float Yaw_Multx=1;
+			if(Remote.GetShipVelocities().AngularVelocity.Length()<1)
+				Yaw_Multx=5;
+			input_yaw+=Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+		}
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
 		Vector3D global=Vector3D.TransformNormal(input,Remote.WorldMatrix);
@@ -1357,15 +1355,18 @@ class GyroTurret:RotorTurret{
 		Gyroscope.Yaw=(float)output.Y;
 		Gyroscope.Roll=(float)output.Z;
 		
-		Vector3D Direction2=Target-Remote.GetPosition();
-		Direction2.Normalize();
-		Prog.P.Echo("Aimed_Distance:"+Math.Round(Aimed_Distance,1).ToString()+"M");
-		double Target_Angle=1+Velocity.Length()*Math.Max(400/(Target+Velocity*Velocity_Multx/2-Remote.GetPosition()).Length(),1);
-		double Targeted_Angle=Math.Min(GetAngle(Direction,Forward_Vector),GetAngle(Direction2,Forward_Vector));
-		Prog.P.Echo("Target Angle:"+Math.Round(Targeted_Angle,2).ToString()+"° / "+Math.Round(Target_Angle,2).ToString()+"°");
+		double Max_Allowed_Angle=1;
+		Max_Allowed_Angle+=Math.Max(400/Distance,1); //This allows for less precision on closer targets; within 100 meters: 5°; within 50: 9°
+		Max_Allowed_Angle+=Velocity.Length()/10; //This allows for less precision on faster targets
+		
+		
+		double Targeted_Angle=GetAngle(Direction,Forward_Vector);
+		Prog.P.Echo("Target Angle:"+Math.Round(Targeted_Angle,2).ToString()+"° / "+Math.Round(Max_Allowed_Angle,2).ToString()+"°");
+		
 		bool Clear_Shot=ClearVision();
 		Prog.P.Echo("Clear Shot:"+Clear_Shot.ToString());
-		return Clear_Shot&&((Aimed_Distance<2.5+Velocity.Length()/4)||(Targeted_Angle<=Target_Angle));
+		
+		return Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle;
 	}
 }
 
