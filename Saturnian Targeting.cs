@@ -1063,6 +1063,7 @@ abstract class RotorTurret{
 	protected IMyMotorStator YawMotor;
 	protected IMyMotorStator PitchMotor;
 	public IMyRemoteControl Remote;
+	public IMyCameraBlock Camera;
 	private double Default_Yaw=0;
 	private double Default_Pitch=0;
 	public double Angle{
@@ -1129,18 +1130,83 @@ abstract class RotorTurret{
 		}
 	}
 	
-	protected RotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote){
+	protected RotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera){
 		YawMotor=yawmotor;
 		PitchMotor=pitchmotor;
 		Guns=guns;
 		Remote=remote;
+		Camera=camera;
+		Camera.EnableRaycast=true;
 		if(Remote.CustomData.Length>0)
 			Turret=GenericMethods<IMyLargeTurretBase>.GetFull(Remote.CustomData);
 	}
 	
 	public abstract bool Initialize();
 	
-	public abstract bool Aim(Vector3D Target);
+	public abstract bool Aim(Vector3D Target,Vector3D Velocity);
+	
+	public double CameraTimer{
+		get{
+			if(Camera.CustomData.Length==0)
+				return 0;
+			string[] args=Camera.CustomData.Split('\n');
+			if(args.Length!=2)
+				return 0;
+			double output=0;
+			double.TryParse(args[0],out output);
+			return output;
+		}
+		set{
+			Camera.CustomData=Math.Round(value,3).ToString()+'\n'+CameraClear.ToString();
+		}
+	}
+	public bool CameraClear{
+		get{
+			if(Camera.CustomData.Length==0)
+				return false;
+			string[] args=Camera.CustomData.Split('\n');
+			if(args.Length!=2)
+				return false;
+			bool output=false;
+			bool.TryParse(args[1],out output);
+			return output;
+		}
+		set{
+			Camera.CustomData=Math.Round(CameraTimer,3).ToString()+'\n'+value.ToString();
+		}
+	}
+	
+	public static bool ValidTarget(MyDetectedEntityInfo Entity){
+		if(Entity.Type==MyDetectedEntityType.None)
+			return true;
+		if(Entity.Relationship==MyRelationsBetweenPlayerAndBlock.Enemies)
+			return true;
+		if(Entity.Relationship==MyRelationsBetweenPlayerAndBlock.Owner)
+			return false;
+		if(Entity.Relationship==MyRelationsBetweenPlayerAndBlock.Friends)
+			return false;
+		return true;
+	}
+	public bool ClearVision(){
+		double timer=CameraTimer;
+		if(timer<1)
+			return CameraClear;
+		bool clear=true;
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+5*Forward_Vector+2.5*Left_Vector));
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+5*Forward_Vector+2.5*Right_Vector));
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+15*Forward_Vector+2.5*Left_Vector));
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+15*Forward_Vector+2.5*Right_Vector));
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+50*Forward_Vector+2.5*Left_Vector));
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+50*Forward_Vector+2.5*Right_Vector));
+		clear=clear&&ValidTarget(Camera.Raycast(Camera.GetPosition()+800*Forward_Vector));
+		CameraTimer=0;
+		CameraClear=clear;
+		return clear;
+	}
+	
+	public bool Aim(Vector3D Target){
+		return Aim(Target,new Vector3D(0,0,0));
+	}
 	
 	public bool Link(IMyLargeTurretBase turret){
 		Turret=turret;
@@ -1160,7 +1226,7 @@ abstract class RotorTurret{
 }
 
 class MotorTurret:RotorTurret{
-	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote):base(yawmotor,pitchmotor,guns,remote){
+	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera):base(yawmotor,pitchmotor,guns,remote,camera){
 		Status=RTStatus.Init0;
 	}
 	
@@ -1178,7 +1244,10 @@ class MotorTurret:RotorTurret{
 		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch,double.MaxValue);
 		if(remote==null)
 			return false;
-		Output=new MotorTurret(yaw,pitch,guns,remote);
+		IMyCameraBlock camera=GenericMethods<IMyCameraBlock>.GetGrid("",remote.CubeGrid,remote);
+		if(camera==null)
+			return false;
+		Output=new MotorTurret(yaw,pitch,guns,remote,camera);
 		return true;
 	}
 	
@@ -1186,7 +1255,7 @@ class MotorTurret:RotorTurret{
 		return false;
 	}
 	
-	public override bool Aim(Vector3D Target){
+	public override bool Aim(Vector3D Target,Vector3D Velocity){
 		return false;
 	}
 }
@@ -1194,7 +1263,7 @@ class MotorTurret:RotorTurret{
 class GyroTurret:RotorTurret{
 	public IMyGyro Gyroscope;
 	
-	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote){
+	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote,camera){
 		Gyroscope=gyro;
 		Gyroscope.Pitch=0;
 		Gyroscope.Yaw=0;
@@ -1223,10 +1292,13 @@ class GyroTurret:RotorTurret{
 		IMyRemoteControl remote=GenericMethods<IMyRemoteControl>.GetGrid("",pitch.TopGrid,pitch,double.MaxValue);
 		if(remote==null)
 			return false;
+		IMyCameraBlock camera=GenericMethods<IMyCameraBlock>.GetGrid("",remote.CubeGrid,remote);
+		if(camera==null)
+			return false;
 		IMyGyro gyro=GenericMethods<IMyGyro>.GetGrid("",pitch.TopGrid,remote,double.MaxValue);
 		if(gyro==null)
 			return false;
-		Output=new GyroTurret(yaw,pitch,guns,remote,gyro);
+		Output=new GyroTurret(yaw,pitch,guns,remote,camera,gyro);
 		return true;
 	}
 	
@@ -1234,9 +1306,16 @@ class GyroTurret:RotorTurret{
 		return true;
 	}
 	
-	public override bool Aim(Vector3D Target){
-		Vector3D Direction=Target-Remote.GetPosition();
+	public override bool Aim(Vector3D Target,Vector3D Velocity){
+		Velocity=Velocity-Remote.GetShipVelocities().LinearVelocity;
+		Vector3D Direction=(Target+Velocity)-Remote.GetPosition();
+		double Distance=Direction.Length();
+		double Velocity_Multx=Math.Max(Math.Min(400/Distance,10),1);
+		Direction=(Target+Velocity*Velocity_Multx)-Remote.GetPosition();
+		Distance=Direction.Length();
 		Direction.Normalize();
+		Vector3D Aimed_Target=(Target-Remote.GetPosition()).Length()*Forward_Vector+Remote.GetPosition();
+		double Aimed_Distance=(Aimed_Target-Target).Length();
 		
 		Gyroscope.GyroOverride=true;
 		
@@ -1257,10 +1336,12 @@ class GyroTurret:RotorTurret{
 			difference_horz+=360;
 		while(difference_horz>180)
 			difference_horz-=360;
+		//float Yaw_Multx=(float)Math.Max(Math.Min(Aimed_Distance/2.5,10),1);
+		
 		if(Math.Abs(difference_horz)>0.1)
-			input_yaw+=10*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+			input_yaw+=2*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		else if(Math.Abs(difference_horz)>0.1)
-			input_yaw+=5*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+			input_yaw+=1*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
 		Vector3D global=Vector3D.TransformNormal(input,Remote.WorldMatrix);
@@ -1272,7 +1353,15 @@ class GyroTurret:RotorTurret{
 		Gyroscope.Yaw=(float)output.Y;
 		Gyroscope.Roll=(float)output.Z;
 		
-		return GetAngle(Direction,Forward_Vector)<=1;
+		Vector3D Direction2=Target-Remote.GetPosition();
+		Direction2.Normalize();
+		Prog.P.Echo("Aimed_Distance:"+Math.Round(Aimed_Distance,1).ToString()+"M");
+		double Target_Angle=1+Velocity.Length()*Math.Max(400/(Target+Velocity*Velocity_Multx/2-Remote.GetPosition()).Length(),1);
+		double Targeted_Angle=Math.Min(GetAngle(Direction,Forward_Vector),GetAngle(Direction2,Forward_Vector));
+		Prog.P.Echo("Target Angle:"+Math.Round(Targeted_Angle,2).ToString()+"° / "+Math.Round(Target_Angle,2).ToString()+"°");
+		bool Clear_Shot=ClearVision();
+		Prog.P.Echo("Clear Shot:"+Clear_Shot.ToString());
+		return Clear_Shot&&((Aimed_Distance<2.5+Velocity.Length()/4)||(Targeted_Angle<=Target_Angle));
 	}
 }
 
@@ -1337,6 +1426,11 @@ void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	Setup_Timer+=seconds_since_last_update;
+	foreach(RotorTurret R in RotorTurrets){
+		if(R!=null&&R.Camera!=null&&R.EnableRaycast){
+			CameraTimer+=seconds_since_last_update;
+		}
+	}
 	if(Setup_Timer>30){
 		Setup_Timer=0;
 		Turret_Setup();
