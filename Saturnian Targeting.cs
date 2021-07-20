@@ -1152,7 +1152,7 @@ abstract class RotorTurret{
 	
 	public abstract bool Initialize();
 	
-	public abstract bool Aim(Vector3D Target,Vector3D Velocity);
+	public abstract bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false);
 	
 	public bool Aim(Vector3D Target){
 		return Aim(Target,GetSpeed(Target));
@@ -1280,8 +1280,10 @@ abstract class RotorTurret{
 	}
 	
 	public bool Reset(){
-		SavedVelocity.Timer=0;
-		return Aim(Default_Vector*10+Remote.GetPosition());
+		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
+		bool output=Aim(Default_Vector*10+Remote.GetPosition(),new Vector3D(0,0,0),true);
+		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
+		return output;
 	}
 	
 	public static double GetAngle(Vector3D v1,Vector3D v2){
@@ -1319,7 +1321,7 @@ class MotorTurret:RotorTurret{
 		return false;
 	}
 	
-	public override bool Aim(Vector3D Target,Vector3D Velocity){
+	public override bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false){
 		return false;
 	}
 }
@@ -1370,9 +1372,10 @@ class GyroTurret:RotorTurret{
 		return true;
 	}
 	
-	public override bool Aim(Vector3D Target,Vector3D Velocity){
+	public override bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false){
 		double Distance=(Target-Remote.GetPosition()).Length();
-		Velocity=GetPredictedVelocity(Velocity,Distance);
+		if(!reset)
+			Velocity=GetPredictedVelocity(Velocity,Distance);
 		Target+=Velocity*Distance/400;
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
