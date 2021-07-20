@@ -4,7 +4,7 @@
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite handles rotor-turrets, turret controlling, etc.
 * Include "Targeting" in LCD name to add to group.
-* Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for the first Rotor. The second Motor can be a Hinge. Rotor Turret must also have a Remote Control and a forward-facing Camera.
+* Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for both motors. The second Motor can be a Hinge. Rotor Turret must also have a Remote Control and a forward-facing Camera.
 * When Aiming and Firing, any Red Lights on the RotorTurret will be turned on; these same lights are turned off when resetting.
 
 TODO:
@@ -1229,9 +1229,10 @@ class VelocityTuple{
 enum RTStatus{
 	Init0=0,
 	InitYaw=1,
-	InitPitch=2,
-	Unlinked=3,
-	Linked=4
+	Init1=2,
+	InitPitch=3,
+	Unlinked=4,
+	Linked=5
 }
 abstract class RotorTurret{
 	public List<IMySmallGatlingGun> Guns;
@@ -1254,6 +1255,7 @@ abstract class RotorTurret{
 	}
 	protected IMyMotorStator YawMotor;
 	protected IMyMotorStator PitchMotor;
+	protected bool PitchParity=true; //True means positive angles are up, false means positive angles are down
 	public IMyRemoteControl Remote;
 	public IMyCameraBlock Camera;
 	private double Default_Yaw=0;
@@ -1277,7 +1279,18 @@ abstract class RotorTurret{
 			return pitch;
 		}
 	}
-	public RTStatus Status;
+	private RTStatus _Status;
+	public RTStatus Status{
+		get{
+			return _Status;
+		}
+		set{
+			if(value==RTStatus.Unlinked&&Turret!=null)
+				_Status=RTStatus.Linked;
+			else
+				_Status=value;
+		}
+	}
 	public IMyLargeTurretBase Turret=null;
 	public List<IMyLightingBlock> Lights;
 	
@@ -1465,11 +1478,43 @@ abstract class RotorTurret{
 		return Velocity+(difference*Distance/800);
 	}
 	
+	public bool CanAim(Vector3D Target){
+		Vector3D Direction=Target-Remote.GetPosition();
+		double Distance=Direction.Length();
+		Direction.Normalize();
+		
+		if(GenericMethods<IMyTerminalBlock>.GetAngle(Default_Vector,Target)>90)
+			return false;
+		
+		Vector3D Elevation=Prog.GlobalToLocal(Direction,YawMotor);
+		Elevation.Normalize();
+		double rise=Elevation.Y;
+		double run=Math.Sqrt(Math.Pow(Elevation.X,2)+Math.Pow(Elevation.Z,2));
+		
+		Vector3D Yaw_Up=Prog.GlobalToLocal(new Vector3D(0,1,0),YawMotor);
+		if(GenericMethods<IMyTerminalBlock>.GetAngle(Yaw_Up,Up_Vector)>90)
+			rise*=-1;
+		
+		float elevation=(float)(Math.Atan(rise/run)*180/Math.PI);
+		if(!PitchParity)
+			elevation*=-1;
+		if(elevation>=0){
+			if(PitchMotor.UpperLimitDeg==float.MaxValue)
+				return true;
+			return elevation<PitchMotor.UpperLimitDeg;
+		}
+		else{
+			if(PitchMotor.LowerLimitDeg==float.MaxValue)
+				return true;
+			return elevation>PitchMotor.LowerLimitDeg;
+		}
+	}
+	
 	public bool Link(IMyLargeTurretBase turret){
 		Turret=turret;
 		if(Status==RTStatus.Unlinked)
 			Status=RTStatus.Linked;
-		YawMotor.CustomData=Turret.CustomName;
+		Remote.CustomData=Turret.CustomName;
 		return true;
 	}
 	
@@ -1532,20 +1577,18 @@ class GyroTurret:RotorTurret{
 	public IMyGyro Gyroscope;
 	
 	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote,camera){
+		Status=RTStatus.Init0;
 		YawMotor.Torque=10;
 		PitchMotor.Torque=10;
+		if(PitchMotor.CustomData.Length>0&&bool.TryParse(PitchMotor.CustomData,out PitchParity))
+			Status=RTStatus.Unlinked;
 		Gyroscope=gyro;
 		Gyroscope.Pitch=0;
 		Gyroscope.Yaw=0;
 		Gyroscope.Roll=0;
 		Gyroscope.GyroOverride=false;
-		if(Turret==null)
-			Status=RTStatus.Unlinked;
-		else
-			Status=RTStatus.Linked;
-		if(Turret==null&&YawMotor.CustomData.Length>0){
-			Link(GenericMethods<IMyLargeTurretBase>.GetFull(YawMotor.CustomData.Trim()));
-		}
+		if(Turret==null&&Remote.CustomData.Length>0)
+			Link(GenericMethods<IMyLargeTurretBase>.GetFull(Remote.CustomData.Trim()));
 	}
 	
 	public static bool TryGet(IMyMotorStator Yaw,out GyroTurret Output){
@@ -1572,8 +1615,59 @@ class GyroTurret:RotorTurret{
 		return true;
 	}
 	
+	//Resets the turret to Default Vector
+	void Init0(){
+		if(GenericMethods<IMyTerminalBlock>.GetAngle(Forward_Vector,Default_Vector)<1)
+			Status=RTStatus.InitPitch;
+		else
+			Reset();
+	}
+	
+	//Learns the pitch parity by tilting either up or down
+	void InitPitch(){
+		Angle angle=Angle.FromRadians(PitchMotor.Angle);
+		bool RotorBelow=true;
+		Vector3D Yaw_Up=Prog.GlobalToLocal(new Vector3D(0,1,0),YawMotor);
+		if(GenericMethods<IMyTerminalBlock>.GetAngle(Yaw_Up,Up_Vector)>90)
+			RotorBelow=false;
+		Vector3D Target=Forward_Vector;
+		if(RotorBelow)
+			Target+=Up_Vector;
+		else
+			Target+=Down_Vector;
+		Target.Normalize();
+		Target=Target*10+Remote.GetPosition();
+		
+		if(Math.Abs((angle.Degrees+180)%360-180)>=1.5){
+			Angle zero=new Angle(0);
+			if(RotorBelow)
+				PitchParity=angle>zero;
+			else
+				PitchParity=angle<zero;
+			PitchMotor.CustomData=PitchParity.ToString();
+			Status=RTStatus.Unlinked;
+		}
+		else{
+			Aim(Target,new Vector3D(0,0,0),true);
+		}
+	} 
+	
+	//Used to learn parities
 	public override bool Initialize(){
-		return true;
+		RTStatus Last_Status=Status;
+		switch(Status){
+			case RTStatus.Init0:
+				Init0();
+				break;
+			case RTStatus.InitPitch:
+				InitPitch();
+				break;
+			default:
+				return true;
+		}
+		if(Last_Status!=Status)
+			return Initialize();
+		return false;
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false){
@@ -1811,18 +1905,43 @@ void Main_Program(string argument){
 	
 	
 	foreach(RotorTurret R in RotorTurrets){
+		if(R.Status<RTStatus.Unlinked)
+			R.Initialize();
 		bool Firing=false;
-		if(R.Turret!=null){
-			if(R.Turret.HasTarget){
-				if(R.Aim(R.Turret.GetTargetedEntity().Position,R.Turret.GetTargetedEntity().Velocity))
-					Firing=true;
+		if(R.Status>=RTStatus.Unlinked){
+			if(R.Turret!=null){
+				if(R.Turret.HasTarget){
+					MyDetectedEntityInfo Entity=R.Turret.GetTargetedEntity();
+					if(R.Aim(Entity.Position,Entity.Velocity))
+						Firing=true;
+				}
+				else
+					R.Reset();
 			}
-			else
-				R.Reset();
-		}
-		else{
-			if(!R.Remote.IsUnderControl)
-				R.Reset();
+			else{
+				List<IMyLargeMissileTurret> turretlist=new List<IMyLargeMissileTurret>();
+				foreach(IMyLargeMissileTurret T in MissileTurrets)
+					turretlist.Add(T);
+				turretlist=GenericMethods<IMyLargeMissileTurret>.SortByDistance(turretlist,R.Remote.GetPosition());
+				bool has_target=false;
+				MyDetectedEntityInfo Entity=new MyDetectedEntityInfo();
+				foreach(IMyLargeMissileTurret T in turretlist){
+					if(T.HasTarget){
+						Entity=T.GetTargetedEntity();
+						if(R.CanAim(T.Position)){
+							has_target=true;
+							break;
+						}
+					}
+				}
+				if(has_target){
+					if(R.Aim(Entity.Position,Entity.Velocity))
+						Firing=true;
+				}
+				else if(!R.Remote.IsUnderControl)
+					R.Reset();
+				
+			}
 		}
 		foreach(IMySmallGatlingGun Gun in R.Guns){
 			if(Gun.GetValue<bool>("Shoot")!=Firing)
