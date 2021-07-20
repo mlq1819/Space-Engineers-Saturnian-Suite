@@ -1143,6 +1143,8 @@ abstract class RotorTurret{
 	
 	protected RotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera){
 		YawMotor=yawmotor;
+		YawMotor.LowerLimitDeg=Math.Min(YawMotor.LowerLimitDeg,0);
+		YawMotor.UpperLimitDeg=Math.Max(YawMotor.UpperLimitDeg,0);
 		PitchMotor=pitchmotor;
 		Guns=guns;
 		Remote=remote;
@@ -1309,6 +1311,41 @@ abstract class RotorTurret{
 		return output;
 	}
 	
+	//Figures out the valid Yaw Angle, taking into account the Yaw Motor's limits.
+	public float YawAngle(Vector3D Target){
+		Vector3D Yaw_Left=Prog.LocalToGlobal(new Vector3D(1,0,0),Remote);
+		Vector3D Yaw_Right=-1*Yaw_Left;
+		Vector3D Yaw_Forward=Default_Vector;
+		Vector3D Yaw_Backward=-1*Yaw_Forward;
+		Vector3D Direction=Target-Remote.GetPosition();
+		Direction.Normalize();
+		Direction=Prog.P.GlobalToLocal(Direction,Yaw_Motor);
+		//Z ==> Front
+		//-Z ==> Behind
+		//X ==> Left
+		//-X ==> Right
+		
+		//Theta=arctan(y/x)
+		//since (0,0,1) ==> 0 deg, Z==>x and X==>y
+		float target_angle_pos=(float)(Math.Atan(Direction.X/Direction.Z)*180/Math.PI);
+		while(target_angle_pos<0)
+			target_angle_pos+=360;
+		float target_angle_neg=target_angle_pos-360;
+		float Min_Angle=Yaw_Motor.LowerLimitDeg;
+		float Max_Angle=Yaw_Motor.UpperLimitDeg;
+		float difference_down=-1,difference_up=-1;
+		if(Min_Angle==float.MinValue||target_angle_neg>Min_Angle)
+			difference_down=Math.Abs(target_angle_neg-Min_Angle);
+		if(Max_Angle==float.MaxValue||target_angle_pos<Max_Angle)
+			difference_up=Math.Abs(target_angle_pos-Max_Angle);
+		float output=0;
+		if(difference_down>0&&(difference_up<0||difference_down<difference_up))
+			output=-1*difference_down;
+		if(difference_up>0&&(difference_down<0||difference_up<difference_down+20))
+			output=difference_up;
+		return output;
+	}
+	
 	public static double GetAngle(Vector3D v1,Vector3D v2){
 		return GenericMethods<IMyTerminalBlock>.GetAngle(v1,v2);
 	}
@@ -1447,14 +1484,10 @@ class GyroTurret:RotorTurret{
 		if(Math.Abs(difference_vert)>0.1)
 			input_pitch+=2.5f*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
 		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
-		double difference_horz=(GetAngle(Left_Vector,Aimed_Direction)-GetAngle(Right_Vector,Aimed_Direction))/2;
-		double difference_fb=GetAngle(Forward_Vector,Aimed_Direction)-GetAngle(Backward_Vector,Aimed_Direction);
-		if(difference_fb>90)
-			difference_horz=270;
-		while(difference_horz<-180)
-			difference_horz+=360;
-		while(difference_horz>180)
-			difference_horz-=360;
+		double difference_horz=YawAngle(Target);
+		
+		//(GetAngle(Left_Vector,Aimed_Direction)-GetAngle(Right_Vector,Aimed_Direction))/2;
+		
 		Prog.P.Echo("difference_horz:"+Math.Round(difference_horz,1).ToString()+"°");
 		if(Math.Abs(difference_horz)>0.1){
 			if(Math.Abs(difference_horz)<5&&Math.Abs(difference_horz)>1){
