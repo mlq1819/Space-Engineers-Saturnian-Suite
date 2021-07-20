@@ -1547,7 +1547,16 @@ class MotorTurret:RotorTurret{
 	protected bool YawParity=true; //True means positive angles are left, false means positive angles are right
 	
 	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera):base(yawmotor,pitchmotor,guns,remote,camera){
+		YawMotor.Torque=Math.Max(YawMotor.Torque,640000);
+		PitchMotor.Torque=Math.Max(PitchMotor.Torque,640000);
 		Status=RTStatus.Init0;
+		if(YawMotor.CustomData.Length>0&&bool.TryParse(YawMotor.CustomData,out YawParity)){
+			Status=RTStatus.Init1;
+			if(PitchMotor.CustomData.Length>0&&bool.TryParse(PitchMotor.CustomData,out PitchParity))
+				Status=RTStatus.Unlinked;
+		}
+		if(Turret==null&&Remote.CustomData.Length>0)
+			Link(GenericMethods<IMyLargeTurretBase>.GetFull(Remote.CustomData.Trim()));
 	}
 	
 	public static bool TryGet(IMyMotorStator Yaw,out MotorTurret Output){
@@ -1698,8 +1707,6 @@ class MotorTurret:RotorTurret{
 		
 		if(AngularVelocity<0.1)
 			Speed_Multx*=3;
-		
-		
 		
 		double difference_pitch=GetAngle(Direction,Up_Vector)-GetAngle(Direction,Down_Vector);
 		float Current_Pitch=(float)(PitchMotor.Angle*180/Math.PI);
