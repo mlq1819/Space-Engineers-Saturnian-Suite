@@ -1597,9 +1597,9 @@ class MotorTurret:RotorTurret{
 	
 	//Resets the turret to Default Vector
 	bool Init(){
+		Reset();
 		if(GetAngle(Forward_Vector,Default_Vector)<1)
 			return true;
-		Reset();
 		return false;
 	}
 	void Init0(){
@@ -1617,6 +1617,7 @@ class MotorTurret:RotorTurret{
 		if(Math.Abs((angle.Degrees+180)%360-180)>=1.5){
 			double difference=GetAngle(Default_Vector,Left_Vector)-GetAngle(Default_Vector,Right_Vector);
 			YawParity=(difference<0);
+			YawMotor.CustomData=YawParity.ToString();
 			Status=RTStatus.Init1;
 		}
 		else{
@@ -1637,6 +1638,7 @@ class MotorTurret:RotorTurret{
 				PitchParity=(difference<0);
 			else
 				PitchParity=(difference>=0);
+			PitchMotor.CustomData=PitchParity.ToString();
 			Status=RTStatus.Unlinked;
 		}
 		else{
@@ -1706,9 +1708,9 @@ class MotorTurret:RotorTurret{
 		float Current_Pitch=(float)(PitchMotor.Angle*180/Math.PI);
 		Angle Target_Pitch=new Angle(Current_Pitch)+new Angle((float)difference_pitch);
 		if(Target_Pitch>=new Angle(Current_Pitch))
-			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,true,(float)Target_Pitch.Degrees,Speed_Multx);
+			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,true,(float)Target_Pitch.Degrees,Speed_Multx/36);
 		else
-			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,false,(float)Target_Pitch.Degrees,Speed_Multx);
+			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,false,(float)Target_Pitch.Degrees,Speed_Multx/36);
 		
 		
 		double difference_yaw=GetAngle(Direction,Left_Vector)-GetAngle(Direction,Right_Vector);
@@ -1718,10 +1720,15 @@ class MotorTurret:RotorTurret{
 			difference_yaw=270;
 		float Current_Yaw=(float)(YawMotor.Angle*180/Math.PI);
 		Angle Target_Yaw=new Angle(Current_Yaw)+new Angle((float)difference_yaw);
+		Prog.P.Echo("difference_yaw:"+(new Angle((float)difference_yaw)).ToString(1));
+		Prog.P.Echo("Current_Yaw:"+(new Angle((float)Current_Yaw)).ToString(1));
+		Prog.P.Echo("Target_Yaw:"+Target_Yaw.ToString(1));
+		
+		
 		if(Target_Yaw>=new Angle(Current_Yaw))
-			YawMotor.TargetVelocityRad=GetRadD(YawMotor,true,(float)Target_Yaw.Degrees,Speed_Multx);
+			YawMotor.TargetVelocityRPM=Math.Min(GetRPMD(YawMotor,true,(float)Target_Yaw.Degrees,Speed_Multx),10);
 		else
-			YawMotor.TargetVelocityRad=GetRadD(YawMotor,false,(float)Target_Yaw.Degrees,Speed_Multx);
+			YawMotor.TargetVelocityRPM=Math.Max(GetRPMD(YawMotor,false,(float)Target_Yaw.Degrees,Speed_Multx),-10);
 		
 		
 		double Max_Allowed_Angle=1;
