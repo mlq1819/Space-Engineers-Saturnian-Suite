@@ -1266,20 +1266,14 @@ abstract class RotorTurret{
 	public double Yaw{
 		get{
 			double yaw=(YawMotor.Angle*180/Math.PI)-Default_Yaw;
-			while(yaw<-180)
-				yaw+=360;
-			while(yaw>180)
-				yaw-=360;
+			yaw=(yaw+180)%360-180;
 			return yaw;
 		}
 	}
 	public double Pitch{
 		get{
 			double pitch=(PitchMotor.Angle*180/Math.PI)-Default_Pitch;
-			while(pitch<-180)
-				pitch+=360;
-			while(pitch>180)
-				pitch-=360;
+			pitch=(pitch+180)%360-180;
 			return pitch;
 		}
 	}
@@ -1624,15 +1618,18 @@ class GyroTurret:RotorTurret{
 		
 		float input_pitch=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).X*0.99f;
 		double difference_vert=GetAngle(Up_Vector,Aimed_Direction)-GetAngle(Down_Vector,Aimed_Direction);
-		while(difference_vert<-180)
-			difference_vert+=360;
-		while(difference_vert>180)
-			difference_vert-=360;
+		difference_vert=(difference_vert+180)%360-180;
 		if(Math.Abs(difference_vert)>0.1)
 			input_pitch+=2.5f*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
 		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
 		
 		double difference_horz=(GetAngle(Left_Vector,Aimed_Direction)-GetAngle(Right_Vector,Aimed_Direction))/2;
+		double difference_fb=GetAngle(Forward_Vector,Aimed_Direction)-GetAngle(Backward_Vector,Aimed_Direction);
+		difference_horz=(difference_horz+180)%360-180;
+		if(difference_fb>90)
+			difference_horz=270;
+		
+		
 		if(Math.Abs(difference_horz)>0.1){
 			if(Math.Abs(difference_horz)<5&&Math.Abs(difference_horz)>1){
 				if(difference_horz>0)
@@ -1640,7 +1637,7 @@ class GyroTurret:RotorTurret{
 				else
 					difference_horz=-5;
 			}
-			input_yaw-=5*Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+			input_yaw+=5*Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
 		}
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
