@@ -1511,6 +1511,11 @@ abstract class RotorTurret{
 	}
 	
 	public bool Link(IMyLargeTurretBase turret){
+		if(turret==null){
+			if(Turret==null)
+				Remote.CustomData="";
+			return false;
+		}
 		Turret=turret;
 		if(Status==RTStatus.Unlinked)
 			Status=RTStatus.Linked;
