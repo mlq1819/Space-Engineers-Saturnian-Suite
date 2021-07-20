@@ -1750,8 +1750,8 @@ class GyroTurret:RotorTurret{
 	
 	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote,camera){
 		Status=RTStatus.Init0;
-		YawMotor.Torque=10;
-		PitchMotor.Torque=10;
+		YawMotor.Torque=250;
+		PitchMotor.Torque=250;
 		if(PitchMotor.CustomData.Length>0&&bool.TryParse(PitchMotor.CustomData,out PitchParity))
 			Status=RTStatus.Unlinked;
 		Gyroscope=gyro;
