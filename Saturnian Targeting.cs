@@ -5,6 +5,7 @@
 * This suite handles rotor-turrets, turret controlling, etc.
 * Include "Targeting" in LCD name to add to group.
 * Rotor Turrets must be built such that the first Motor controls Left-Right, and the second controls Up-Down. They must also be assumed to default to 0° for the first Rotor. The second Motor can be a Hinge. Rotor Turret must also have a Remote Control and a forward-facing Camera.
+* When Aiming and Firing, any Red Lights on the RotorTurret will be turned on; these same lights are turned off when resetting.
 
 TODO:
 - MotorTurret Aiming
@@ -1102,6 +1103,7 @@ abstract class RotorTurret{
 	}
 	public RTStatus Status;
 	public IMyLargeTurretBase Turret=null;
+	public List<IMyLightingBlock> Lights;
 	
 	public Vector3D Default_Vector{
 		get{
@@ -1148,6 +1150,12 @@ abstract class RotorTurret{
 		Camera.EnableRaycast=true;
 		if(Remote.CustomData.Length>0)
 			Turret=GenericMethods<IMyLargeTurretBase>.GetFull(Remote.CustomData);
+		Lights=new List<IMyLightingBlock>();
+		List<IMyLightingBlock> lights=GenericMethods<IMyLightingBlock>.GetAllGrid("",Remote.CubeGrid,Camera,double.MaxValue);
+		foreach(IMyLightingBlock Light in lights){
+			if(Light.Color.R>=225&&Light.Color.G<=150&&Light.Color.B<=150)
+				Lights.Add(Light);
+		}
 	}
 	
 	public abstract bool Initialize();
@@ -1287,11 +1295,17 @@ abstract class RotorTurret{
 		return true;
 	}
 	
+	public void SetLights(bool On){
+		foreach(IMyLightingBlock Light in Lights)
+			Light.Enabled=On;
+	}
+	
 	public bool Reset(){
 		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
 		bool output=Aim(Default_Vector*10+Remote.GetPosition(),new Vector3D(0,0,0),true);
 		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
 		GunTimer=0;
+		SetLights(false);
 		return output;
 	}
 	
@@ -1331,6 +1345,7 @@ class MotorTurret:RotorTurret{
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false){
+		SetLights(true);
 		return false;
 	}
 }
@@ -1384,9 +1399,17 @@ class GyroTurret:RotorTurret{
 	}
 	
 	public override bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false){
+		if(Remote.IsUnderControl){
+			Gyroscope.GyroOverride=false;
+			return false;
+		}
+		Gyroscope.GyroOverride=true;
+		
 		double Distance=(Target-Remote.GetPosition()).Length();
-		if(!reset)
+		if(!reset){
+			SetLights(true);
 			Velocity=GetPredictedVelocity(Velocity,Distance);
+		}
 		Target+=Velocity*Distance/400;
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
