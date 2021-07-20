@@ -1483,7 +1483,7 @@ abstract class RotorTurret{
 		double Distance=Direction.Length();
 		Direction.Normalize();
 		
-		double Default_Deflect=GenericMethods<IMyTerminalBlock>.GetAngle(Default_Vector,Target);
+		double Default_Deflect=GetAngle(Default_Vector,Target);
 		if(Default_Deflect>90)
 			return false;
 		
@@ -1493,7 +1493,7 @@ abstract class RotorTurret{
 		double run=Math.Sqrt(Math.Pow(Elevation.X,2)+Math.Pow(Elevation.Z,2));
 		
 		Vector3D Yaw_Up=Prog.GlobalToLocal(new Vector3D(0,1,0),YawMotor);
-		if(GenericMethods<IMyTerminalBlock>.GetAngle(Yaw_Up,Up_Vector)>90)
+		if(GetAngle(Yaw_Up,Up_Vector)>90)
 			rise*=-1;
 		
 		float elevation=(float)(Math.Atan(rise/run)*180/Math.PI);
@@ -1544,6 +1544,8 @@ abstract class RotorTurret{
 }
 
 class MotorTurret:RotorTurret{
+	protected bool YawParity=true; //True means positive angles are left, false means positive angles are right
+	
 	private MotorTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera):base(yawmotor,pitchmotor,guns,remote,camera){
 		Status=RTStatus.Init0;
 	}
@@ -1569,12 +1571,103 @@ class MotorTurret:RotorTurret{
 		return true;
 	}
 	
+	//Resets the turret to Default Vector
+	bool Init(){
+		if(GetAngle(Forward_Vector,Default_Vector)<1)
+			return true;
+		Reset();
+		return false;
+	}
+	void Init0(){
+		if(Init())
+			Status=RTStatus.InitYaw;
+	}
+	void Init1(){
+		if(Init())
+			Status=RTStatus.InitPitch;
+	}
+	
+	public static float GetRad(IMyMotorStator Motor,float TargetAngle=0,float Speed=1){
+		return (float)(Speed*(Motor.Angle-(TargetAngle*Math.PI/180))/-1);
+	}
+	
+	//Rad ==> 30/PI RPM
+	public static float GetRPM(IMyMotorStator Motor,float TargetAngle=0,float Speed=1){
+		return (float)(GetRad(Motor,TargetAngle,Speed)*30/Math.PI);
+	}
+	
+	//Learns the pitch parity by adjusting the target velocity
+	void InitYaw(){
+		Angle angle=Angle.FromRadians(YawMotor.Angle);
+		if(Math.Abs((angle.Degrees+180)%360-180)>=1.5){
+			double difference=GetAngle(Default_Vector,Left_Vector)-GetAngle(Default_Vector,Right_Vector);
+			YawParity=(difference>=0);
+			Status=RTStatus.Init1;
+		}
+		else{
+			YawMotor.TargetVelocityRPM=GetRPM(YawMotor,2);
+			PitchMotor.TargetVelocityRad=0;
+		}
+	}
+	
+	//Learns the pitch parity by tilting either up or down
+	void InitPitch(){
+		Angle angle=Angle.FromRadians(PitchMotor.Angle);
+		bool flip=false;
+		if(PitchMotor.UpperLimitDeg<2)
+			flip=true;
+		if(Math.Abs((angle.Degrees+180)%360-180)>=1.5){
+			double difference=GetAngle(Default_Vector,Left_Vector)-GetAngle(Default_Vector,Right_Vector);
+			if(flip)
+				PitchParity=(difference<0);
+			else
+				PitchParity=(difference>=0);
+			Status=RTStatus.Unlinked;
+		}
+		else{
+			if(flip)
+				PitchMotor.TargetVelocityRPM=GetRPM(PitchMotor,-2);
+			else
+				PitchMotor.TargetVelocityRPM=GetRPM(PitchMotor,2);
+			YawMotor.TargetVelocityRad=0;
+		}
+	}
+	
 	public override bool Initialize(){
 		return false;
 	}
 	
+	public override bool Reset(){
+		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
+		YawMotor.TargetVelocityRad=GetRad(YawMotor);
+		PitchMotor.TargetVelocityRad=GetRad(PitchMotor);
+		GunTimer=0;
+		SetLights(false);
+		return Math.Abs(TurretAngle)<1;
+	}
+	
 	public override bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false){
-		SetLights(true);
+		if(Remote.IsUnderControl)
+			return false;
+		SetLights(!reset);
+		if(!reset)
+			Velocity=GetPredictedVelocity(Velocity,Distance);
+		Target+=Velocity*Distance/400;
+		Vector3D Direction=Target-Remote.GetPosition();
+		Distance=Direction.Length();
+		Direction.Normalize();
+		double Angle=GetAngle(Direction,Forward_Vector);
+		double difference_pitch=GetAngle(Direction,Up_Vector)-GetAngle(Direction,Down_Vector);
+		
+		
+		
+		double difference_yaw=GetAngle(Direction,Left_Vector)-GetAngle(Direction,Right_Vector);
+		double difference_fb=GetAngle(Forward_Vector,Direction)-GetAngle(Backward_Vector,Direction);
+		difference_yaw=(difference_yaw+180)%360-180;
+		if(difference_fb>90)
+			difference_yaw=270;
+		
+		
 		return false;
 	}
 }
@@ -1623,7 +1716,7 @@ class GyroTurret:RotorTurret{
 	
 	//Resets the turret to Default Vector
 	void Init0(){
-		if(GenericMethods<IMyTerminalBlock>.GetAngle(Forward_Vector,Default_Vector)<1)
+		if(GetAngle(Forward_Vector,Default_Vector)<1)
 			Status=RTStatus.InitPitch;
 		else
 			Reset();
@@ -1634,7 +1727,7 @@ class GyroTurret:RotorTurret{
 		Angle angle=Angle.FromRadians(PitchMotor.Angle);
 		bool RotorBelow=true;
 		Vector3D Yaw_Up=Prog.GlobalToLocal(new Vector3D(0,1,0),YawMotor);
-		if(GenericMethods<IMyTerminalBlock>.GetAngle(Yaw_Up,Up_Vector)>90)
+		if(GetAngle(Yaw_Up,Up_Vector)>90)
 			RotorBelow=false;
 		Vector3D Target=Forward_Vector;
 		if(RotorBelow)
@@ -1717,27 +1810,27 @@ class GyroTurret:RotorTurret{
 		Gyroscope.GyroOverride=true;
 		
 		float input_pitch=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).X*0.99f;
-		double difference_vert=GetAngle(Up_Vector,Aimed_Direction)-GetAngle(Down_Vector,Aimed_Direction);
-		difference_vert=(difference_vert+180)%360-180;
-		if(Math.Abs(difference_vert)>0.1)
-			input_pitch+=2.5f*((float)Math.Min(Math.Max(difference_vert,-90),90)/90.0f);
+		double difference_pitch=GetAngle(Up_Vector,Aimed_Direction)-GetAngle(Down_Vector,Aimed_Direction);
+		difference_pitch=(difference_pitch+180)%360-180;
+		if(Math.Abs(difference_pitch)>0.1)
+			input_pitch+=2.5f*((float)Math.Min(Math.Max(difference_pitch,-90),90)/90.0f);
 		float input_yaw=(float)Prog.GlobalToLocal(Remote.GetShipVelocities().AngularVelocity,Remote).Y*0.99f;
 		
-		double difference_horz=(GetAngle(Left_Vector,Aimed_Direction)-GetAngle(Right_Vector,Aimed_Direction))/2;
+		double difference_yaw=(GetAngle(Left_Vector,Aimed_Direction)-GetAngle(Right_Vector,Aimed_Direction))/2;
 		double difference_fb=GetAngle(Forward_Vector,Aimed_Direction)-GetAngle(Backward_Vector,Aimed_Direction);
-		difference_horz=(difference_horz+180)%360-180;
+		difference_yaw=(difference_yaw+180)%360-180;
 		if(difference_fb>90)
-			difference_horz=270;
+			difference_yaw=270;
 		
 		
-		if(Math.Abs(difference_horz)>0.1){
-			if(Math.Abs(difference_horz)<5&&Math.Abs(difference_horz)>1){
-				if(difference_horz>0)
-					difference_horz=5;
+		if(Math.Abs(difference_yaw)>0.1){
+			if(Math.Abs(difference_yaw)<5&&Math.Abs(difference_yaw)>1){
+				if(difference_yaw>0)
+					difference_yaw=5;
 				else
-					difference_horz=-5;
+					difference_yaw=-5;
 			}
-			input_yaw+=5*Yaw_Multx*((float)Math.Min(Math.Max(difference_horz,-90),90)/90.0f);
+			input_yaw+=5*Yaw_Multx*((float)Math.Min(Math.Max(difference_yaw,-90),90)/90.0f);
 		}
 		
 		Vector3D input=new Vector3D(input_pitch,input_yaw,0);
@@ -1915,7 +2008,7 @@ void Main_Program(string argument){
 			R.Initialize();
 		bool Firing=false;
 		if(R.Status>=RTStatus.Unlinked){
-			if(R.Turret!=null){
+			if(R.Turret!=null&&R.Turret.IsFunctional){
 				if(R.Turret.HasTarget){
 					MyDetectedEntityInfo Entity=R.Turret.GetTargetedEntity();
 					if(R.Aim(Entity.Position,Entity.Velocity))
@@ -1941,7 +2034,6 @@ void Main_Program(string argument){
 					}
 				}
 				if(has_target){
-					Write("Has Valid Target!");
 					if(R.Aim(Entity.Position,Entity.Velocity))
 						Firing=true;
 				}
