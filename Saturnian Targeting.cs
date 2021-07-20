@@ -1339,6 +1339,8 @@ class GyroTurret:RotorTurret{
 	public IMyGyro Gyroscope;
 	
 	private GyroTurret(IMyMotorStator yawmotor,IMyMotorStator pitchmotor,List<IMySmallGatlingGun> guns,IMyRemoteControl remote,IMyCameraBlock camera,IMyGyro gyro):base(yawmotor,pitchmotor,guns,remote,camera){
+		YawMotor.Torque=10;
+		PitchMotor.Torque=10;
 		Gyroscope=gyro;
 		Gyroscope.Pitch=0;
 		Gyroscope.Yaw=0;
