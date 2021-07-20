@@ -1276,7 +1276,7 @@ abstract class RotorTurret{
 	protected Vector3D GetPredictedVelocity(Vector3D Velocity,double Distance){
 		Vector3D difference=(Velocity-SavedVelocity.Velocity)/SavedVelocity.Timer;
 		SavedVelocity=new VelocityTuple(Velocity);
-		return Velocity+(difference*Distance/400);
+		return Velocity+(difference*Distance/800);
 	}
 	
 	public bool Link(IMyLargeTurretBase turret){
@@ -1389,6 +1389,11 @@ class GyroTurret:RotorTurret{
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
 		Direction.Normalize();
+		
+		if(Distance>850){
+			Reset();
+			return false;
+		}
 		
 		Vector3D Aimed_Target=Target;
 		
