@@ -1313,13 +1313,13 @@ abstract class RotorTurret{
 	
 	//Figures out the valid Yaw Angle, taking into account the Yaw Motor's limits.
 	public float YawAngle(Vector3D Target){
-		Vector3D Yaw_Left=Prog.LocalToGlobal(new Vector3D(1,0,0),Remote);
+		Vector3D Yaw_Left=Prog.LocalToGlobal(new Vector3D(1,0,0),YawMotor);
 		Vector3D Yaw_Right=-1*Yaw_Left;
 		Vector3D Yaw_Forward=Default_Vector;
 		Vector3D Yaw_Backward=-1*Yaw_Forward;
 		Vector3D Direction=Target-Remote.GetPosition();
 		Direction.Normalize();
-		Direction=Prog.P.GlobalToLocal(Direction,Yaw_Motor);
+		Direction=Prog.GlobalToLocal(Direction,YawMotor);
 		//Z ==> Front
 		//-Z ==> Behind
 		//X ==> Left
@@ -1331,8 +1331,8 @@ abstract class RotorTurret{
 		while(target_angle_pos<0)
 			target_angle_pos+=360;
 		float target_angle_neg=target_angle_pos-360;
-		float Min_Angle=Yaw_Motor.LowerLimitDeg;
-		float Max_Angle=Yaw_Motor.UpperLimitDeg;
+		float Min_Angle=YawMotor.LowerLimitDeg;
+		float Max_Angle=YawMotor.UpperLimitDeg;
 		float difference_down=-1,difference_up=-1;
 		if(Min_Angle==float.MinValue||target_angle_neg>Min_Angle)
 			difference_down=Math.Abs(target_angle_neg-Min_Angle);
