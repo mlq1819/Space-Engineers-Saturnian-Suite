@@ -1529,14 +1529,7 @@ abstract class RotorTurret{
 			Light.Enabled=On;
 	}
 	
-	public bool Reset(){
-		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
-		bool output=Aim(Default_Vector*10+Remote.GetPosition(),new Vector3D(0,0,0),true);
-		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
-		GunTimer=0;
-		SetLights(false);
-		return output;
-	}
+	public abstract bool Reset();
 	
 	public static double GetAngle(Vector3D v1,Vector3D v2){
 		return GenericMethods<IMyTerminalBlock>.GetAngle(v1,v2);
@@ -1691,6 +1684,7 @@ class MotorTurret:RotorTurret{
 		if(Remote.IsUnderControl)
 			return false;
 		SetLights(!reset);
+		double Distance=(Target-Remote.GetPosition()).Length();
 		if(!reset)
 			Velocity=GetPredictedVelocity(Velocity,Distance);
 		Target+=Velocity*Distance/400;
@@ -1711,7 +1705,7 @@ class MotorTurret:RotorTurret{
 		double difference_pitch=GetAngle(Direction,Up_Vector)-GetAngle(Direction,Down_Vector);
 		float Current_Pitch=(float)(PitchMotor.Angle*180/Math.PI);
 		Angle Target_Pitch=new Angle(Current_Pitch)+new Angle((float)difference_pitch);
-		if(Target_Pitch>=Current_Pitch)
+		if(Target_Pitch>=new Angle(Current_Pitch))
 			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,true,(float)Target_Pitch.Degrees,Speed_Multx);
 		else
 			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,false,(float)Target_Pitch.Degrees,Speed_Multx);
@@ -1724,7 +1718,7 @@ class MotorTurret:RotorTurret{
 			difference_yaw=270;
 		float Current_Yaw=(float)(YawMotor.Angle*180/Math.PI);
 		Angle Target_Yaw=new Angle(Current_Yaw)+new Angle((float)difference_yaw);
-		if(Target_Yaw>=Current_Yaw)
+		if(Target_Yaw>=new Angle(Current_Yaw))
 			YawMotor.TargetVelocityRad=GetRadD(YawMotor,true,(float)Target_Yaw.Degrees,Speed_Multx);
 		else
 			YawMotor.TargetVelocityRad=GetRadD(YawMotor,false,(float)Target_Yaw.Degrees,Speed_Multx);
@@ -1930,6 +1924,15 @@ class GyroTurret:RotorTurret{
 		ValidShot=Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle+Math.Max(Math.Min(GunTimer,5),0);
 		Decrease_GunTimer=(!ValidShot)||reset;
 		return ValidShot;
+	}
+	
+	public override bool Reset(){
+		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
+		bool output=Aim(Default_Vector*10+Remote.GetPosition(),new Vector3D(0,0,0),true);
+		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
+		GunTimer=0;
+		SetLights(false);
+		return output;
 	}
 }
 
