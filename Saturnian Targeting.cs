@@ -1483,7 +1483,8 @@ abstract class RotorTurret{
 		double Distance=Direction.Length();
 		Direction.Normalize();
 		
-		if(GenericMethods<IMyTerminalBlock>.GetAngle(Default_Vector,Target)>90)
+		double Default_Deflect=GenericMethods<IMyTerminalBlock>.GetAngle(Default_Vector,Target);
+		if(Default_Deflect>90)
 			return false;
 		
 		Vector3D Elevation=Prog.GlobalToLocal(Direction,YawMotor);
@@ -1933,13 +1934,14 @@ void Main_Program(string argument){
 				foreach(IMyLargeMissileTurret T in turretlist){
 					if(T.HasTarget){
 						Entity=T.GetTargetedEntity();
-						if(R.CanAim(T.Position)){
+						if(R.CanAim(Entity.Position)){
 							has_target=true;
 							break;
 						}
 					}
 				}
 				if(has_target){
+					Write("Has Valid Target!");
 					if(R.Aim(Entity.Position,Entity.Velocity))
 						Firing=true;
 				}
