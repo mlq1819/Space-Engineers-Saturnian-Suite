@@ -448,6 +448,188 @@ struct CustomPanel{
 	}
 }
 
+struct Angle{
+	private float _Degrees;
+	public float Degrees{
+		get{
+			return _Degrees;
+		}
+		set{
+			_Degrees=value%360;
+			while(_Degrees<0)
+				_Degrees+=360;
+		}
+	}
+	
+	public Angle(float degrees){
+		_Degrees=degrees;
+		Degrees=degrees;
+	}
+	
+	public static Angle FromRadians(float Rads){
+		return new Angle((float)(Rads/Math.PI*180));
+	}
+	
+	public float Difference_From_Top(Angle other){
+		if(other.Degrees>=Degrees)
+			return other.Degrees-Degrees;
+		return other.Degrees-Degrees+360;
+	}
+	
+	public float Difference_From_Bottom(Angle other){
+		if(other.Degrees<=Degrees)
+			return Degrees-other.Degrees;
+		return Degrees-other.Degrees+360;
+	}
+	
+	public float Difference(Angle other){
+		return Math.Min(Difference_From_Top(other),Difference_From_Bottom(other));
+	}
+	
+	public static bool IsBetween(Angle Bottom, Angle Middle, Angle Top){
+		return Bottom.Difference_From_Top(Middle)<=Bottom.Difference_From_Top(Top);
+	}
+	
+	public static bool TryParse(string parse,out Angle output){
+		output=new Angle(0);
+		float d;
+		if(!float.TryParse(parse.Substring(0,Math.Max(0,parse.Length-1)),out d))
+			return false;
+		output=new Angle(d);
+		return true;
+	}
+	
+	public static Angle operator +(Angle a1, Angle a2){
+		return new Angle(a1.Degrees+a2.Degrees);
+	}
+	
+	public static Angle operator +(Angle a1, float a2){
+		return new Angle(a1.Degrees+a2);
+	}
+	
+	public static Angle operator +(float a1, Angle a2){
+		return a2 + a1;
+	}
+	
+	public static Angle operator -(Angle a1, Angle a2){
+		return new Angle(a1.Degrees-a2.Degrees);
+	}
+	
+	public static Angle operator -(Angle a1, float a2){
+		return new Angle(a1.Degrees-a2);
+	}
+	
+	public static Angle operator -(float a1, Angle a2){
+		return new Angle(a1-a2.Degrees);
+	}
+	
+	public static Angle operator *(Angle a1, float m){
+		return new Angle(a1.Degrees*m);
+	}
+	
+	public static Angle operator *(float m, Angle a2){
+		return a2*m;
+	}
+	
+	public static Angle operator /(Angle a1, float m){
+		return new Angle(a1.Degrees/m);
+	}
+	
+	public static bool operator ==(Angle a1, Angle a2){
+		float degrees=(a1-a2).Degrees;
+		if(degrees>180)
+			degrees-=360;
+		return Math.Abs(degrees)<0.000001f;
+	}
+	
+	public static bool operator !=(Angle a1, Angle a2){
+		return Math.Abs(a1.Degrees-a2.Degrees)>=0.000001f;
+	}
+	
+	public override bool Equals(object o){
+		return (o.GetType()==this.GetType()) && this==((Angle)o);
+	}
+	
+	public override int GetHashCode(){
+		return Degrees.GetHashCode();
+	}
+	
+	public static bool operator >(Angle a1, Angle a2){
+		return a1.Difference_From_Top(a2)>a1.Difference_From_Bottom(a2);
+	}
+	
+	public static bool operator >=(Angle a1, Angle a2){
+		return (a1==a2)||(a1>a2);
+	}
+	
+	public static bool operator <=(Angle a1, Angle a2){
+		return (a1==a2)||(a1<a2);
+	}
+	
+	public static bool operator <(Angle a1, Angle a2){
+		return a1.Difference_From_Top(a2)<a1.Difference_From_Bottom(a2);
+	}
+	
+	public override string ToString(){
+		if(Degrees>=180)
+			return (Degrees-360).ToString()+'°';
+		else
+			return Degrees.ToString()+'°';
+	}
+	
+	public string ToString(int n){
+		n=Math.Min(0,n);
+		if(Degrees>=180)
+			return Math.Round(Degrees-360,n).ToString()+'°';
+		else
+			return Math.Round(Degrees,n).ToString()+'°';
+	}
+	
+	public static string LinedFloat(float deg, int sections=10){
+		string output="[";
+		for(int i=-180/sections;i<0;i++){
+			if(deg<0){
+				if(deg/sections<=i+1)
+					output+='|';
+				else
+					output+=' ';
+			}
+			else
+				output+=' ';
+		}
+		for(int i=0;i<180/sections;i++){
+			if(deg<0)
+				output+=' ';
+			else{
+				if(deg/sections>=(i+1))
+					output+='|';
+				else
+					output+=' ';
+			}
+		}
+		output+=']';
+		return output;
+	}
+	
+	public string LinedString(int sections=10){
+		if(Degrees>=180)
+			return LinedFloat(Degrees-360,sections);
+		return LinedFloat(Degrees,sections);
+	}
+	
+	public string LinedString(Angle Comparison){
+		string output="Actual: "+LinedString();
+		output+="\nComparison: ";
+		float deg=Difference(Comparison);
+		if(deg>=180)
+			output+=LinedFloat(deg-360);
+		else
+			output+=LinedFloat(deg);
+		return output;
+	}
+}
+
+
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
@@ -1076,7 +1258,7 @@ abstract class RotorTurret{
 	public IMyCameraBlock Camera;
 	private double Default_Yaw=0;
 	private double Default_Pitch=0;
-	public double Angle{
+	public double TurretAngle{
 		get{
 			return GetAngle(Forward_Vector,Default_Vector);
 		}
@@ -1313,36 +1495,57 @@ abstract class RotorTurret{
 	
 	//Figures out the valid Yaw Angle, taking into account the Yaw Motor's limits.
 	public float YawAngle(Vector3D Target){
-		Vector3D Yaw_Left=Prog.LocalToGlobal(new Vector3D(1,0,0),YawMotor);
+		Vector3D Yaw_Left=Prog.LocalToGlobal(new Vector3D(-1,0,0),YawMotor);
 		Vector3D Yaw_Right=-1*Yaw_Left;
 		Vector3D Yaw_Forward=Default_Vector;
 		Vector3D Yaw_Backward=-1*Yaw_Forward;
+		
+		Prog.P.Me.CustomData=(new MyWaypointInfo("Forward",Yaw_Forward*10+YawMotor.GetPosition())).ToString()+'\n';
+		Prog.P.Me.CustomData+=(new MyWaypointInfo("Backward",Yaw_Backward*10+YawMotor.GetPosition())).ToString()+'\n';
+		Prog.P.Me.CustomData+=(new MyWaypointInfo("Left",Yaw_Left*10+YawMotor.GetPosition())).ToString()+'\n';
+		Prog.P.Me.CustomData+=(new MyWaypointInfo("Right",Yaw_Right*10+YawMotor.GetPosition())).ToString();
+		
+		
+		
 		Vector3D Direction=Target-Remote.GetPosition();
 		Direction.Normalize();
+		
+		double Actual_Angle=GenericMethods<IMyTerminalBlock>.GetAngle(Default_Vector,Direction);
+		
 		Direction=Prog.GlobalToLocal(Direction,YawMotor);
+		Direction.Y=0;
+		Direction.Normalize();
 		//Z ==> Front
 		//-Z ==> Behind
-		//X ==> Left
-		//-X ==> Right
+		//-X ==> Left
+		//X ==> Right
 		
 		//Theta=arctan(y/x)
-		//since (0,0,1) ==> 0 deg, Z==>x and X==>y
-		float target_angle_pos=(float)(Math.Atan(Direction.X/Direction.Z)*180/Math.PI);
-		while(target_angle_pos<0)
-			target_angle_pos+=360;
-		float target_angle_neg=target_angle_pos-360;
-		float Min_Angle=YawMotor.LowerLimitDeg;
-		float Max_Angle=YawMotor.UpperLimitDeg;
-		float difference_down=-1,difference_up=-1;
-		if(Min_Angle==float.MinValue||target_angle_neg>Min_Angle)
-			difference_down=Math.Abs(target_angle_neg-Min_Angle);
-		if(Max_Angle==float.MaxValue||target_angle_pos<Max_Angle)
-			difference_up=Math.Abs(target_angle_pos-Max_Angle);
+		//since (0,0,1) ==> 0 deg, Z==>x and -X==>y
+		Angle Target_Angle=Angle.FromRadians((float)(Math.Atan(-1*Direction.X/Direction.Y)*180/Math.PI));
+		Angle Current_Angle=Angle.FromRadians((float)(YawMotor.Angle));
+		float difference_right=-1,difference_left=-1;
+		float Min_Limit=YawMotor.LowerLimitDeg;
+		float Max_Limit=YawMotor.UpperLimitDeg;
+		
+		if(Max_Limit==float.MaxValue||Angle.IsBetween(Current_Angle,Target_Angle,new Angle(Max_Limit)))
+			difference_right=Math.Abs(Current_Angle.Difference_From_Top(Target_Angle));
+		if(Min_Limit==float.MinValue||Angle.IsBetween(new Angle(Min_Limit),Target_Angle,Current_Angle))
+			difference_left=Math.Abs(Current_Angle.Difference_From_Bottom(Target_Angle));
+		
 		float output=0;
-		if(difference_down>0&&(difference_up<0||difference_down<difference_up))
-			output=-1*difference_down;
-		if(difference_up>0&&(difference_down<0||difference_up<difference_down+20))
-			output=difference_up;
+		if(difference_left>=0&&(difference_right<0||difference_left<difference_right))
+			output=-1*difference_left;
+		if(difference_right>=0&&(difference_left<0||difference_right<difference_left))
+			output=difference_right;
+		
+		Prog.P.Echo("Target_Angle:"+Target_Angle.ToString(1));
+		Prog.P.Echo("Current_Angle:"+Current_Angle.ToString(1));
+		Prog.P.Echo("difference_right:"+Math.Round(difference_right,1).ToString()+"°");
+		Prog.P.Echo("difference_left:"+Math.Round(difference_left,1).ToString()+"°");
+		Prog.P.Echo("difference:"+Math.Round(output,1).ToString()+"°");
+		Prog.P.Echo("error:"+(Current_Angle-(new Angle((float)Actual_Angle))).ToString(1));
+		
 		return output;
 	}
 	
@@ -1633,13 +1836,13 @@ void Main_Program(string argument){
 			if(T.Status==RTStatus.Linked){
 				string T_Name=GetRemovedString(T.Turret.CustomName," Turret").Trim();
 				if(T_Name.Length>12)
-					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(T_Name.Length-9)+"...["+TurretStatus(T.Turret)+"] ("+Math.Round(T.Angle,1).ToString()+"°)");
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name.Substring(T_Name.Length-9)+"...["+TurretStatus(T.Turret)+"] ("+Math.Round(T.TurretAngle,1).ToString()+"°)");
 				else
-					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name+"["+TurretStatus(T.Turret)+"] ("+Math.Round(T.Angle,1).ToString()+"°)");
+					Display(display_number,(i+1).ToString()+") "+T.DisplayName+":Linked to "+T_Name+"["+TurretStatus(T.Turret)+"] ("+Math.Round(T.TurretAngle,1).ToString()+"°)");
 			}
 				
 			else
-				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString()+" ("+Math.Round(T.Angle,1).ToString()+"°)");
+				Display(display_number,(i+1).ToString()+") "+T.DisplayName+":"+T.Status.ToString()+" ("+Math.Round(T.TurretAngle,1).ToString()+"°)");
 		}
 		display_number++;
 	}
