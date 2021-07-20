@@ -1155,7 +1155,8 @@ abstract class RotorTurret{
 	public abstract bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false);
 	
 	protected double GunTimer=0;
-	protected bool JustShot=false;
+	protected bool Increase_GunTimer=false;
+	protected bool Decrease_GunTimer=true;
 	public bool Aim(Vector3D Target){
 		return Aim(Target,GetSpeed(Target));
 	}
@@ -1251,6 +1252,7 @@ abstract class RotorTurret{
 	
 	public VelocityTuple SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
 	public void UpdateTimers(double seconds){
+		seconds=Math.Abs(seconds);
 		SavedVelocity.Timer+=seconds;
 		if(Camera!=null&&Camera.EnableRaycast){
 			double c_timer=CameraTimer;
@@ -1265,9 +1267,9 @@ abstract class RotorTurret{
 			t_timer+=pool/2;
 			CameraTimer=c_timer;
 			TargetTimer=t_timer;
-			if(JustShot)
+			if(Increase_GunTimer)
 				GunTimer=Math.Min(5,GunTimer+seconds);
-			else
+			if(Decrease_GunTimer)
 				GunTimer=Math.Max(0,GunTimer-seconds);
 		}
 	}
@@ -1289,6 +1291,7 @@ abstract class RotorTurret{
 		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
 		bool output=Aim(Default_Vector*10+Remote.GetPosition(),new Vector3D(0,0,0),true);
 		SavedVelocity=new VelocityTuple(new Vector3D(0,0,0));
+		GunTimer=0;
 		return output;
 	}
 	
@@ -1453,8 +1456,9 @@ class GyroTurret:RotorTurret{
 		bool Clear_Shot=ClearVision();
 		
 		bool ValidShot=Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle;
-		JustShot=ValidShot&&!reset;
+		Increase_GunTimer=ValidShot&&!reset;
 		ValidShot=Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle+Math.Max(Math.Min(GunTimer,5),0);
+		Decrease_GunTimer=(!ValidShot)||reset;
 		return ValidShot;
 	}
 }
