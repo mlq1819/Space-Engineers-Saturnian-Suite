@@ -1571,6 +1571,28 @@ class MotorTurret:RotorTurret{
 		return true;
 	}
 	
+	public static float GetRad(IMyMotorStator Motor,float TargetAngle=0,float Speed=1){
+		return (float)(Speed*(Motor.Angle-(TargetAngle*Math.PI/180))/-1);
+	}
+	
+	//Rad ==> 30/PI RPM
+	public static float GetRPM(IMyMotorStator Motor,float TargetAngle=0,float Speed=1){
+		return (float)(GetRad(Motor,TargetAngle,Speed)*30/Math.PI);
+	}
+	
+	public static float GetRadD(IMyMotorStator Motor,bool Parity,float TargetAngle=0,float Speed=1){
+		float difference;
+		if(Parity)
+			difference=-1*Angle.FromRadians(Motor.Angle).Difference_From_Top(new Angle(TargetAngle));
+		else
+			difference=Angle.FromRadians(Motor.Angle).Difference_From_Bottom(new Angle(TargetAngle));
+		return (float)(Speed*difference/-1*(Math.PI/30));
+	}
+	
+	public static float GetRPMD(IMyMotorStator Motor,bool Parity,float TargetAngle=0,float Speed=1){
+		return (float)(GetRadD(Motor,Parity,TargetAngle,Speed)*30/Math.PI);
+	}
+	
 	//Resets the turret to Default Vector
 	bool Init(){
 		if(GetAngle(Forward_Vector,Default_Vector)<1)
@@ -1587,21 +1609,12 @@ class MotorTurret:RotorTurret{
 			Status=RTStatus.InitPitch;
 	}
 	
-	public static float GetRad(IMyMotorStator Motor,float TargetAngle=0,float Speed=1){
-		return (float)(Speed*(Motor.Angle-(TargetAngle*Math.PI/180))/-1);
-	}
-	
-	//Rad ==> 30/PI RPM
-	public static float GetRPM(IMyMotorStator Motor,float TargetAngle=0,float Speed=1){
-		return (float)(GetRad(Motor,TargetAngle,Speed)*30/Math.PI);
-	}
-	
 	//Learns the pitch parity by adjusting the target velocity
 	void InitYaw(){
 		Angle angle=Angle.FromRadians(YawMotor.Angle);
 		if(Math.Abs((angle.Degrees+180)%360-180)>=1.5){
 			double difference=GetAngle(Default_Vector,Left_Vector)-GetAngle(Default_Vector,Right_Vector);
-			YawParity=(difference>=0);
+			YawParity=(difference<0);
 			Status=RTStatus.Init1;
 		}
 		else{
@@ -1634,6 +1647,25 @@ class MotorTurret:RotorTurret{
 	}
 	
 	public override bool Initialize(){
+		RTStatus Last_Status=Status;
+		switch(Status){
+			case RTStatus.Init0:
+				Init0();
+				break;
+			case RTStatus.InitYaw:
+				InitYaw();
+				break;
+			case RTStatus.Init1:
+				Init1();
+				break;
+			case RTStatus.InitPitch:
+				InitPitch();
+				break;
+			default:
+				return true;
+		}
+		if(Last_Status!=Status)
+			return Initialize();
 		return false;
 	}
 	
@@ -1656,9 +1688,26 @@ class MotorTurret:RotorTurret{
 		Vector3D Direction=Target-Remote.GetPosition();
 		Distance=Direction.Length();
 		Direction.Normalize();
-		double Angle=GetAngle(Direction,Forward_Vector);
-		double difference_pitch=GetAngle(Direction,Up_Vector)-GetAngle(Direction,Down_Vector);
 		
+		double Angle=GetAngle(Direction,Forward_Vector);
+		double AngularVelocity=Remote.GetShipVelocities().AngularVelocity.Length();
+		
+		float Speed_Multx=1;
+		if(Angle>0.5&&AngularVelocity<0.1)
+			Speed_Multx*=(float)Math.Min(800/Distance,16)*5;
+		
+		if(AngularVelocity<0.1)
+			Speed_Multx*=3;
+		
+		
+		
+		double difference_pitch=GetAngle(Direction,Up_Vector)-GetAngle(Direction,Down_Vector);
+		float Current_Pitch=(float)(PitchMotor.Angle*180/Math.PI);
+		Angle Target_Pitch=new Angle(Current_Pitch)+new Angle((float)difference_pitch);
+		if(Target_Pitch>=Current_Pitch)
+			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,true,(float)Target_Pitch.Degrees,Speed_Multx);
+		else
+			PitchMotor.TargetVelocityRad=GetRadD(PitchMotor,false,(float)Target_Pitch.Degrees,Speed_Multx);
 		
 		
 		double difference_yaw=GetAngle(Direction,Left_Vector)-GetAngle(Direction,Right_Vector);
@@ -1666,9 +1715,26 @@ class MotorTurret:RotorTurret{
 		difference_yaw=(difference_yaw+180)%360-180;
 		if(difference_fb>90)
 			difference_yaw=270;
+		float Current_Yaw=(float)(YawMotor.Angle*180/Math.PI);
+		Angle Target_Yaw=new Angle(Current_Yaw)+new Angle((float)difference_yaw);
+		if(Target_Yaw>=Current_Yaw)
+			YawMotor.TargetVelocityRad=GetRadD(YawMotor,true,(float)Target_Yaw.Degrees,Speed_Multx);
+		else
+			YawMotor.TargetVelocityRad=GetRadD(YawMotor,false,(float)Target_Yaw.Degrees,Speed_Multx);
 		
 		
-		return false;
+		double Max_Allowed_Angle=1;
+		double Distance_Comp=Math.Min(Math.Max(400/Distance,1),8);
+		double Speed_Comp=Velocity.Length()/20;
+		Max_Allowed_Angle+=Math.Sqrt(Math.Pow(Distance_Comp,2)+Math.Pow(Speed_Comp,2));
+		
+		bool Clear_Shot=ClearVision();
+		
+		bool ValidShot=Clear_Shot&&Angle<=Max_Allowed_Angle;
+		Increase_GunTimer=ValidShot&&!reset;
+		ValidShot=Clear_Shot&&Angle<=Max_Allowed_Angle+Math.Max(Math.Min(GunTimer,5),0);
+		Decrease_GunTimer=(!ValidShot)||reset;
+		return ValidShot;
 	}
 }
 
