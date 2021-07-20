@@ -1154,6 +1154,8 @@ abstract class RotorTurret{
 	
 	public abstract bool Aim(Vector3D Target,Vector3D Velocity,bool reset=false);
 	
+	protected double GunTimer=0;
+	protected bool JustShot=false;
 	public bool Aim(Vector3D Target){
 		return Aim(Target,GetSpeed(Target));
 	}
@@ -1263,6 +1265,10 @@ abstract class RotorTurret{
 			t_timer+=pool/2;
 			CameraTimer=c_timer;
 			TargetTimer=t_timer;
+			if(JustShot)
+				GunTimer=Math.Min(5,GunTimer+seconds);
+			else
+				GunTimer=Math.Max(0,GunTimer-seconds);
 		}
 	}
 	protected Vector3D GetPredictedVelocity(Vector3D Velocity,double Distance){
@@ -1446,7 +1452,10 @@ class GyroTurret:RotorTurret{
 		
 		bool Clear_Shot=ClearVision();
 		
-		return Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle;
+		bool ValidShot=Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle;
+		JustShot=ValidShot&&!reset;
+		ValidShot=Clear_Shot&&Targeted_Angle<=Max_Allowed_Angle+Math.Max(Math.Min(GunTimer,5),0);
+		return ValidShot;
 	}
 }
 
