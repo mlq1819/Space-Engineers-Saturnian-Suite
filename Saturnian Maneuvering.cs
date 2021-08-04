@@ -1438,6 +1438,40 @@ void UpdateProgramInfo(){
 	Me.GetSurface(1).WriteText("\n"+ToString(Time_Since_Start)+" since last reboot",true);
 }
 
+
+void Crash_And_Autolanding(){
+	double from_center=(Controller.GetPosition()-PlanetCenter).Length();
+	Vector3D next_position=Controller.GetPosition()+1*CurrentVelocity;
+	double Elevation_per_second=(from_center-(next_position-PlanetCenter).Length());
+	Time_To_Crash=(Elevation-MySize/2)/Elevation_per_second;
+	bool need_print=true;
+	if(_Autoland)
+		Write("Autoland Enabled");
+	if(Time_To_Crash>0){
+		if(Safety&&Time_To_Crash-Time_To_Stop<5&&Controller.GetShipSpeed()>5){
+			Controller.DampenersOverride=true;
+			RestingSpeed=0;
+			for(int i=0;i<Notifications.Count;i++){
+				if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nEnabling Dampeners...")){
+					Notifications.RemoveAt(i--);
+					continue;
+				}
+			}
+			Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nEnabling Dampeners...",2));
+			need_print=false;
+		}
+		else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
+			Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
+			if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
+				Controller.DampenersOverride=false;
+			need_print=false;
+		}
+		if(Elevation-MySize<5&&_Autoland)
+			_Autoland=false;
+	}
+	if(need_print)
+		Write("No crash likely at current velocity");
+}
 void UpdateSystemData(){
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
@@ -1490,39 +1524,8 @@ void UpdateSystemData(){
 			}
 			else
 				Elevation=Sealevel;
-			if(!Me.CubeGrid.IsStatic){
-				double from_center=(Controller.GetPosition()-PlanetCenter).Length();
-				Vector3D next_position=Controller.GetPosition()+1*CurrentVelocity;
-				double Elevation_per_second=(from_center-(next_position-PlanetCenter).Length());
-				Time_To_Crash=(Elevation-MySize/2)/Elevation_per_second;
-				bool need_print=true;
-				if(_Autoland)
-					Write("Autoland Enabled");
-				if(Time_To_Crash>0){
-					if(Safety&&Time_To_Crash-Time_To_Stop<5&&Controller.GetShipSpeed()>5){
-						Controller.DampenersOverride=true;
-						RestingSpeed=0;
-						for(int i=0;i<Notifications.Count;i++){
-							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nEnabling Dampeners...")){
-								Notifications.RemoveAt(i--);
-								continue;
-							}
-						}
-						Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nEnabling Dampeners...",2));
-						need_print=false;
-					}
-					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
-						Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
-						if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
-							Controller.DampenersOverride=false;
-						need_print=false;
-					}
-					if(Elevation-MySize<5&&_Autoland)
-						_Autoland=false;
-				}
-				if(need_print)
-					Write("No crash likely at current velocity");
-			}
+			if(!Me.CubeGrid.IsStatic)
+				Crash_And_Autolanding();
 		}
 		else
 			PlanetCenter=new Vector3D(0,0,0);
