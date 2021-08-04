@@ -1042,7 +1042,6 @@ void MarkAltitude(bool do_new=true){
 }
 
 bool Safety=true;
-double Time_To_Stop=0;
 void UpdateSystemData(){
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
@@ -1056,27 +1055,6 @@ void UpdateSystemData(){
 	Gravity=Controller.GetNaturalGravity();
 	CurrentVelocity=Controller.GetShipVelocities().LinearVelocity;
 	AngularVelocity=Controller.GetShipVelocities().AngularVelocity;
-	
-	//Time to Stop: Counter Velocity
-	Vector3D Time=new Vector3D(0,0,0);
-	if(Relative_CurrentVelocity.X>=0)
-		Time.X=Left_Acc-Relative_Gravity.X;
-	else
-		Time.X=Right_Acc-Relative_Gravity.X;
-	Time.X=Math.Abs(Relative_CurrentVelocity.X/Time.X);
-	
-	if(Relative_CurrentVelocity.Y>=0)
-		Time.Y=Down_Acc-Relative_Gravity.Y;
-	else
-		Time.Y=Up_Acc-Relative_Gravity.Y;
-	Time.Y=Math.Abs(Relative_CurrentVelocity.Y/Time.Y);
-	
-	if(Relative_CurrentVelocity.Z>=0)
-		Time.Z=Forward_Acc-Relative_Gravity.Z;
-	else
-		Time.Z=Backward_Acc-Relative_Gravity.Z;
-	Time.Z=Math.Abs(Relative_CurrentVelocity.X/Time.Z);
-	Time_To_Stop=Math.Max(Math.Max(Time.X,Time.Y),Time.Z);
 	
 	Time_To_Crash=-1;
 	Elevation=double.MaxValue;
