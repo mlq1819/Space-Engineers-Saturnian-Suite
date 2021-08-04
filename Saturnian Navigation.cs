@@ -558,34 +558,65 @@ float Right_Thrust{
 	}
 }
 
+double Forward_Acc{
+	get{
+		return Forward_Thrust/Controller.CalculateShipMass().TotalMass;
+	}
+}
+double Backward_Acc{
+	get{
+		return Backward_Thrust/Controller.CalculateShipMass().TotalMass;
+	}
+}
+double Up_Acc{
+	get{
+		return Up_Thrust/Controller.CalculateShipMass().TotalMass;
+	}
+}
+double Down_Acc{
+	get{
+		return Down_Thrust/Controller.CalculateShipMass().TotalMass;
+	}
+}
+double Left_Acc{
+	get{
+		return Left_Thrust/Controller.CalculateShipMass().TotalMass;
+	}
+}
+double Right_Acc{
+	get{
+		return Right_Thrust/Controller.CalculateShipMass().TotalMass;
+	}
+}
+
 double Forward_Gs{
 	get{
-		return Forward_Thrust/Controller.CalculateShipMass().TotalMass/9.81;
+		return Forward_Acc/9.81;
 	}
 }
 double Backward_Gs{
 	get{
-		return Backward_Thrust/Controller.CalculateShipMass().TotalMass/9.81;
+		return Backward_Acc/9.81;
 	}
 }
 double Up_Gs{
 	get{
-		return Up_Thrust/Controller.CalculateShipMass().TotalMass/9.81;
+		return Up_Acc/9.81;
 	}
 }
 double Down_Gs{
 	get{
-		return Down_Thrust/Controller.CalculateShipMass().TotalMass/9.81;
+		return Down_Acc/9.81;
 	}
 }
 double Left_Gs{
 	get{
-		return Left_Thrust/Controller.CalculateShipMass().TotalMass/9.81;
+		return Left_Acc/9.81;
 	}
 }
 double Right_Gs{
 	get{
-		return Right_Thrust/Controller.CalculateShipMass().TotalMass/9.81;
+		return Right_Acc/9.81;
 	}
 }
 
@@ -1011,6 +1042,7 @@ void MarkAltitude(bool do_new=true){
 }
 
 bool Safety=true;
+double Time_To_Stop=0;
 void UpdateSystemData(){
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
@@ -1024,6 +1056,27 @@ void UpdateSystemData(){
 	Gravity=Controller.GetNaturalGravity();
 	CurrentVelocity=Controller.GetShipVelocities().LinearVelocity;
 	AngularVelocity=Controller.GetShipVelocities().AngularVelocity;
+	
+	//Time to Stop: Counter Velocity
+	Vector3D Time=new Vector3D(0,0,0);
+	if(Relative_CurrentVelocity.X>=0)
+		Time.X=Left_Acc-Relative_Gravity.X;
+	else
+		Time.X=Right_Acc-Relative_Gravity.X;
+	Time.X=Math.Abs(Relative_CurrentVelocity.X/Time.X);
+	
+	if(Relative_CurrentVelocity.Y>=0)
+		Time.Y=Down_Acc-Relative_Gravity.Y;
+	else
+		Time.Y=Up_Acc-Relative_Gravity.Y;
+	Time.Y=Math.Abs(Relative_CurrentVelocity.Y/Time.Y);
+	
+	if(Relative_CurrentVelocity.Z>=0)
+		Time.Z=Forward_Acc-Relative_Gravity.Z;
+	else
+		Time.Z=Backward_Acc-Relative_Gravity.Z;
+	Time.Z=Math.Abs(Relative_CurrentVelocity.X/Time.Z);
+	Time_To_Stop=Math.Max(Math.Max(Time.X,Time.Y),Time.Z);
 	
 	Time_To_Crash=-1;
 	Elevation=double.MaxValue;
@@ -1053,7 +1106,7 @@ void UpdateSystemData(){
 				if(_Autoland)
 					Write("Autoland Enabled");
 				if(Time_To_Crash>0){
-					if(Safety&&Time_To_Crash<(5+CurrentSpeed/5)&&Controller.GetShipSpeed()>5){
+					if(Safety&&Time_To_Crash-Time_To_Stop<5&&Controller.GetShipSpeed()>5&&Time_To_Stop>0.5){
 						Controller.DampenersOverride=true;
 						for(int i=0;i<Notifications.Count;i++){
 							if(Notifications[i].Text.IndexOf("Crash predicted within ")==0&&Notifications[i].Text.Contains(" seconds:\nEnabling Dampeners...")){
@@ -1066,7 +1119,7 @@ void UpdateSystemData(){
 					}
 					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
 						Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
-						if(_Autoland&&(Time_To_Crash>30||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash>5)))
+						if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
 							Controller.DampenersOverride=false;
 						need_print=false;
 					}
