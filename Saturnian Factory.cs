@@ -10,6 +10,7 @@
 
 TODO: 
 - Create Conveyor system objects
+- Fill out item names
 - 
 */
 string Program_Name="Saturnian Factory";
@@ -484,6 +485,215 @@ struct CustomPanel{
 		Display=p as IMyTextSurface;
 		Trans=p.CustomName.ToLower().Contains("transparent");
 	}
+}
+
+//Contains raw IDs for items of each type
+public static class Item{
+	public static class Raw{
+		public static string Ice=""; //Input name of Ice;
+	}
+	
+	public static class Ingot{
+		
+	}
+	
+	public static class Comp{
+		
+	}
+	
+	public static class Ammo{
+		
+	}
+	
+	public static class Tool{
+		
+	}
+	
+	public static class Cons{
+		
+	}
+}
+
+class InvBlock{
+	public IMyTerminalBlock Block;
+	public string DefaultItem;
+	public int InventoryCount{
+		get{
+			return Block.InventoryCount;
+		}
+	}
+	public IMyInventory Inventory{
+		get{
+			return Block.GetInventory();
+		}
+	}
+	
+	public bool IsCargo{
+		get{
+			var t=Block as IMyCargoContainer;
+			return t!=null;
+		}
+	}
+	public bool IsSorter{
+		get{
+			var t=Block as IMyConveyorSorter;
+			return t!=null;
+		}
+	}
+	public bool IsTurret{
+		get{
+			var t=Block as IMyLargeTurretBase;
+			return t!=null;
+		}
+	}
+	public bool IsITurret{
+		get{
+			var t=Block as IMyLargeInteriorTurret;
+			return t!=null;
+		}
+	}
+	public bool IsGTurret{
+		get{
+			var t=Block as IMyLargeGatlingTurret;
+			return t!=null;
+		}
+	}
+	public bool IsMTurret{
+		get{
+			var t=Block as IMyLargeMissileTurret;
+			return t!=null;
+		}
+	}
+	public bool IsGun{
+		get{
+			var t=Block as IMySmallGatlingGun;
+			return t!=null;
+		}
+	}
+	public bool IsRocket{
+		get{
+			var t=Block as IMySmallMissileLauncher;
+			return t!=null;
+		}
+	}
+	public bool IsReactor{
+		get{
+			var t=Block as IMyReactor;
+			return t!=null;
+		}
+	}
+	public bool IsTank{
+		get{
+			var t=Block as IMyGasTank;
+			return t!=null;
+		}
+	}
+	public bool IsH2{
+		get{
+			if(!IsTank)
+				return false;
+			return Block.DisplayNameText.ToLower().Contains("hydrogen");
+		}
+	}
+	public bool IsO2{
+		get{
+			return IsTank&&!IsH2;
+		}
+	}
+	public bool IsGenerator{
+		get{
+			var t=Block as IMyGasGenerator;
+			return t!=null;
+		}
+	}
+	public bool IsAssembler{
+		get{
+			var t=Block as IMyAssembler;
+			return t!=null;
+		}
+	}
+	public bool IsRefinery{
+		get{
+			var t=Block as IMyRefinery;
+			return t!=null;
+		}
+	}
+	public bool IsParachute{
+		get{
+			var t=Block as IMyParachute;
+			return t!=null;
+		}
+	}
+	public bool IsDummy{
+		get{
+			var t=Block as IMyTargetDummyBlock;
+			return t!=null;
+		}
+	}
+	public bool IsSafeZone{
+		get{
+			var t=Block as IMySafeZoneBlock;
+			return t!=null;
+		}
+	}
+	public bool IsDrill{
+		get{
+			var t=Block as IMyShipDrill;
+			return t!=null;
+		}
+	}
+	public bool IsWelder{
+		get{
+			var t=Block as IMyShipWelder;
+			return t!=null;
+		}
+	}
+	public bool IsGrinder{
+		get{
+			var t=Block as IMyShipGrinder;
+			return t!=null;
+		}
+	}
+	
+	public InvBlock(IMyTerminalBlock b){
+		Block=b;
+		DefaultItem=Items.Raw.Ice;
+		if(IsCargo||IsDummy||IsWelder||IsGrinder)
+			DefaultItem=Items.Comp.SteelPlate;
+		else if(Reactor)
+			DefaultItem=Items.Ingot.Uranium;
+		else if(IsRefinery||IsDrill)
+			DefaultItem=Items.Raw.Stone;
+		else if(IsAssembler)
+			DefaultItem=Items.Ingot.Iron;
+		else if(IsGenerator)
+			DefaultItem=Items.Raw.Ice;
+		else if(IsGun||IsGTurret)
+			DefaultItem=Items.Ammo.Container;
+		else if(IsRocket||IsMTurret)
+			DefaultItem=Items.Ammo.Rocket;
+		else if(IsITurret)
+			DefaultItem=Items.Ammo.M50A;
+		else if(IsTank){
+			if(IsH2)
+				DefaultItem=Items.Tool.H2;
+			else
+				DefaultItem=Items.Tool.O2;
+		}
+		else if(IsParachute)
+			DefaultItem=Items.Cons.Canvas;
+		else if(IsSafeZone)
+			DefaultItem=Items.Cons.ZoneChip;
+		else if(IsSorter){
+			//nonesense
+		}
+	}
+	
+	public IMyInventory GetInventory(int n){
+		return Block.GetInventory(n);
+	}
+	
+	//need a default transfer item
 }
 
 TimeSpan Time_Since_Start=new TimeSpan(0);
