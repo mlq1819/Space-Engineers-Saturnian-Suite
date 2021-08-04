@@ -541,7 +541,7 @@ bool ControllerFunction(IMyShipController ctr){
 }
 
 UpdateFrequency GetUpdateFrequency(){
-	return UpdateFrequency.Update10;
+	return UpdateFrequency.Update100;
 }
 
 void Reset(){
