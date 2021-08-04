@@ -491,15 +491,55 @@ struct CustomPanel{
 //Contains raw IDs for items of each type
 public static class Item{
 	public static class Raw{
-		//public static MyItemType Ice="";
+		static string B_O="MyObjectBuilder_Ore";
+		public static MyItemType Ice=new MyItemType(B_O,"Ice");
+		public static MyItemType Stone=new MyItemType(B_O,"Stone");
+		public static MyItemType Iron=new MyItemType(B_O,"Iron");
+		public static MyItemType Nickel=new MyItemType(B_O,"Nickel");
+		public static MyItemType Silicon=new MyItemType(B_O,"Silicon");
+		public static MyItemType Cobalt=new MyItemType(B_O,"Cobalt");
+		public static MyItemType Uranium=new MyItemType(B_O,"Uranium");
+		public static MyItemType Magnesium=new MyItemType(B_O,"Magnesium");
+		public static MyItemType Silver=new MyItemType(B_O,"Silver");
+		public static MyItemType Gold=new MyItemType(B_O,"Gold");
+		public static MyItemType Platinum=new MyItemType(B_O,"Platinum");
 	}
-	
 	public static class Ingot{
-		
+		static string B_I="MyObjectBuilder_Ingot";
+		public static MyItemType Stone=new MyItemType(B_I,"Stone");
+		public static MyItemType Iron=new MyItemType(B_I,"Iron");
+		public static MyItemType Nickel=new MyItemType(B_I,"Nickel");
+		public static MyItemType Silicon=new MyItemType(B_I,"Silicon");
+		public static MyItemType Cobalt=new MyItemType(B_I,"Cobalt");
+		public static MyItemType Uranium=new MyItemType(B_I,"Uranium");
+		public static MyItemType Magnesium=new MyItemType(B_I,"Magnesium");
+		public static MyItemType Silver=new MyItemType(B_I,"Silver");
+		public static MyItemType Gold=new MyItemType(B_I,"Gold");
+		public static MyItemType Platinum=new MyItemType(B_I,"Platinum");
 	}
-	
 	public static class Comp{
-		
+		static string B_C="MyObjectBuilder_Component";
+		public static MyItemType Steel=new MyItemType(B_C,"SteelPlate");
+		public static MyItemType Interior=new MyItemType(B_C,"InteriorPlate");
+		public static MyItemType Motor=new MyItemType(B_C,"Motor");
+		public static MyItemType Small=new MyItemType(B_C,"SmallTube");
+		public static MyItemType Large=new MyItemType(B_C,"LargeTube");
+		public static MyItemType Construction=new MyItemType(B_C,"Construction");
+		public static MyItemType Grid=new MyItemType(B_C,"MetalGrid");
+		public static MyItemType Girder=new MyItemType(B_C,"Girder");
+		public static MyItemType Thrust=new MyItemType(B_C,"Thrust");
+		public static MyItemType Reactor=new MyItemType(B_C,"Reactor");
+		public static MyItemType Computer=new MyItemType(B_C,"Computer");
+		public static MyItemType Super=new MyItemType(B_C,"Superconductor");
+		public static MyItemType Power=new MyItemType(B_C,"PowerCell");
+		public static MyItemType Detector=new MyItemType(B_C,"Detector");
+		public static MyItemType Grav=new MyItemType(B_C,"GravityGenerator");
+		public static MyItemType Glass=new MyItemType(B_C,"BulletproofGlass");
+		public static MyItemType Display=new MyItemType(B_C,"Display");
+		public static MyItemType Medical=new MyItemType(B_C,"Medical");
+		public static MyItemType Radio=new MyItemType(B_C,"RadioCommunication");
+		public static MyItemType Solar=new MyItemType(B_C,"SolarCell");
+		public static MyItemType Explosive=new MyItemType(B_C,"Explosives");
 	}
 	
 	public static class Ammo{
@@ -507,6 +547,10 @@ public static class Item{
 	}
 	
 	public static class Tool{
+		static string B_T="MyObjectBuilder_PhysicalGunObject";
+		public static MyItemType H2=new MyItemType("MyObjectBuilder_GasContainerObject","HydrogenBottle");
+		public static MyItemType O2=new MyItemType("MyObjectBuilder_OxygenContainerObject","OxygenBottle");
+		
 		
 	}
 	
