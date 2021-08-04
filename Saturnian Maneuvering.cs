@@ -386,10 +386,36 @@ double GetAngle(Vector3D v1,Vector3D v2){
 
 void Write(string text,bool new_line=true,bool append=true){
 	Echo(text);
-	if(new_line)
-		Me.GetSurface(0).WriteText(text+'\n', append);
+	IMyTextSurface Surface=Me.GetSurface(0);
+	if(new_line){
+		Vector2 SurfaceSize=Surface.SurfaceSize();
+		string[] Full_Lines=text.Split('\n');
+		if(!append)
+			Surface.WriteText("",false);
+		foreach(string Full_Line in Full_Lines){
+			Vector2 StringSize=Surface.MeasureStringInPixels(Full_Line,Surface.Font,Surface.FontSize);
+			int min_lines=(int)Math.Ceiling(((float)SurfaceSize.X)/StringSize.X);
+			string[] words=Full_Line.Split(' ');
+			string current_line="";
+			for(int i=0;i<words.Count;i++){
+				string next_line=current_line;
+				if(current_line.Length>0)
+					next_line+=' ';
+				next_line+=words[i];
+				if(current_line.Length>0&&Surface.MeasureStringInPixels(next_line,Surface.Font,Surface.FontSize).X>SurfaceSize.X){
+					Surface.WriteText(current_line+'\n',true);
+					current_line="";
+				}
+				if(current_line.Length>0)
+					current_line+=' ';
+				current_line+=words[i];
+			}
+			if(current_line.Length>0)
+				Surface.WriteText(current_line+'\n',true);
+		}
+	}
 	else
-		Me.GetSurface(0).WriteText(text, append);
+		Surface.WriteText(text,append);
 }
 
 int Display_Count=5;
