@@ -599,7 +599,7 @@ class InvBlock{
 		get{
 			if(!IsTank)
 				return false;
-			return Block.DisplayNameText.ToLower().Contains("hydrogen");
+			return Block.DefinitionDisplayNameText.ToLower().Contains("hydrogen");
 		}
 	}
 	public bool IsO2{
