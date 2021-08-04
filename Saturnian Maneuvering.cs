@@ -1853,6 +1853,16 @@ bool Task_Match(Task task){
 	return true;
 }
 
+//Enables autoland
+bool Task_AutolandOn(Task task){
+	return _Autoland||Autoland();
+}
+
+//Disables autoland
+bool Task_AutolandOff(Task task){
+	return (!_Autoland)||Autoland();
+}
+
 bool PerformTask(Task task){
 	if(task.Duration==Quantifier.Stop){
 		Queue<Task> Recycling=new Queue<Task>();
