@@ -392,7 +392,7 @@ void Write(string text,bool new_line=true,bool append=true){
 		Me.GetSurface(0).WriteText(text, append);
 }
 
-int Display_Count=4;
+int Display_Count=5;
 int _Current_Display=1;
 int Current_Display{
 	get{
@@ -444,6 +444,19 @@ string GetRemovedString(string big_string, string small_string){
 	return output;
 }
 
+struct CustomPanel{
+	public IMyTextSurface Display;
+	public bool Trans;
+	public CustomPanel(IMyTextSurface d,bool t=false){
+		Display=d;
+		Trans=t;
+	}
+	public CustomPanel(IMyTextPanel p){
+		Display=p as IMyTextSurface;
+		Trans=p.CustomName.ToLower().Contains("transparent");
+	}
+}
+
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
@@ -454,6 +467,8 @@ IMyShipController Controller;
 List<IMyShipController> Controllers;
 IMyGyro Gyroscope;
 List<IMyLandingGear> LandingGear;
+
+List<CustomPanel> ThrusterLCDs;
 
 List<IMyThrust>[] All_Thrusters=new List<IMyThrust>[6];
 List<IMyThrust> Forward_Thrusters{
@@ -504,7 +519,6 @@ List<IMyThrust> Right_Thrusters{
 		return All_Thrusters[5];
 	}
 }
-//Alt+254=■
 
 bool Thrust_Check=false;
 float _Max_Thrust;
@@ -870,6 +884,7 @@ void Reset(){
 		}
 		All_Thrusters[i]=new List<IMyThrust>();
 	}
+	ThrusterLCDs=new List<CustomPanel>();
 	RestingSpeed=0;
 	Notifications=new List<Notification>();
 }
@@ -877,6 +892,24 @@ void Reset(){
 double MySize=0;
 bool Setup(){
 	Reset();
+	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Thruster");
+	foreach(IMyTextPanel Panel in LCDs)
+		AltitudeLCDs.Add(new CustomPanel(Panel));
+	foreach(CustomPanel Panel in AltitudeLCDs){
+		if(Panel.Trans){
+			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
+			Panel.Display.BackgroundColor=new Color(0,0,0,0);
+		}
+		else{
+			Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
+			Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+		}
+		Panel.Display.Font="Monospace";
+		Panel.Display.Alignment=TextAlignment.LEFT;
+		Panel.Display.ContentType=ContentType.TEXT_AND_IMAGE;
+		Panel.Display.TextPadding=0;
+		Panel.Display.FontSize=0.5f;
+	}
 	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
 	if(Controller==null)
 		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
@@ -1469,6 +1502,171 @@ void SetThrusters(){
 		Display(4,"Thrust Right:"+Math.Round(output_right,1)+"%");
 }
 
+Vector2 GetSize(IMyTextSurface Display){
+	Vector2 Size=Display.SurfaceSize;
+	Vector2 CharSize=Display.MeasureStringInPixels(new Stringbuilder("|"),Display.Font,Display.FontSize);
+	return new Vector2(Size.X/CharSize.X,Size.Y/CharSize.Y);
+}
+
+void Thruster_Graph(CustomPanel Panel){
+	if(Panel.Display.Font!="Monospace")
+		Panel.Display.Font="Monospace";
+	Vector2 Size=GetSize(Panel.Display);
+	while(Panel.FontSize>0.1&&Size.X<10&&Size.Y<10){
+		Panel.FontSize/=2;
+		Size=GetSize(Panel.Display);
+	}
+	float output_forward=0,output_backward=0,output_up=0,output_down=0,output_left=0,output_right=0;
+	if(Forward_Thrusters.Count>0)
+		output_forward=Forward_Thrusters[0].ThrustOverridePercentage*Forward_Thrust;
+	if(Backward_Thrusters.Count>0)
+		output_backward=Backward_Thrusters[0].ThrustOverridePercentage*Backward_Thrust;
+	if(Up_Thrusters.Count>0)
+		output_up=Up_Thrusters[0].ThrustOverridePercentage*Up_Thrust;
+	if(Down_Thrusters.Count>0)
+		output_down=Down_Thrusters[0].ThrustOverridePercentage*Down_Thrust;
+	if(Left_Thrusters.Count>0)
+		output_left=Left_Thrusters[0].ThrustOverridePercentage*Left_Thrust;
+	if(Right_Thrusters.Count>0)
+		output_right=Right_Thrusters[0].ThrustOverridePercentage*Right_Thrust;
+	
+	int Width=Size.X-4;
+	string output="Thruster Output";
+	output+="\nFB|";
+	for(int i=3;i-3<Width/2;i++){
+		int val=Width/2-(i-3);
+		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		if(thrust>Forward_Thrust)
+			output+=' ';
+		else if(thrust>output_forward)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="|";
+	for(int i=Width/2+4;i<Width;i++){
+		int val=(i-3)-Width/2;
+		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		if(thrust>Backward_Thrust)
+			output+=' ';
+		else if(thrust>output_back)
+			output+='☐';
+		else
+			output+='■';
+	}
+	
+	output+="\nUD:";
+	for(int i=3;i-3<Width/2;i++){
+		int val=Width/2-(i-3);
+		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		if(thrust>Up_Thrust)
+			output+=' ';
+		else if(thrust>output_up)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="|";
+	for(int i=Width/2+4;i<Width;i++){
+		int val=(i-3)-Width/2;
+		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		if(thrust>Down_Thrust)
+			output+=' ';
+		else if(thrust>output_down)
+			output+='☐';
+		else
+			output+='■';
+	}
+	
+	output+="\nLR:";
+	for(int i=3;i-3<Width/2;i++){
+		int val=Width/2-(i-3);
+		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		if(thrust>Left_Thrust)
+			output+=' ';
+		else if(thrust>output_left)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="|";
+	for(int i=Width/2+4;i<Width;i++){
+		int val=(i-3)-Width/2;
+		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		if(thrust>Right_Thrust)
+			output+=' ';
+		else if(thrust>output_right)
+			output+='☐';
+		else
+			output+='■';
+	}
+	
+	Width=Size.X-3;
+	
+	output+="\nFw:";
+	for(int val=0;val<Width;val++){
+		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		if(thrust>Forward_Thrust)
+			output+=' ';
+		else if(thrust>output_forward)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="\nBw:";
+	for(int val=0;val<Width;val++){
+		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		if(thrust>Backward_Thrust)
+			output+=' ';
+		else if(thrust>output_backward)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="\nUp:";
+	for(int val=0;val<Width;val++){
+		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		if(thrust>Up_Thrust)
+			output+=' ';
+		else if(thrust>output_up)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="\nDo:";
+	for(int val=0;val<Width;val++){
+		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		if(thrust>Down_Thrust)
+			output+=' ';
+		else if(thrust>output_down)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="\nLt:";
+	for(int val=0;val<Width;val++){
+		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		if(thrust>Left_Thrust)
+			output+=' ';
+		else if(thrust>output_left)
+			output+='☐';
+		else
+			output+='■';
+	}
+	output+="\nRt:";
+	for(int val=0;val<Width;val++){
+		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		if(thrust>Right_Thrust)
+			output+=' ';
+		else if(thrust>output_right)
+			output+='☐';
+		else
+			output+='■';
+	}
+	
+	Panel.Display.WriteText(output,false);
+}
+
 class Notification{
 	public string Text;
 	public double Time;
@@ -1646,6 +1844,8 @@ public void Main(string argument,UpdateType updateSource){
 				Main_Program(argument);
 		}
 		PrintNotifications();
+		if(Current_Display==5)
+			Thruster_Graph(new CustomPanel(Me.GetTextSurface(0)));
 	}
 	catch(Exception E){
 		Write(E.ToString());
@@ -2163,5 +2363,7 @@ void Main_Program(string argument){
 	}
 	else
 		ResetThrusters();
+	foreach(CustomPanel Panel in ThrusterLCDs)
+		Thruster_Graph(Panel);
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
