@@ -419,6 +419,7 @@ Random Rnd;
 IMyShipController Controller;
 List<IMyShipController> Controllers;
 IMyGyro Gyroscope;
+List<IMyLandingGear> LandingGear;
 
 List<IMyThrust>[] All_Thrusters=new List<IMyThrust>[6];
 List<IMyThrust> Forward_Thrusters{
@@ -804,6 +805,7 @@ void Reset(){
 	if(Gyroscope!=null)
 		Gyroscope.GyroOverride=false;
 	Gyroscope=null;
+	LandingGear=new List<IMyLandingGear>();
 	for(int i=0;i<All_Thrusters.Length;i++){
 		if(All_Thrusters[i]!=null){
 			for(int j=0;j<All_Thrusters[i].Count;j++){
@@ -851,6 +853,8 @@ bool Setup(){
 		Gyroscope.CustomName="Control Gyroscope";
 		Gyroscope.GyroOverride=Controller.IsUnderControl;
 	}
+	LandingGear=GenericMethods<IMyLandingGear>.GetAllConstruct("");
+	GridTerminalSystem.GetBlocksOfType<IMyLandingGear>(LandingGear);
 	List<IMyThrust> MyThrusters=GenericMethods<IMyThrust>.GetAllConstruct("");
 	foreach(IMyThrust Thruster in MyThrusters){
 		if(Thruster.CubeGrid!=Controller.CubeGrid)
@@ -1516,9 +1520,7 @@ void UpdateSystemData(){
 				}
 				else if(Elevation<500){
 					double terrain_height=(Controller.GetPosition()-PlanetCenter).Length()-Elevation;
-					List<IMyLandingGear> AllBlocks=new List<IMyLandingGear>();
-					GridTerminalSystem.GetBlocksOfType<IMyLandingGear>(AllBlocks);
-					foreach(IMyLandingGear Block in AllBlocks)
+					foreach(IMyLandingGear Block in LandingGear)
 						Elevation=Math.Min(Elevation,(Block.GetPosition()-PlanetCenter).Length()-terrain_height);
 				}
 			}
