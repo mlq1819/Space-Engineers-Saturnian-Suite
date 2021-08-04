@@ -392,14 +392,48 @@ void Write(string text,bool new_line=true,bool append=true){
 		Me.GetSurface(0).WriteText(text, append);
 }
 
-int Display_Count=3;
-int Current_Display=1;
+int Display_Count=4;
+int _Current_Display=1;
+int Current_Display{
+	get{
+		return _Current_Display;
+	}
+	set{
+		if(value!=_Current_Display){
+			_Current_Display=value;
+			UpdateMyDisplay();
+		}
+	}
+}
 double Display_Timer=5;
 void Display(int display_number,string text,bool new_line=true,bool append=true){
 	if(display_number==Current_Display)
 		Write(text,new_line,append);
 	else
 		Echo(text);
+}
+void UpdateMyDisplay(){
+	IMyTextSurface Display=Me.GetSurface(0);
+	switch(Current_Display){
+		case 5:
+			Display.FontColor=DEFAULT_TEXT_COLOR;
+			Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+			Display.Alignment=TextAlignment.LEFT;
+			Display.ContentType=ContentType.TEXT_AND_IMAGE;
+			Display.Font="Monospace";
+			Display.TextPadding=0;
+			Display.FontSize=0.5f;
+			break;
+		default:
+			Display.FontColor=DEFAULT_TEXT_COLOR;
+			Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+			Display.Alignment=TextAlignment.CENTER;
+			Display.ContentType=ContentType.TEXT_AND_IMAGE;
+			Display.Font="Debug";
+			Display.TextPadding=2;
+			Display.FontSize=1;
+			break;
+	}
 }
 
 string GetRemovedString(string big_string, string small_string){
@@ -468,6 +502,24 @@ List<IMyThrust> Right_Thrusters{
 	}
 	get{
 		return All_Thrusters[5];
+	}
+}
+//Alt+254=■
+
+bool Thrust_Check=false;
+float _Max_Thrust;
+float Max_Thrust{
+	get{
+		if(Thrust_Check){
+			_Max_Thrust=Forward_Thrust;
+			_Max_Thrust=Math.Max(_Max_Thrust,Backward_Thrust);
+			_Max_Thrust=Math.Max(_Max_Thrust,Up_Thrust);
+			_Max_Thrust=Math.Max(_Max_Thrust,Down_Thrust);
+			_Max_Thrust=Math.Max(_Max_Thrust,Left_Thrust);
+			_Max_Thrust=Math.Max(_Max_Thrust,Right_Thrust);
+			Thrust_Check=true;
+		}
+		return _Max_Thrust;
 	}
 }
 
@@ -1403,6 +1455,18 @@ void SetThrusters(){
 		if(output_left<=0)
 			Thruster.ThrustOverride=MIN_THRUST;
 	}
+	if(output_forward>0)
+		Display(4,"Thrust Forwd:"+Math.Round(output_forward,1)+"%");
+	if(output_backward>0)
+		Display(4,"Thrust Back:"+Math.Round(output_backward,1)+"%");
+	if(output_up>0)
+		Display(4,"Thrust Up:"+Math.Round(output_up,1)+"%");
+	if(output_down>0)
+		Display(4,"Thrust Down:"+Math.Round(output_down,1)+"%");
+	if(output_left>0)
+		Display(4,"Thrust Left:"+Math.Round(output_left,1)+"%");
+	if(output_right>0)
+		Display(4,"Thrust Right:"+Math.Round(output_right,1)+"%");
 }
 
 class Notification{
@@ -1482,6 +1546,7 @@ void Crash_And_Autolanding(){
 		Write("No crash likely at current velocity");
 }
 void UpdateSystemData(){
+	Thrust_Check=false;
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
 	Forward_Vector.Normalize();
@@ -2054,10 +2119,30 @@ void Main_Program(string argument){
 			Display(1,"Elevation: "+Math.Round(Elevation,1).ToString());
 			Display(1,"Sealevel: "+Math.Round(Sealevel,1).ToString());
 		}
-		if(Gravity.Length()>0)
+		if(Gravity.Length()>0){
 			Display(1,"Gravity:"+Math.Round(Gravity.Length()/9.814,2)+"Gs");
-		Display(2,"Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
-		Display(2,"Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
+			double grav=Relative_Gravity.Y;
+			if(Relative_Gravity.Y>0.1)
+				Display(1,"Gravity Up:"+Math.Round(Math.Abs(grav)/9.814,2)+"Gs");
+			else if(Relative_Gravity.Y<-0.1)
+				Display(1,"Gravity Down:"+Math.Round(Math.Abs(grav)/9.814,2)+"Gs");
+			grav=Relative_Gravity.Z;
+			if(Relative_Gravity.Z>0.1)
+				Display(1,"Gravity Back:"+Math.Round(Math.Abs(grav)/9.814,2)+"Gs");
+			else if(Relative_Gravity.Z<-0.1)
+				Display(1,"Gravity Forwd:"+Math.Round(Math.Abs(grav)/9.814,2)+"Gs");
+			grav=Relative_Gravity.X;
+			if(Relative_Gravity.X>0.1)
+				Display(1,"Gravity Right:"+Math.Round(Math.Abs(grav)/9.814,2)+"Gs");
+			else if(Relative_Gravity.X<-0.1)
+				Display(1,"Gravity Left:"+Math.Round(Math.Abs(grav)/9.814,2)+"Gs");
+		}
+		Display(2,"Acceleration Up:"+Math.Round(Up_Gs,2)+"Gs");
+		Display(2,"Acceleration Forwd:"+Math.Round(Forward_Gs,2)+"Gs");
+		Display(2,"Acceleration Back:"+Math.Round(Backward_Gs,2)+"Gs");
+		Display(2,"Acceleration Down:"+Math.Round(Down_Gs,2)+"Gs");
+		Display(2,"Acceleration Left:"+Math.Round(Left_Gs,2)+"Gs");
+		Display(2,"Acceleration Right:"+Math.Round(Right_Gs,2)+"Gs");
 	}
 	if(argument.ToLower().Equals("autoland")){
 		Autoland();
