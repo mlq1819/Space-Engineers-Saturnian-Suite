@@ -2005,6 +2005,12 @@ class Task{
 			new Vector2(0,0)
 			)); //No Params
 			
+			output.Add(new TaskFormat(
+			"Autoland",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: bool
+			
 			return output;
 		}
 	}
@@ -2179,14 +2185,16 @@ bool Task_Match(Task task){
 	return true;
 }
 
-//Enables autoland
+//Sets Autoland either on or off
 bool Task_AutolandOn(Task task){
-	return _Autoland||Autoland();
-}
-
-//Disables autoland
-bool Task_AutolandOff(Task task){
-	return (!_Autoland)||Autoland();
+	bool do_autoland=false;
+	if(bool.TryParse(task.Qualifiers.Last(),out do_autoland)){
+		if(do_autoland)
+			return _Autoland||Autoland();
+		else
+			return (!_Autoland)||Autoland();
+	}
+	return false;
 }
 
 bool PerformTask(Task task){
@@ -2215,6 +2223,9 @@ bool PerformTask(Task task){
 			return Task_Go(task);
 		case "Match":
 			return Task_Match(task);
+		case "Autoland":
+			return Task_Autoland(task);
+		
 	}
 	return false;
 }
@@ -2265,6 +2276,8 @@ void Task_Resetter(){
 	Do_Up=false;
 	Do_Position=false;
 	Match_Direction=false;
+	if(_Autoland)
+		Autoland();
 }
 
 void Task_Pruner(Task task){
