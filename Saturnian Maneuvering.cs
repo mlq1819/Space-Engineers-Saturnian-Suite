@@ -714,7 +714,9 @@ bool ControllerFunction(IMyShipController ctr){
 }
 
 UpdateFrequency GetUpdateFrequency(){
-	return UpdateFrequency.Update1;
+	if(Running_Thrusters||(Gyroscope!=null&&Gyroscope.GyroOverride))
+		return UpdateFrequency.Update1;
+	return UpdateFrequency.Update100;
 }
 
 string GetThrustTypeName(IMyThrust Thruster){
@@ -795,6 +797,7 @@ void ResetThrusters(){
 		foreach(IMyThrust Thruster in All_Thrusters[i])
 			ResetThruster(Thruster);
 	}
+	Running_Thrusters=false;
 }
 
 void Reset(){
@@ -1208,7 +1211,9 @@ double True_Target_Distance{
 		return (True_Target_Position-Controller.GetPosition()).Length();
 	}
 }
+bool Running_Thrusters=false;
 void SetThrusters(){
+	Running_Thrusters=true;
 	float input_forward=0.0f;
 	float input_up=0.0f;
 	float input_right=0.0f;
@@ -1267,6 +1272,7 @@ void SetThrusters(){
 			foreach(IMyThrust Thruster in All_Thrusters[i])
 				Thruster.ThrustOverride=0;
 		}
+		Running_Thrusters=false;
 		return;
 	}
 	
@@ -1441,7 +1447,6 @@ void UpdateProgramInfo(){
 	Echo(ToString(Time_Since_Start)+" since last reboot\n");
 	Me.GetSurface(1).WriteText("\n"+ToString(Time_Since_Start)+" since last reboot",true);
 }
-
 
 void Crash_And_Autolanding(){
 	double from_center=(Controller.GetPosition()-PlanetCenter).Length();
