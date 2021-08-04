@@ -6,6 +6,7 @@
 * Include "Refining" in LCD name to add to Refinery group.
 * Include "Assembling" in LCD name to add to Assembler group.
 * Include "Material" in LCD name to add to Material Levels group.
+* Include "Network" in LCD name to add to the Networks group.
 
 
 TODO: 
@@ -490,7 +491,7 @@ struct CustomPanel{
 //Contains raw IDs for items of each type
 public static class Item{
 	public static class Raw{
-		public static string Ice=""; //Input name of Ice;
+		//public static MyItemType Ice="";
 	}
 	
 	public static class Ingot{
@@ -516,7 +517,7 @@ public static class Item{
 
 class InvBlock{
 	public IMyTerminalBlock Block;
-	public string DefaultItem;
+	public MyItemType DefaultItem;
 	public int InventoryCount{
 		get{
 			return Block.InventoryCount;
@@ -531,6 +532,12 @@ class InvBlock{
 	public bool IsCargo{
 		get{
 			var t=Block as IMyCargoContainer;
+			return t!=null;
+		}
+	}
+	public bool IsConnector{
+		get{
+			var t=Block as IMyShipConnector;
 			return t!=null;
 		}
 	}
@@ -658,7 +665,7 @@ class InvBlock{
 	public InvBlock(IMyTerminalBlock b){
 		Block=b;
 		DefaultItem=Items.Raw.Ice;
-		if(IsCargo||IsDummy||IsWelder||IsGrinder)
+		if(IsCargo||IsConnector||IsWelder||IsGrinder||IsDummy)
 			DefaultItem=Items.Comp.SteelPlate;
 		else if(Reactor)
 			DefaultItem=Items.Ingot.Uranium;
@@ -693,7 +700,115 @@ class InvBlock{
 		return Block.GetInventory(n);
 	}
 	
-	//need a default transfer item
+	public bool SameNetwork(InvBlock o){
+		if(!Block.IsSameConstructAs(o.Block))
+			return false;
+		if(!Inventory.CanTransferItemTo(o.Inventory,o.DefaultItem))
+			return false;
+		if(!o.Inventory.CanTransferItemTo(Inventory,DefaultItem))
+			return false;
+		return true;
+	}
+}
+class Network{
+	public List<InvBlock> Nodes;
+	public uint Count{
+		get{
+			return Nodes.Count;
+		}
+	}
+	
+	public Network(InvBlock i){
+		Nodes=new List<InvBlock>();
+		Nodes.Add(i);
+	}
+	
+	public bool InNetwork(InvBlock node){
+		foreach(InvBlock Node in Nodes){
+			if(node.Equals(Node))
+				return true;
+		}
+		return false;
+	}
+	
+	public bool CanAdd(InvBlock node,bool check_same=true){
+		if(Nodes.Count<1000&&InNetwork(node))
+			return false;
+		if(Nodes.Count<100){
+			foreach(InvBlock Node in Nodes){
+				if((check_same&&Node.Equals(node))||!Node.SameNetwork(node))
+					return false;
+			}
+			return true;
+		}
+		if((check_same&&Nodes[0].Equals(node))||!Nodes[0].SameNetwork(node))
+			return false;
+		List<int> indices=new List<int>();
+		Random rnd=new Random();
+		int tries=0;
+		while(indices.Count<50&&(indices.Count<25||1000>tries++)){
+			int i=rnd.Next(0,Count);
+			if(indices.Contains(i))
+				continue;
+			indices.Add(i);
+			InvBlock Node=Nodes[i];
+			if((check_same&&Node.Equals(node))||!Node.SameNetwork(node))
+				return false;
+		}
+		return true;
+	}
+	
+	public bool Add(InvBlock node,bool check=true){
+		if(check&&!CanAdd(node))
+			return false;
+		Nodes.Add(node);
+		return true;
+	}
+	
+	public bool Remove(InvBlock node){
+		return Nodes.Remove(node);
+	}
+	
+	public bool RemoveAt(int i){
+		return Nodes.RemoveAt(i);
+	}
+	
+	public bool Merge(Network O){
+		foreach(InvBlock Node in O.Nodes){
+			if(!CanAdd(Node))
+				return false;
+		}
+		for(int i=O.Count-1;i>=0;i--){
+			InvBlock Node=O.Nodes[i];
+			if(!O.RemoveAt(i))
+				return false;
+			if(!Add(Node)){
+				O.Add(Node,false);
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public Network Split(int index){
+		Network splitter=new Network(Nodes[index]);
+		RemoveAt(index);
+		for(int i=Nodes.Count-1;i>=0;i--){
+			if(O.Count<=Count){
+				if(O.Add(Nodes[i]))
+					RemoveAt(i);
+			}
+			else{
+				if((!CanAdd(Nodes[i],false))&&O.Add(Nodes[i]))
+					RemoveAt(i);
+			}
+		}
+		return splitter;
+	}
+	
+	public Network Split(InvBlock node){
+		return Split(Nodes.IndexOf(node));
+	}
 }
 
 TimeSpan Time_Since_Start=new TimeSpan(0);
@@ -704,6 +819,9 @@ Random Rnd;
 
 IMyShipController Controller;
 List<IMyShipController> Controllers;
+
+List<InvBlock> InvBlocks;
+List<Network> ConveyorNetworks;
 
 Base6Directions.Direction Forward;
 Base6Directions.Direction Backward{
@@ -749,6 +867,9 @@ bool MainControllerFunction(IMyShipController ctr){
 bool ControllerFunction(IMyShipController ctr){
 	return ctr.IsSameConstructAs(Me)&&ctr.CanControlShip&&ctr.ControlThrusters;
 }
+bool InvBlockFunction(IMyTerminalBlock blk){
+	return blk.IsSameConstructAs(Me)&&blk.InventoryCount>0;
+}
 
 UpdateFrequency GetUpdateFrequency(){
 	return UpdateFrequency.Update100;
@@ -759,6 +880,8 @@ void Reset(){
 	Runtime.UpdateFrequency=UpdateFrequency.None;
 	Controller=null;
 	Controllers=new List<IMyShipController>();
+	InvBlocks=new List<InvBlock>();
+	ConveyorNetworks=new List<Network>();
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
 }
@@ -805,6 +928,21 @@ bool Setup(){
 	Up=Controller.Orientation.Up;
 	Left=Controller.Orientation.Left;
 	MySize=Controller.CubeGrid.GridSize;
+	
+	InvBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
+	if(InvBlocks.Count>0)
+		ConveyorNetworks.Add(new Network(InvBlocks[0]));
+	for(int i=1;i<InvBlocks.Count;i++){
+		bool added=false;
+		for(int j=0;j<ConveyorNetworks.Count;j++){
+			if(ConveyorNetworks.Add(InvBlocks[i])){
+				added=true;
+				break;
+			}
+		}
+		if(!added)
+			ConveyorNetworks.Add(new Network(InvBlocks[i]));
+	}
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
