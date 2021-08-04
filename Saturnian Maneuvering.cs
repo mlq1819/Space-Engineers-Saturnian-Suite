@@ -1499,7 +1499,7 @@ void UpdateSystemData(){
 				if(_Autoland)
 					Write("Autoland Enabled");
 				if(Time_To_Crash>0){
-					if(Safety&&Time_To_Crash<(5+CurrentSpeed/5)&&Controller.GetShipSpeed()>5){
+					if(Safety&&Time_To_Crash-Time_To_Stop<5&&Controller.GetShipSpeed()>5){
 						Controller.DampenersOverride=true;
 						RestingSpeed=0;
 						for(int i=0;i<Notifications.Count;i++){
@@ -1513,7 +1513,7 @@ void UpdateSystemData(){
 					}
 					else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
 						Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
-						if(_Autoland&&(Time_To_Crash>30||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash>5)))
+						if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
 							Controller.DampenersOverride=false;
 						need_print=false;
 					}
