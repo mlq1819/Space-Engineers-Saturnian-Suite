@@ -12,7 +12,8 @@
 
 
 TODO: 
-- 
+- Core Integration
+- Manage Resources
 */
 string Program_Name="Saturnian Resource";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);

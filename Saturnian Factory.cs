@@ -12,7 +12,7 @@
 TODO: 
 - Create Conveyor system objects
 - Fill out item names
-- 
+- Core Integration
 */
 string Program_Name="Saturnian Factory";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
