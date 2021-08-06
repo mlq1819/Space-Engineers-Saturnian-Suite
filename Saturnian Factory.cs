@@ -1044,56 +1044,9 @@ char loading_char='|';
 double seconds_since_last_update=0;
 Random Rnd;
 
-IMyShipController Controller;
-List<IMyShipController> Controllers;
-
 List<InvBlock> InvBlocks;
 List<Network> ConveyorNetworks;
 
-Base6Directions.Direction Forward;
-Base6Directions.Direction Backward{
-	get{
-		return Base6Directions.GetOppositeDirection(Forward);
-	}
-}
-Base6Directions.Direction Up;
-Base6Directions.Direction Down{
-	get{
-		return Base6Directions.GetOppositeDirection(Up);
-	}
-}
-Base6Directions.Direction Left;
-Base6Directions.Direction Right{
-	get{
-		return Base6Directions.GetOppositeDirection(Left);
-	}
-}
-
-Vector3D Forward_Vector;
-Vector3D Backward_Vector{
-	get{
-		return -1*Forward_Vector;
-	}
-}
-Vector3D Up_Vector;
-Vector3D Down_Vector{
-	get{
-		return -1*Up_Vector;
-	}
-}
-Vector3D Left_Vector;
-Vector3D Right_Vector{
-	get{
-		return -1*Left_Vector;
-	}
-}
-
-bool MainControllerFunction(IMyShipController ctr){
-	return ctr.IsMainCockpit&&ControllerFunction(ctr);
-}
-bool ControllerFunction(IMyShipController ctr){
-	return ctr.IsSameConstructAs(Me)&&ctr.CanControlShip&&ctr.ControlThrusters;
-}
 bool InvBlockFunction(IMyTerminalBlock blk){
 	return blk.IsSameConstructAs(Me)&&blk.InventoryCount>0;
 }
@@ -1105,15 +1058,12 @@ UpdateFrequency GetUpdateFrequency(){
 void Reset(){
 	Operational=false;
 	Runtime.UpdateFrequency=UpdateFrequency.None;
-	Controller=null;
-	Controllers=new List<IMyShipController>();
 	InvBlocks=new List<InvBlock>();
 	ConveyorNetworks=new List<Network>();
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
 }
 
-double MySize=0;
 bool Setup(){
 	Reset();
 	/*List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude");
@@ -1134,27 +1084,6 @@ bool Setup(){
 		Panel.Display.TextPadding=0;
 		Panel.Display.FontSize=0.5f;
 	}*/
-	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
-	if(Controller==null)
-		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
-	Controllers=GenericMethods<IMyShipController>.GetAllFunc(ControllerFunction);
-	if(Controller==null){
-		Write("Failed to find Controller", false, false);
-		return false;
-	}
-	bool has_main_ctrl=false;
-	foreach(IMyShipController Ctrl in Controllers){
-		if(Ctrl.CustomName.Equals(Controller.CustomName)){
-			has_main_ctrl=true;
-			break;
-		}
-	}
-	if(!has_main_ctrl)
-		Controllers.Add(Controller);
-	Forward=Controller.Orientation.Forward;
-	Up=Controller.Orientation.Up;
-	Left=Controller.Orientation.Left;
-	MySize=Controller.CubeGrid.GridSize;
 	
 	List<IMyTerminalBlock> invBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
 	foreach(IMyTerminalBlock b in invBlocks)
@@ -1282,16 +1211,7 @@ void UpdateProgramInfo(){
 }
 
 void UpdateSystemData(){
-	Vector3D base_vector=new Vector3D(0,0,-1);
-	Forward_Vector=LocalToGlobal(base_vector,Controller);
-	Forward_Vector.Normalize();
-	base_vector=new Vector3D(0,1,0);
-	Up_Vector=LocalToGlobal(base_vector,Controller);
-	Up_Vector.Normalize();
-	base_vector=new Vector3D(-1,0,0);
-	Left_Vector=LocalToGlobal(base_vector,Controller);
-	Left_Vector.Normalize();
-	
+	//whoosh
 }
 
 void PrintNotifications(){
