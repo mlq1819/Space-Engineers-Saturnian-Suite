@@ -503,6 +503,8 @@ public static class Item{
 		public static MyItemType Silver=new MyItemType(B_O,"Silver");
 		public static MyItemType Gold=new MyItemType(B_O,"Gold");
 		public static MyItemType Platinum=new MyItemType(B_O,"Platinum");
+		public static MyItemType Scrap=new MyItemType(B_O,"Scrap");
+		public static MyItemType Organic=new MyItemType(B_O,"Organic");
 	}
 	public static class Ingot{
 		static string B_I="MyObjectBuilder_Ingot";
@@ -516,6 +518,7 @@ public static class Item{
 		public static MyItemType Silver=new MyItemType(B_I,"Silver");
 		public static MyItemType Gold=new MyItemType(B_I,"Gold");
 		public static MyItemType Platinum=new MyItemType(B_I,"Platinum");
+		public static MyItemType Scrap=new MyItemType(B_I,"Scrap");
 	}
 	public static class Comp{
 		static string B_C="MyObjectBuilder_Component";
@@ -540,23 +543,62 @@ public static class Item{
 		public static MyItemType Radio=new MyItemType(B_C,"RadioCommunication");
 		public static MyItemType Solar=new MyItemType(B_C,"SolarCell");
 		public static MyItemType Explosive=new MyItemType(B_C,"Explosives");
+		public static MyItemType Zone=new MyItemType(B_C,"ZoneChip");
+		public static MyItemType Canvas=new MyItemType(B_C,"Canvas");
 	}
 	
 	public static class Ammo{
-		
+		static string B_A="MyObjectBuilder_AmmoMagazine";
+		public static MyItemType Missile=new MyItemType(B_A,"Missile200mm");
+		public static MyItemType Container=new MyItemType(B_A,"NATO_25x184mm");
+		public static MyItemType Magazine=new MyItemType(B_A,"NATO_5p56x45mm");
+		public static MyItemType RifleB=new MyItemType(B_A,"AutomaticRifleGun_Mag_20rd");
+		public static MyItemType RifleP=new MyItemType(B_A,"PreciseAutomaticRifleGun_Mag_5rd");
+		public static MyItemType RifleA=new MyItemType(B_A,"RapidFireAutomaticRifleGun_Mag_50rd");
+		public static MyItemType RifleE=new MyItemType(B_A,"UltimateAutomaticRifleGun_Mag_30rd");
+		public static MyItemType PistolB=new MyItemType(B_A,"SemiAutoPistolMagazine");
+		public static MyItemType PistolA=new MyItemType(B_A,"FullAutoPistolMagazine");
+		public static MyItemType PistolE=new MyItemType(B_A,"ElitePistolMagazine");
 	}
 	
 	public static class Tool{
 		static string B_T="MyObjectBuilder_PhysicalGunObject";
 		public static MyItemType H2=new MyItemType("MyObjectBuilder_GasContainerObject","HydrogenBottle");
 		public static MyItemType O2=new MyItemType("MyObjectBuilder_OxygenContainerObject","OxygenBottle");
-		
-		
+		public static MyItemType Welder1=new MyItemType(B_T,"WelderItem");
+		public static MyItemType Welder2=new MyItemType(B_T,"Welder2Item");
+		public static MyItemType Welder3=new MyItemType(B_T,"Welder3Item");
+		public static MyItemType Welder4=new MyItemType(B_T,"Welder4Item");
+		public static MyItemType Grinder1=new MyItemType(B_T,"AngleGrinderItem");
+		public static MyItemType Grinder2=new MyItemType(B_T,"AngleGrinder2Item");
+		public static MyItemType Grinder3=new MyItemType(B_T,"AngleGrinder3Item");
+		public static MyItemType Grinder4=new MyItemType(B_T,"AngleGrinder4Item");
+		public static MyItemType Drill1=new MyItemType(B_T,"HandDrillItem");
+		public static MyItemType Drill2=new MyItemType(B_T,"HandDrill2Item");
+		public static MyItemType Drill3=new MyItemType(B_T,"HandDrill3Item");
+		public static MyItemType Drill4=new MyItemType(B_T,"HandDrill4Item");
+		public static MyItemType RifleB=new MyItemType(B_T,"AutomaticRifleItem");
+		public static MyItemType RifleP=new MyItemType(B_T,"PreciseAutomaticRifleItem");
+		public static MyItemType RifleA=new MyItemType(B_T,"RapidFireAutomaticRifleItem");
+		public static MyItemType RifleE=new MyItemType(B_T,"UltimateAutomaticRifleItem");
+		public static MyItemType PistolB=new MyItemType(B_T,"SemiAutoPistolItem");
+		public static MyItemType PistolA=new MyItemType(B_T,"FullAutoPistolItem");
+		public static MyItemType PistolE=new MyItemType(B_T,"ElitePistolItem");
+		public static MyItemType RocketB=new MyItemType(B_T,"BasicHandHeldLauncherItem");
+		public static MyItemType RocketP=new MyItemType(B_T,"AdvancedHandHeldLauncherItem");
 	}
 	
 	public static class Cons{
-		
+		static string B_C="MyObjectBuilder_ConsumableItem";
+		public static MyItemType Power=new MyItemType(B_C,"Powerkit");
+		public static MyItemType Medical=new MyItemType(B_C,"");
+		public static MyItemType Clang=new MyItemType(B_C,"ClangCola");
+		public static MyItemType Cosmic=new MyItemType(B_C,"CosmicCoffee");
 	}
+	
+	public static MyItemType Datapad=new MyItemType("MyObjectBuilder_Datapad","Datapad");
+	public static MyItemType Package=new MyItemType("MyObjectBuilder_Package","Package");
+	public static MyItemType Credit=new MyItemType("MyObjectBuilder_PhysicalObject","SpaceCredit");
 }
 
 class InvBlock{
@@ -722,7 +764,7 @@ class InvBlock{
 		else if(IsGun||IsGTurret)
 			DefaultItem=Items.Ammo.Container;
 		else if(IsRocket||IsMTurret)
-			DefaultItem=Items.Ammo.Rocket;
+			DefaultItem=Items.Ammo.Missile;
 		else if(IsITurret)
 			DefaultItem=Items.Ammo.M50A;
 		else if(IsTank){
@@ -734,7 +776,7 @@ class InvBlock{
 		else if(IsParachute)
 			DefaultItem=Items.Cons.Canvas;
 		else if(IsSafeZone)
-			DefaultItem=Items.Cons.ZoneChip;
+			DefaultItem=Items.Comp.ZoneChip;
 		else if(IsSorter){
 			//nonesense
 		}
