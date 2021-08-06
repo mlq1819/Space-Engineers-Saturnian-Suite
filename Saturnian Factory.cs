@@ -490,8 +490,49 @@ struct CustomPanel{
 
 //Contains raw IDs for items of each type
 public static class Item{
+	public static List<MyItemType> All{
+		get{
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType I in Raw.All)
+				output.Add(I);
+			foreach(MyItemType I in Ingot.All)
+				output.Add(I);
+			foreach(MyItemType I in Comp.All)
+				output.Add(I);
+			foreach(MyItemType I in Ammo.All)
+				output.Add(I);
+			foreach(MyItemType I in Tool.All)
+				output.Add(I);
+			foreach(MyItemType I in Cons.All)
+				output.Add(I);
+			output.Add(Datapad);
+			output.Add(Package);
+			output.Add(Credit);
+			return output;
+		}
+	}
+	
 	public static class Raw{
 		static string B_O="MyObjectBuilder_Ore";
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Ice);
+				output.Add(Stone);
+				output.Add(Iron);
+				output.Add(Nickel);
+				output.Add(Silicon);
+				output.Add(Cobalt);
+				output.Add(Uranium);
+				output.Add(Magnesium);
+				output.Add(Silver);
+				output.Add(Gold);
+				output.Add(Platinum);
+				output.Add(Scrap);
+				output.Add(Organic);
+				return output;
+			}
+		}
 		public static MyItemType Ice=new MyItemType(B_O,"Ice");
 		public static MyItemType Stone=new MyItemType(B_O,"Stone");
 		public static MyItemType Iron=new MyItemType(B_O,"Iron");
@@ -508,6 +549,23 @@ public static class Item{
 	}
 	public static class Ingot{
 		static string B_I="MyObjectBuilder_Ingot";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Stone);
+				output.Add(Iron);
+				output.Add(Nickel);
+				output.Add(Silicon);
+				output.Add(Cobalt);
+				output.Add(Uranium);
+				output.Add(Magnesium);
+				output.Add(Silver);
+				output.Add(Gold);
+				output.Add(Platinum);
+				output.Add(Scrap);
+				return output;
+			}
+		}
 		public static MyItemType Stone=new MyItemType(B_I,"Stone");
 		public static MyItemType Iron=new MyItemType(B_I,"Iron");
 		public static MyItemType Nickel=new MyItemType(B_I,"Nickel");
@@ -522,23 +580,51 @@ public static class Item{
 	}
 	public static class Comp{
 		static string B_C="MyObjectBuilder_Component";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Steel);
+				output.Add(Construction);
+				output.Add(Interior);
+				output.Add(Motor);
+				output.Add(Computer);
+				output.Add(Small);
+				output.Add(Large);
+				output.Add(Grid);
+				output.Add(Display);
+				output.Add(Girder);
+				output.Add(Thrust);
+				output.Add(Reactor);
+				output.Add(Super);
+				output.Add(Power);
+				output.Add(Detector);
+				output.Add(Grav);
+				output.Add(Medical);
+				output.Add(Radio);
+				output.Add(Solar);
+				output.Add(Explosive);
+				output.Add(Zone);
+				output.Add(Canvas);
+				return output;
+			}
+		}
 		public static MyItemType Steel=new MyItemType(B_C,"SteelPlate");
+		public static MyItemType Construction=new MyItemType(B_C,"Construction");
 		public static MyItemType Interior=new MyItemType(B_C,"InteriorPlate");
 		public static MyItemType Motor=new MyItemType(B_C,"Motor");
+		public static MyItemType Computer=new MyItemType(B_C,"Computer");
 		public static MyItemType Small=new MyItemType(B_C,"SmallTube");
 		public static MyItemType Large=new MyItemType(B_C,"LargeTube");
-		public static MyItemType Construction=new MyItemType(B_C,"Construction");
 		public static MyItemType Grid=new MyItemType(B_C,"MetalGrid");
+		public static MyItemType Display=new MyItemType(B_C,"Display");
 		public static MyItemType Girder=new MyItemType(B_C,"Girder");
+		public static MyItemType Glass=new MyItemType(B_C,"BulletproofGlass");
 		public static MyItemType Thrust=new MyItemType(B_C,"Thrust");
 		public static MyItemType Reactor=new MyItemType(B_C,"Reactor");
-		public static MyItemType Computer=new MyItemType(B_C,"Computer");
 		public static MyItemType Super=new MyItemType(B_C,"Superconductor");
 		public static MyItemType Power=new MyItemType(B_C,"PowerCell");
 		public static MyItemType Detector=new MyItemType(B_C,"Detector");
 		public static MyItemType Grav=new MyItemType(B_C,"GravityGenerator");
-		public static MyItemType Glass=new MyItemType(B_C,"BulletproofGlass");
-		public static MyItemType Display=new MyItemType(B_C,"Display");
 		public static MyItemType Medical=new MyItemType(B_C,"Medical");
 		public static MyItemType Radio=new MyItemType(B_C,"RadioCommunication");
 		public static MyItemType Solar=new MyItemType(B_C,"SolarCell");
@@ -546,9 +632,24 @@ public static class Item{
 		public static MyItemType Zone=new MyItemType(B_C,"ZoneChip");
 		public static MyItemType Canvas=new MyItemType(B_C,"Canvas");
 	}
-	
 	public static class Ammo{
 		static string B_A="MyObjectBuilder_AmmoMagazine";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Missile);
+				output.Add(Container);
+				output.Add(Magazine);
+				output.Add(RifleB);
+				output.Add(RifleP);
+				output.Add(RifleA);
+				output.Add(RifleE);
+				output.Add(PistolB);
+				output.Add(PistolA);
+				output.Add(PistolE);
+				return output;
+			}
+		}
 		public static MyItemType Missile=new MyItemType(B_A,"Missile200mm");
 		public static MyItemType Container=new MyItemType(B_A,"NATO_25x184mm");
 		public static MyItemType Magazine=new MyItemType(B_A,"NATO_5p56x45mm");
@@ -560,9 +661,37 @@ public static class Item{
 		public static MyItemType PistolA=new MyItemType(B_A,"FullAutoPistolMagazine");
 		public static MyItemType PistolE=new MyItemType(B_A,"ElitePistolMagazine");
 	}
-	
 	public static class Tool{
 		static string B_T="MyObjectBuilder_PhysicalGunObject";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(H2);
+				output.Add(O2);
+				output.Add(Welder1);
+				output.Add(Welder2);
+				output.Add(Welder3);
+				output.Add(Welder4);
+				output.Add(Grinder1);
+				output.Add(Grinder2);
+				output.Add(Grinder3);
+				output.Add(Grinder4);
+				output.Add(Drill1);
+				output.Add(Drill2);
+				output.Add(Drill3);
+				output.Add(Drill4);
+				output.Add(RifleB);
+				output.Add(RifleP);
+				output.Add(RifleA);
+				output.Add(RifleE);
+				output.Add(PistolB);
+				output.Add(PistolA);
+				output.Add(PistolE);
+				output.Add(RocketB);
+				output.Add(RocketP);
+				return output;
+			}
+		}
 		public static MyItemType H2=new MyItemType("MyObjectBuilder_GasContainerObject","HydrogenBottle");
 		public static MyItemType O2=new MyItemType("MyObjectBuilder_OxygenContainerObject","OxygenBottle");
 		public static MyItemType Welder1=new MyItemType(B_T,"WelderItem");
@@ -587,9 +716,18 @@ public static class Item{
 		public static MyItemType RocketB=new MyItemType(B_T,"BasicHandHeldLauncherItem");
 		public static MyItemType RocketP=new MyItemType(B_T,"AdvancedHandHeldLauncherItem");
 	}
-	
 	public static class Cons{
 		static string B_C="MyObjectBuilder_ConsumableItem";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Power);
+				output.Add(Medical);
+				output.Add(Clang);
+				output.Add(Cosmic);
+				return output;
+			}
+		}
 		public static MyItemType Power=new MyItemType(B_C,"Powerkit");
 		public static MyItemType Medical=new MyItemType(B_C,"");
 		public static MyItemType Clang=new MyItemType(B_C,"ClangCola");
@@ -750,33 +888,33 @@ class InvBlock{
 	
 	public InvBlock(IMyTerminalBlock b){
 		Block=b;
-		DefaultItem=Items.Raw.Ice;
+		DefaultItem=Item.Raw.Ice;
 		if(IsCargo||IsConnector||IsWelder||IsGrinder||IsDummy)
-			DefaultItem=Items.Comp.SteelPlate;
-		else if(Reactor)
-			DefaultItem=Items.Ingot.Uranium;
+			DefaultItem=Item.Comp.Steel;
+		else if(IsReactor)
+			DefaultItem=Item.Ingot.Uranium;
 		else if(IsRefinery||IsDrill)
-			DefaultItem=Items.Raw.Stone;
+			DefaultItem=Item.Raw.Stone;
 		else if(IsAssembler)
-			DefaultItem=Items.Ingot.Iron;
+			DefaultItem=Item.Ingot.Iron;
 		else if(IsGenerator)
-			DefaultItem=Items.Raw.Ice;
+			DefaultItem=Item.Raw.Ice;
 		else if(IsGun||IsGTurret)
-			DefaultItem=Items.Ammo.Container;
+			DefaultItem=Item.Ammo.Container;
 		else if(IsRocket||IsMTurret)
-			DefaultItem=Items.Ammo.Missile;
+			DefaultItem=Item.Ammo.Missile;
 		else if(IsITurret)
-			DefaultItem=Items.Ammo.M50A;
+			DefaultItem=Item.Ammo.RifleA;
 		else if(IsTank){
 			if(IsH2)
-				DefaultItem=Items.Tool.H2;
+				DefaultItem=Item.Tool.H2;
 			else
-				DefaultItem=Items.Tool.O2;
+				DefaultItem=Item.Tool.O2;
 		}
 		else if(IsParachute)
-			DefaultItem=Items.Cons.Canvas;
+			DefaultItem=Item.Comp.Canvas;
 		else if(IsSafeZone)
-			DefaultItem=Items.Comp.ZoneChip;
+			DefaultItem=Item.Comp.Zone;
 		else if(IsSorter){
 			//nonesense
 		}
@@ -798,7 +936,7 @@ class InvBlock{
 }
 class Network{
 	public List<InvBlock> Nodes;
-	public uint Count{
+	public int Count{
 		get{
 			return Nodes.Count;
 		}
@@ -856,7 +994,10 @@ class Network{
 	}
 	
 	public bool RemoveAt(int i){
-		return Nodes.RemoveAt(i);
+		if(i>Nodes.Count||i<0)
+			return false;
+		Nodes.RemoveAt(i);
+		return true;
 	}
 	
 	public bool Merge(Network O){
@@ -877,7 +1018,7 @@ class Network{
 	}
 	
 	public Network Split(int index){
-		Network splitter=new Network(Nodes[index]);
+		Network O=new Network(Nodes[index]);
 		RemoveAt(index);
 		for(int i=Nodes.Count-1;i>=0;i--){
 			if(O.Count<=Count){
@@ -889,7 +1030,7 @@ class Network{
 					RemoveAt(i);
 			}
 		}
-		return splitter;
+		return O;
 	}
 	
 	public Network Split(InvBlock node){
@@ -1015,13 +1156,15 @@ bool Setup(){
 	Left=Controller.Orientation.Left;
 	MySize=Controller.CubeGrid.GridSize;
 	
-	InvBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
+	List<IMyTerminalBlock> invBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
+	foreach(IMyTerminalBlock b in invBlocks)
+		InvBlocks.Add(new InvBlock(b));
 	if(InvBlocks.Count>0)
 		ConveyorNetworks.Add(new Network(InvBlocks[0]));
 	for(int i=1;i<InvBlocks.Count;i++){
 		bool added=false;
 		for(int j=0;j<ConveyorNetworks.Count;j++){
-			if(ConveyorNetworks.Add(InvBlocks[i])){
+			if(ConveyorNetworks[j].Add(InvBlocks[i])){
 				added=true;
 				break;
 			}
