@@ -12,11 +12,19 @@
 * A "Dock" is a position on a static grid that can be docked by this ship through a connector. It also establishes how much of your materials to deposit or withdraw.
 * Commands:
 - Add Cargo Dock
-	Adds an empty Cargo Dock for the ship.
+	Adds an empty Cargo Dock for the ship and sets it as the next destination.
 	You must have a docking connector attached to a static grid.
 - Remove Next Cargo Dock
 	Permanently deletes the next scheduled cargo dock.
-
+- Add Cargo Collect: <quantity> <type> <itemtype> <optional itemsubtype>
+	Adds the specified cargo order as a collection for the next cargo dock.
+	<quantity> specifies how much cargo. It may be set to "dynamic", a number, or a percent.
+	<type> specifies the type of collection. This may be set to "item" or "resource".
+	<itemtype> specifies the type of cargo. Values depend on <type>.
+		For <type:resource>, it can be "power", "hydrogen", or "oxygen".
+		For <type:item>, it can be "ingot","ore","component","ammo","tool","consumable","datapad","package", or "credit"
+	<itemsybtype> specifies the subtype of the items. Only available for <type:item>
+		For a full lookup of valid item names, please check the Item class.
 
 - Factory Reset
 	Resets all settings and turns off the programmable block.
@@ -33,6 +41,8 @@
 TODO: 
 - Navigation Integration
 - Resource Integration?
+	Pass docking distance
+	
 - Determine what functions all ship cores need
 */
 string Program_Name="Saturnian Hauler Ship Core";
@@ -533,6 +543,41 @@ public static class Item{
 		}
 	}
 	
+	public static List<MyItemType> ByString(string name){
+		List<MyItemType> output=new List<MyItemType>();
+		int index=name.Trim().IndexOf(' ');
+		string subtype="";
+		if(index==-1)
+			index=name.Length;
+		else
+			subtype=name.Substring(index+1).ToLower();
+		string type=name.Substring(0,index).ToLower();
+		if(type.Equals("raw")||type.Equals("ore"))
+			return output.Concat(Raw.ByString(subtype)).ToList();
+		if(type.Equals("ingot")||type.Equals("wafer")||type.Equals("powder"))
+			return output.Concat(Ingot.ByString(subtype)).ToList();
+		if(type.Equals("component")||type.Equals("comp"))
+			return output.Concat(Comp.ByString(subtype)).ToList();
+		if(type.Equals("ammo")||type.Equals("ammunition"))
+			return output.Concat(Ammo.ByString(subtype)).ToList();
+		if(type.Equals("tool")||type.Equals("gun")||type.Equals("weapon"))
+			return output.Concat(Tool.ByString(subtype)).ToList();
+		if(type.Equals("consumable")||type.Equals("cons"))
+			return output.Concat(Cons.ByString(subtype)).ToList();
+		if(type.Equals("data")||type.Equals("datapad")){
+			output.Add(Datapad);
+			return output;
+		}
+		if(type.Equals("package")){
+			output.Add(Package);
+			return output;
+		}
+		if(type.Equals("credit")||type.Equals("sc")){
+			output.Add(Credit);
+			return output;
+		}
+	}
+	
 	public static class Raw{
 		static string B_O="MyObjectBuilder_Ore";
 		public static List<MyItemType> All{
@@ -553,6 +598,22 @@ public static class Item{
 				output.Add(Organic);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Ice=new MyItemType(B_O,"Ice");
 		public static MyItemType Stone=new MyItemType(B_O,"Stone");
@@ -586,6 +647,22 @@ public static class Item{
 				output.Add(Scrap);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Stone=new MyItemType(B_I,"Stone");
 		public static MyItemType Iron=new MyItemType(B_I,"Iron");
@@ -629,6 +706,22 @@ public static class Item{
 				return output;
 			}
 		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
 		public static MyItemType Steel=new MyItemType(B_C,"SteelPlate");
 		public static MyItemType Construction=new MyItemType(B_C,"Construction");
 		public static MyItemType Interior=new MyItemType(B_C,"InteriorPlate");
@@ -670,6 +763,22 @@ public static class Item{
 				output.Add(PistolE);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Missile=new MyItemType(B_A,"Missile200mm");
 		public static MyItemType Container=new MyItemType(B_A,"NATO_25x184mm");
@@ -713,6 +822,22 @@ public static class Item{
 				return output;
 			}
 		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
 		public static MyItemType H2=new MyItemType("MyObjectBuilder_GasContainerObject","HydrogenBottle");
 		public static MyItemType O2=new MyItemType("MyObjectBuilder_OxygenContainerObject","OxygenBottle");
 		public static MyItemType Welder1=new MyItemType(B_T,"WelderItem");
@@ -748,6 +873,22 @@ public static class Item{
 				output.Add(Cosmic);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Power=new MyItemType(B_C,"Powerkit");
 		public static MyItemType Medical=new MyItemType(B_C,"");
@@ -1160,6 +1301,8 @@ void Reset(){
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
 	DockingConnectors=new List<IMyShipConnector>();
+	List<Dock> FuelingDocks=new List<Dock>();
+	Queue<CargoDock> CargoDocks=new List<CargoDock>();
 }
 
 double MySize=0;
@@ -1733,7 +1876,9 @@ bool AddCargoDock(){
 			Vector3D dockPosition=DockConnector.GetPosition();
 			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
 			dockDirection.Normalize();
-			CargoDocks.Add(new CargoDock(Connector,dockPosition,dockDirection,Up_Vector));
+			CargoDocks.Enqueue(new CargoDock(Connector,dockPosition,dockDirection,Up_Vector));
+			for(int i=0;i<CargoDocks.Count-1;i++)
+				CargoDocks.Enqueue(CargoDocks.Dequeue);
 			return true;
 		}
 	}
@@ -1745,6 +1890,16 @@ bool RemoveNextCargoDock(){
 	if(CargoDocks.Count==0)
 		return false;
 	return CargoDocks.Dequeue()!=null;
+}
+
+//format of data: 
+//add cargo collect: item ingot iron 
+bool AddCollect(string data){
+	
+}
+
+bool AddDeposit(string data){
+	
 }
 
 void Main_Program(string argument){
@@ -1761,7 +1916,10 @@ void Main_Program(string argument){
 		AddCargoDock();
 	else if(argument.ToLower().Equals("remove next cargo dock"))
 		RemoveNextCargoDock();
-	
+	else if(argument.ToLower().IndexOf("add cargo collect:")==0)
+		AddCollect(argument.Substring(18));
+	else if(argument.ToLower().IndexOf("add cargo deposit:")==0)
+		AddDeposit(argument.Substring(18));
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
