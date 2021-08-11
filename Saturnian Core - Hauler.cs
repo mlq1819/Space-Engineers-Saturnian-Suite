@@ -25,6 +25,16 @@
 		For <type:item>, it can be "ingot","ore","component","ammo","tool","consumable","datapad","package", or "credit"
 	<itemsybtype> specifies the subtype of the items. Only available for <type:item>
 		For a full lookup of valid item names, please check the Item class.
+- Add Cargo Deposit: <quantity> <type> <itemtype> <optional itemsubtype>
+	Adds the specified cargo order as a deposit for the next cargo dock.
+	<quantity> specifies how much cargo. It may be set to "dynamic", a number, or a percent.
+	<type> specifies the type of collection. This may be set to "item" or "resource".
+	<itemtype> specifies the type of cargo. Values depend on <type>.
+		For <type:resource>, it can be "power", "hydrogen", or "oxygen".
+		For <type:item>, it can be "ingot","ore","component","ammo","tool","consumable","datapad","package", or "credit"
+	<itemsybtype> specifies the subtype of the items. Only available for <type:item>
+		For a full lookup of valid item names, please check the Item class.
+
 
 - Factory Reset
 	Resets all settings and turns off the programmable block.
@@ -1141,6 +1151,30 @@ class CargoDock:Dock{
 		Orders=orders;
 	}
 	
+	public bool AddOrder(CargoOrder Order){
+		for(int i=0;i<Orders.Count;i++){
+			CargoOrder order=Orders[i];
+			if(order.Cargo.Equals(order.Cargo)){
+				Orders.RemoveAt(i);
+				Orders.Add(Order);
+				return true;
+			}
+			if(order.Cargo.Item&&Order.Cargo.Item){
+				MyItemType order_item=(order.Cargo as ItemCargo).Type;
+				MyItemType Order_item=(Order.Cargo as ItemCargo).Type;
+				if(order_item.TypeId==Order_item.TypeId){
+					if(order_item.SubtypeId==Order_item.SubtypeId){
+						Orders.RemoveAt(i);
+						Orders.Add(Order);
+						return true;
+					}
+				}
+			}
+		}
+		Orders.Add(Order);
+		return true;
+	}
+	
 	public override string ToString(){
 		string output="{("+DockName+"),("+DockingConnector.CustomName.ToString()+"),("+DockPosition.ToString()+"),("+DockDirection.ToString()+"),("+DockUp.ToString()+"),([";
 		for(int i=0;i<Orders.Count;i++){
@@ -1821,6 +1855,8 @@ int ConnectorPruner(){
 			}
 		}
 	}
+	if(removed>0)
+		Notifications.Add("Pruned "+removed.ToString()+" DockingConnectors",5);
 	return removed;
 }
 
@@ -1837,6 +1873,7 @@ bool AddDock(){
 			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
 			dockDirection.Normalize();
 			FuelingDocks.Add(new Dock(Connector,dockPosition,dockDirection,Up_Vector));
+			Notifications.Add("Created new Fueling Dock with name \""+FuelingDocks[FuelingDocks.Count-1].DockName+"\"",10);
 			return true;
 		}
 	}
@@ -1853,6 +1890,7 @@ bool RemoveDock(){
 				for(int i=0;i<FuelingDocks.Count;i++){
 					Dock dock=FuelingDocks[i];
 					if((dock.DockPosition-DockConnector.GetPosition()).Length()<distance){
+						Notifications.Add("Removed Fueling Dock with name \""+dock.DockName+"\"",10);
 						FuelingDocks.RemoveAt(i);
 						return true;
 					}
@@ -1879,6 +1917,7 @@ bool AddCargoDock(){
 			CargoDocks.Enqueue(new CargoDock(Connector,dockPosition,dockDirection,Up_Vector));
 			for(int i=0;i<CargoDocks.Count-1;i++)
 				CargoDocks.Enqueue(CargoDocks.Dequeue);
+			Notifications.Add("Created new Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10);
 			return true;
 		}
 	}
@@ -1889,17 +1928,70 @@ bool RemoveNextCargoDock(){
 	ConnectorPruner();
 	if(CargoDocks.Count==0)
 		return false;
+	Notifications.Add("Removed Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10);
 	return CargoDocks.Dequeue()!=null;
 }
 
-//format of data: 
-//add cargo collect: item ingot iron 
-bool AddCollect(string data){
+bool AddOrder(string data,CargoDirection direction){
+	string args[]=data.Split(' ');
+	if(args.Length<3||args.Length>4)
+		return false;
+	bool dynamic=args[0].Equals("dynamic");
+	Quantity? value=null;
+	if(!dynamic){
+		QuantityType qt=QuantityType.Value;
+		if(args[0][args[0].Length-1]=='%'){
+			qt=QuantityType.Percent;
+			args[0]=args[0].Substring(0,args[0].Length-1);
+		}
+		float v;
+		if(!float.TryParse(args[0],out v))
+			return false;
+		value=new Quantity(v,qt);
+	}
 	
+	TypedCargo cargo;
+	if(args[1].Equals("resource")){
+		if(args.Length!=3)
+			return false;
+		ResourceType type;
+		switch(args[2]){
+			case "power":
+				type=ResourceType.Power;
+				break;
+			case "hydrogen":
+				type=ResourceType.Hydrogen;
+				break;
+			case "oxygen":
+				type=ResourceType.Oxygen;
+				break;
+			default:
+				return false;
+		}
+		cargo=new ResourceCargo(type);
+	}
+	else if(args[1].Equals("item")){
+		string subtype="";
+		if(args.Length==4)
+			subtype=args[3];
+		cargo=new ItemCargo(Item.ByString(args[2]+' '+subtype));
+	}
+	else
+		return false;
+	CargoOrder order;
+	if(dynamic)
+		order=new CargoOrder(cargo,direction);
+	else
+		order=new CargoOrder(cargo,direction,(Quantity)value);
+	return Dock.Next.Peek().AddOrder(order);
+}
+
+bool AddCollect(string data){
+	return AddOrder(data,CargoDirection.Collect);
 }
 
 bool AddDeposit(string data){
-	
+	return AddOrder(data,CargoDirection.Deposit);
 }
 
 void Main_Program(string argument){
@@ -1917,9 +2009,9 @@ void Main_Program(string argument){
 	else if(argument.ToLower().Equals("remove next cargo dock"))
 		RemoveNextCargoDock();
 	else if(argument.ToLower().IndexOf("add cargo collect:")==0)
-		AddCollect(argument.Substring(18));
+		AddCollect(argument.Substring(18).ToLower());
 	else if(argument.ToLower().IndexOf("add cargo deposit:")==0)
-		AddDeposit(argument.Substring(18));
+		AddDeposit(argument.Substring(18).ToLower());
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
