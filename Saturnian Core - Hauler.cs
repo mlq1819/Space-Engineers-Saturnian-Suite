@@ -10,6 +10,24 @@
 * The Hauler Core is designed to move materials and resources between two or more destinations automatically.
 * It is intended for ships built to transport materials.
 * A "Dock" is a position on a static grid that can be docked by this ship through a connector. It also establishes how much of your materials to deposit or withdraw.
+* Commands:
+- Add Cargo Dock
+	Adds an empty Cargo Dock for the ship.
+	You must have a docking connector attached to a static grid.
+- Remove Next Cargo Dock
+	Permanently deletes the next scheduled cargo dock.
+
+
+- Factory Reset
+	Resets all settings and turns off the programmable block.
+- Add Dock
+	Adds a fueling dock for the ship to return to if low on fuel.
+	You must have a docking connector attached to a static grid.
+- Remove Dock
+	Removes the current/nearest-within-100-meters fueling dock.
+
+
+
 
 
 TODO: 
@@ -909,33 +927,81 @@ struct CargoOrder{
 		return true;
 	}
 }
-
 class Dock{
+	private IMyShipConnector _DockingConnector;
+	public IMyShipConnector DockingConnector{
+		get{
+			return _DockingConnector;
+		}
+		set{
+			_DockingConnector=value;
+			RefreshDockName();
+		}
+	};
 	public Vector3D DockPosition;
 	public Vector3D DockDirection;
 	public Vector3D DockUp;
-	public IMyShipConnector DockingConnector;
 	public Vector3D DockApproach{
 		get{
 			return DockPosition+2.5*DockDirection+25*DockUp;
 		}
 	}
+	public string DockName;
 	
-	public List<CargoOrder> Orders;
-	
-	public Dock(Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp){
+	public Dock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,string dockName="Unnamed Dock"){
+		DockName=dockName;
+		DockingConnector=dockingConnector;
 		DockPosition=dockPosition;
 		DockDirection=dockDirection;
 		DockUp=dockUp;
+	}
+	
+	public override string ToString(){
+		return "{"+DockName+";"+DockingConnector.CustomName.ToString()+";"+DockPosition.ToString()+";"+DockDirection.ToString()+";"+DockUp.ToString()+"}";
+	}
+	
+	public static bool TryParse(string input,out Dock output){
+		output=null;
+		if(input.IndexOf('{')!=0||input.IndexOf('}')!=input.Length-1)
+			return false;
+		string[] args=input.Substring(1,input.Length-1).Split(';');
+		if(args.Length!=5)
+			return false;
+		IMyShipConnector dockingConnector=GenericMethods<IMyShipConnector>.GetConstruct(args[0]);
+		if(dockingConnector==null)
+			return false;
+		Vector3D dockPosition,dockDirection,dockUp;
+		if(!Vector3D.TryParse(args[2],out dockPosition))
+			return false;
+		if(!Vector3D.TryParse(args[3],out dockDirection))
+			return false;
+		if(!Vector3D.TryParse(args[4],out dockUp))
+			return false;
+		output=new Dock(dockingConnector,dockPosition,dockDirection,dockUp,args[0]);
+		return true;
+	}
+	
+	public void RefreshDockName(){
+		if(DockingConnector!=null&&DockingConnector.Status==MyShipConnectorStatus.Connected){
+			MyShipConnector Other=DockingConnector.Other;
+			if(Other!=null)
+				DockName=Other.CubeGrid.CustomName;
+		}
+	}
+}
+class CargoDock:Dock{
+	public List<CargoOrder> Orders;
+	
+	public CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,string dockName="Unnamed Cargo Dock"):base(dockingConnector,dockPosition,dockDirection,dockUp,dockName){
 		Orders=new List<CargoOrder>();
 	}
 	
-	protected Dock(Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,List<CargoOrder> orders):this(dockPosition,docDirection,dockUp){
+	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,List<CargoOrder> orders,string dockName):base(dockingConnector,dockPosition,docDirection,dockUp,dockName){
 		Orders=orders;
 	}
 	
 	public override string ToString(){
-		string output="{("+DockPosition.ToString()+"),("+DockDirection.ToString()+"),("+DockUp.ToString()+"),([";
+		string output="{("+DockName+"),("+DockingConnector.CustomName.ToString()+"),("+DockPosition.ToString()+"),("+DockDirection.ToString()+"),("+DockUp.ToString()+"),([";
 		for(int i=0;i<Orders.Count;i++){
 			if(i>0)
 				output+=',';
@@ -945,41 +1011,46 @@ class Dock{
 		return output;
 	}
 	
-	public static bool TryParse(string input,out Dock output){
+	public static bool TryParse(string input,out CargoDock output){
 		output=null;
-		int[] indices={-1,-1,-1};
+		int[] indices={-1,-1,-1,-1,-1};
 		int strCount=0;
 		if(input.IndexOf("{(")!=0||input.IndexOf("])}")!=input.Length-3)
 			return false;
 		for(int i=2;i<input.Length-3;i++){
 			if(input.Substring(i,3).Equals("),(")){
-				if(strCount>2)
+				if(strCount>4)
 					return false;
 				indices[strCount++]=i;
 			}
 		}
-		if(strCount<3)
+		if(strCount<5)
 			return false;
 		try{
+			
 			string p1=input.Substring(2,indices[0]);
 			string p2=input.Substring(indices[0]+3,indices[1]-(indices[0]+3));
 			string p3=input.Substring(indices[1]+3,indices[2]-(indices[1]+3));
-			string p4=input.Substring(indices[2]+3,input.Length-2-(indices[2]+3));
-			
+			string p4=input.Substring(indices[2]+3,indices[3]-(indices[2]+3));
+			string p5=input.Substring(indices[3]+3,indices[4]-(indices[3]+3));
+			string p6=input.Substring(indices[4]+3,input.Length-2-(indices[4]+3));
+			IMyShipConnector dockingConnector=GenericMethods<IMyShipConnector>.GetConstruct(p2);
+			if(dockingConnector==null)
+				return false;
 			Vector3D dockPosition,dockDirection,dockUp;
-			if(!Vector3D.TryParse(p1,dockPosition))
+			if(!Vector3D.TryParse(p3,dockPosition))
 				return false;
-			if(!Vector3D.TryParse(p2,dockDirection))
+			if(!Vector3D.TryParse(p4,dockDirection))
 				return false;
-			if(!Vector3D.TryParse(p3,dockUp))
+			if(!Vector3D.TryParse(p5,dockUp))
 				return false;
-			if(p4[0]!='['||p4[p4.Length-1]!=']')
+			if(p6[0]!='['||p6[p6.Length-1]!=']')
 				return false;
-			p4=p4.Substring(1,p4.Length-1);
+			p6=p6.Substring(1,p6.Length-1);
 			Queue<int> orderIndices=new Queue<int>();
 			int depth=0;
-			for(int i=0;i<p4.Length;i++){
-				char c=p4[i];
+			for(int i=0;i<p6.Length;i++){
+				char c=p6[i];
 				switch(c){
 					case '{':
 						depth++;
@@ -996,23 +1067,23 @@ class Dock{
 			}
 			int lastIndex=0;
 			List<CargoOrder> orders=new List<orders>();
-			for(int i=0;i<p4.Length;i++){
+			for(int i=0;i<p6.Length;i++){
 				CargoOrder order;
 				if(i==orderIndices.Peek()){
-					if(!CargoOrder.TryParse(p4.Substring(lastIndex,i-1)))
+					if(!CargoOrder.TryParse(p6.Substring(lastIndex,i-1)))
 						return false;
 					orders.Add(order);
 					lastIndex=i+1;
 					orderIndices.Dequeue();
 					if(orderIndices.Count==0){
-						if(!CargoOrder.TryParse(p4.Substring(lastIndex)))
+						if(!CargoOrder.TryParse(p6.Substring(lastIndex)))
 							return false;
 						orders.Add(order);
 						break;
 					}
 				}
 			}
-			output=new Dock(dockPosition,dockDirection,dockUp,orders);
+			output=new CargoDock(dockingConnector,dockPosition,dockDirection,dockUp,orders,p1);
 			return true;
 		}
 		catch(Exception){
@@ -1029,6 +1100,9 @@ double seconds_since_last_update=0;
 Random Rnd;
 
 IMyShipController Controller;
+List<Dock> FuelingDocks;
+Queue<CargoDock> CargoDocks;
+List<IMyShipConnector> DockingConnectors;
 
 Base6Directions.Direction Forward;
 Base6Directions.Direction Backward{
@@ -1085,6 +1159,7 @@ void Reset(){
 	Controller=null;
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
+	DockingConnectors=new List<IMyShipConnector>();
 }
 
 double MySize=0;
@@ -1128,7 +1203,34 @@ bool Setup(){
 	Up=Controller.Orientation.Up;
 	Left=Controller.Orientation.Left;
 	MySize=Controller.CubeGrid.GridSize;
-	
+	DockingConnectors=GenericMethods<IMyShipConnector>.GetAllConstruction("");
+	ConnectorPruner();
+	string mode="";
+	string[] args=this.Storage.Split('\n');
+	foreach(string arg in args){
+		switch(arg){
+			case "Docks":
+				mode=arg;
+				break;
+			case "Cargo Docks":
+				mode=arg;
+				break;
+			default:
+				switch(mode){
+					case "Docks":
+						Dock dock;
+						if(Dock.TryParse(arg,out dock))
+							FuelingDocks.Add(dock);
+						break;
+					case "Cargo Docks":
+						CargoDock cargoDock;
+						if(CargoDock.TryParse(arg,out cargoDock))
+							CargoDocks.Add(cargoDock);
+						break;
+				}
+				break;
+		}
+	}
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -1167,7 +1269,12 @@ public Program(){
 }
 
 public void Save(){
-	this.Storage="";
+	this.Storage="Docks";
+	foreach(Dock dock in FuelingDocks)
+		this.Storage+='\n'+dock.ToString();
+	this.Storage+="\nCargo Docks";
+	foreach(CargoDock dock in CargoDocks)
+		this.Storage+='\n'+dock.ToString();
 	Me.CustomData="";
 	foreach(Task T in Task_Queue){
 		Me.CustomData+=T.ToString()+'•';
@@ -1556,12 +1663,105 @@ void TaskParser(string argument){
 	}
 }
 
+int ConnectorPruner(){
+	int removed=0;
+	for(int i=0;i<DockingConnectors.Count;i++){
+		IMyShipConnector Connector=DockingConnectors[i];
+		if(Connector.Status==MyShipConnectorStatus.Connected){
+			IMyShipConnector Other=Connector.OtherConnector;
+			if(Other==null)
+				continue;
+			if(Other.CubeGrid==Connector.CubeGrid||Other.CubeGrid.GridSizeEnum==MyCubeSize.Small){
+				removed++;
+				DockingConnectors.RemoveAt(i--);
+				continue;
+			}
+		}
+	}
+	return removed;
+}
+
+bool AddDock(){
+	ConnectorPruner();
+	foreach(IMyShipConnector Connector in DockingConnectors){
+		if(Connector.Status==MyShipConnectorStatus.Connected&&Connector.OtherConnector.CubeGrid.GridSizeEnum==MyCubeSize.Large&&Connector.OtherConnector.CubeGrid.IsStatic){
+			IMyShipConnector DockConnector=Connector.OtherConnector;
+			foreach(Dock dock in FuelingDocks){
+				if((dock.DockPosition-DockConnector.GetPosition()).Length()<2)
+					return false;
+			}
+			Vector3D dockPosition=DockConnector.GetPosition();
+			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
+			dockDirection.Normalize();
+			FuelingDocks.Add(new Dock(Connector,dockPosition,dockDirection,Up_Vector));
+			return true;
+		}
+	}
+	return false;
+}
+
+bool RemoveDock(){
+	ConnectorPruner();
+	double distance=5;
+	for(int d=0;d<2;d++){
+		foreach(IMyShipConnector Connector in DockingConnectors){
+			if(Connector.Status==MyShipConnectorStatus.Connected&&Connector.OtherConnector.CubeGrid.GridSizeEnum==MyCubeSize.Large&&Connector.OtherConnector.CubeGrid.IsStatic){
+				IMyShipConnector DockConnector=Connector.OtherConnector;
+				for(int i=0;i<FuelingDocks.Count;i++){
+					Dock dock=FuelingDocks[i];
+					if((dock.DockPosition-DockConnector.GetPosition()).Length()<distance){
+						FuelingDocks.RemoveAt(i);
+						return true;
+					}
+				}
+			}
+		}
+		distance*=10;
+	}
+	return false;
+}
+
+bool AddCargoDock(){
+	ConnectorPruner();
+	foreach(IMyShipConnector Connector in DockingConnectors){
+		if(Connector.Status==MyShipConnectorStatus.Connected&&Connector.OtherConnector.CubeGrid.GridSizeEnum==MyCubeSize.Large&&Connector.OtherConnector.CubeGrid.IsStatic){
+			IMyShipConnector DockConnector=Connector.OtherConnector;
+			foreach(CargoDock dock in CargoDocks){
+				if((dock.DockPosition-DockConnector.GetPosition()).Length()<2)
+					return false;
+			}
+			Vector3D dockPosition=DockConnector.GetPosition();
+			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
+			dockDirection.Normalize();
+			CargoDocks.Add(new CargoDock(Connector,dockPosition,dockDirection,Up_Vector));
+			return true;
+		}
+	}
+	return false;
+}
+
+bool RemoveNextCargoDock(){
+	ConnectorPruner();
+	if(CargoDocks.Count==0)
+		return false;
+	return CargoDocks.Dequeue()!=null;
+}
+
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
+	else if(argument.ToLower().Equals("add dock"))
+		AddDock();
+	else if(argument.ToLower().Equals("remove dock"))
+		RemoveDock();
+	else if(argument.ToLower().Equals("add cargo dock"))
+		AddCargoDock();
+	else if(argument.ToLower().Equals("remove next cargo dock"))
+		RemoveNextCargoDock();
+	
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
