@@ -916,7 +916,24 @@ class InvBlock{
 		else if(IsSafeZone)
 			DefaultItem=Item.Comp.Zone;
 		else if(IsSorter){
-			//nonesense
+			IMyConveyorSorter Sorter=Block as Sorter;
+			List<MyInventoryItemFiter> Filter;
+			Sorter.GetFilterList(Filter);
+			if(Sorter.Mode==MyConveyorSorterMode.Whitelist){
+				if(Filter.Count>0)
+					DefaultItem=Filter[0].ItemType;
+			}
+			else{
+				List<MyItemType> filter=new List<MyItemType>();
+				foreach(MyInventoryItemFilter itemfilter in Filter)
+					filter.Add(itemfilter.ItemType);
+				foreach(MyItemType item in Item.All){
+					if(!filter.Contains(item)){
+						DefaultItem=item;
+						break;
+					}
+				}
+			}
 		}
 	}
 	
@@ -934,18 +951,72 @@ class InvBlock{
 		return true;
 	}
 }
-class Network{
+
+abstract class Network{
 	public List<InvBlock> Nodes;
 	public int Count{
 		get{
 			return Nodes.Count;
 		}
 	}
+	public List<Network> Output;
+	public List<Network> Input;
 	
-	public Network(InvBlock i){
+	protected Network(InvBlock i){
 		Nodes=new List<InvBlock>();
 		Nodes.Add(i);
 	}
+	
+	public abstract bool CanAdd(InvBlock node,bool check_same=true);
+	
+	public int TestConnection(){
+		if(Nodes.Count<2)
+			return -1;
+		if(Nodes.Count<10){
+			for(int i=0;i<Count;i++){
+				for(int j=i+1;j<Count;j++){
+					if(!Nodes[n1].SameNetwork(Nodes[n2]))
+						return n2;
+				}
+			}
+		}
+		else{
+			Random Rnd=new Random();
+			List<Vector2> indices=new List<Vector2>();
+			int tries=0;
+			int n1,n2;
+			while(indices.Count<12&&(indices.Count<5||100>tries++)){
+				int p=Rnd.Next(1,Count-1);
+				n1=Rnd.Next(1,p);
+				n2=Rnd.Next(p+1,Count);
+				if(indices.Contains(new Vector2(n1,n2)))
+					continue;
+				indices.Add(new Vector2(n1,n2));
+				if(!Nodes[0].SameNetwork(Nodes[n1]))
+					return n1;
+				if(!Nodes[0].SameNetwork(Nodes[n2]));
+					return n2;
+				if(!Nodes[n1].SameNetwork(Nodes[n2]))
+					return n2;
+			}
+		}
+		return -1;
+	}
+}
+class Sort_Network:Network{
+	
+	
+	public Sort_Network(InvBlock i):base(i){;};
+	
+	
+	
+	
+	
+}
+class Inv_Network:Network{
+	
+	
+	public Inv_Network(InvBlock i):base(i){;};
 	
 	public bool InNetwork(InvBlock node){
 		foreach(InvBlock Node in Nodes){
@@ -956,6 +1027,7 @@ class Network{
 	}
 	
 	public bool CanAdd(InvBlock node,bool check_same=true){
+		
 		if(Nodes.Count<1000&&InNetwork(node))
 			return false;
 		if(Nodes.Count<100){
@@ -989,18 +1061,18 @@ class Network{
 		return true;
 	}
 	
-	public bool Remove(InvBlock node){
+	protected bool Remove(InvBlock node){
 		return Nodes.Remove(node);
 	}
 	
-	public bool RemoveAt(int i){
+	protected bool RemoveAt(int i){
 		if(i>Nodes.Count||i<0)
 			return false;
 		Nodes.RemoveAt(i);
 		return true;
 	}
 	
-	public bool Merge(Network O){
+	public bool Merge(Inv_Network O){
 		foreach(InvBlock Node in O.Nodes){
 			if(!CanAdd(Node))
 				return false;
@@ -1017,8 +1089,8 @@ class Network{
 		return true;
 	}
 	
-	public Network Split(int index){
-		Network O=new Network(Nodes[index]);
+	public Inv_Network Split(int index){
+		Inv_Network O=new Inv_Network(Nodes[index]);
 		RemoveAt(index);
 		for(int i=Nodes.Count-1;i>=0;i--){
 			if(O.Count<=Count){
@@ -1033,7 +1105,7 @@ class Network{
 		return O;
 	}
 	
-	public Network Split(InvBlock node){
+	public Inv_Network Split(InvBlock node){
 		return Split(Nodes.IndexOf(node));
 	}
 }

@@ -472,6 +472,7 @@ Random Rnd;
 
 IMyShipController Controller;
 List<IMyShipController> Controllers;
+IMyProgrammableBlock MovementProgram;
 
 List<CustomPanel> AltitudeLCDs;
 
@@ -764,6 +765,7 @@ void Reset(){
 	AltitudeLCDs=new List<CustomPanel>();
 	Altitude_Graph=new Queue<Altitude_Data>();
 	Notifications=new List<Notification>();
+	MovementProgram=null;
 }
 
 double MySize=0;
@@ -808,6 +810,9 @@ bool Setup(){
 	Up=Controller.Orientation.Up;
 	Left=Controller.Orientation.Left;
 	MySize=Controller.CubeGrid.GridSize;
+	MovementProgram=GenericMethods<IMyProgrammableBlock>.GetContaining("Maneuvering");
+	if(MovementProgram==null)
+		MovementProgram=GenericMethods<IMyProgrammableBlock>.GetContaining("Steering");
 	List<IMyThrust> MyThrusters=GenericMethods<IMyThrust>.GetAllConstruct("");
 	foreach(IMyThrust Thruster in MyThrusters){
 		if(Thruster.CubeGrid!=Controller.CubeGrid)
@@ -1283,7 +1288,35 @@ class Task{
 			new Vector2(1,-1)
 			)); //Params: ProgName, [Arguments]
 			
+			output.Add(new TaskFormat(
+			"Direction",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: Vector3D
 			
+			output.Add(new TaskFormat(
+			"Up",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: Vector3D
+			
+			output.Add(new TaskFormat(
+			"Go",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: Vector3D
+			
+			output.Add(new TaskFormat(
+			"Match",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(0,0)
+			)); //No Params
+			
+			output.Add(new TaskFormat(
+			"Autoland",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Numbered,Quantifier.Until,Quantifier.Stop}),
+			new Vector2(1,1)
+			)); //Params: bool
 			
 			return output;
 		}
@@ -1303,6 +1336,41 @@ bool Task_Send(Task task){
 		arguments+=task.Qualifiers[i];
 	}
 	return target.TryRun(arguments);
+}
+
+//Tells the ship to orient to a specific forward direction
+bool Task_Direction(Task task){
+	if(MovementProgram==null)
+		return false;
+	return MovementProgram.TryRun(task.ToString());
+}
+
+//Tells the ship to orient to a specific up direction
+bool Task_Up(Task task){
+	if(MovementProgram==null)
+		return false;
+	return MovementProgram.TryRun(task.ToString());
+}
+
+//Tells the ship to fly to a specific location
+bool Task_Go(Task task){
+	if(MovementProgram==null)
+		return false;
+	return MovementProgram.TryRun(task.ToString());
+}
+
+//Tells the ship to match position
+bool Task_Match(Task task){
+	if(MovementProgram==null)
+		return false;
+	return MovementProgram.TryRun(task.ToString());
+}
+
+//Sets Autoland either on or off
+bool Task_Autoland(Task task){
+	if(MovementProgram==null)
+		return false;
+	return MovementProgram.TryRun(task.ToString());
 }
 
 bool PerformTask(Task task){
