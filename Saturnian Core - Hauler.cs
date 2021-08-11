@@ -582,10 +582,9 @@ public static class Item{
 			output.Add(Package);
 			return output;
 		}
-		if(type.Equals("credit")||type.Equals("sc")){
+		if(type.Equals("credit")||type.Equals("sc"))
 			output.Add(Credit);
-			return output;
-		}
+		return output;
 	}
 	
 	public static class Raw{
@@ -918,6 +917,20 @@ enum QuantityType{
 struct Quantity{
 	float Value;
 	QuantityType Type;
+	bool Valid{
+		get{
+			if(Value<0)
+				return false;
+			if(Type.Equals(QuantityType.Percent))
+				return Value<=1;
+			return true;
+		}
+	}
+	public static Quantity Invalid{
+		get{
+			return new Quantity(-1,QuantityType.Value);
+		}
+	}
 	
 	public Quantity(float value,QuantityType type){
 		Type=type;
@@ -931,8 +944,8 @@ struct Quantity{
 		return "("+Value.ToString()+","+Type.ToString()+")";
 	}
 	
-	public static bool TryParse(string input,out Quantity? output){
-		output=null;
+	public static bool TryParse(string input,out Quantity output){
+		output=Invalid;
 		if(input.IndexOf('(')!=0||input.IndexOf(')')!=input.Length-1)
 			return false;
 		string[] args=input.Substring(1,input.Length-2).Split(',');
@@ -941,21 +954,21 @@ struct Quantity{
 		float value;
 		if(!float.TryParse(args[0],out value))
 			return false;
-		QuantityType? type;
-		if((!Enum.TryParse(typeof(QuantityType),args[1],out type))||type==null)
+		QuantityType type;
+		if(!Enum.TryParse(args[1],out type))
 			return false;
-		output=new Quantity(value,(QuantityType)type);
+		output=new Quantity(value,type);
 		return true;
 	}
 }
 
 abstract class TypedCargo{
-	public override bool Item{
+	public virtual bool Item{
 		get{
 			return false;
 		}
 	}
-	public override bool Resource{
+	public virtual bool Resource{
 		get{
 			return false;
 		}
@@ -985,9 +998,10 @@ class ItemCargo:TypedCargo{
 				return false;
 			output=new ItemCargo(type);
 		}
-		finally{
-			return false;
+		catch(Exception){
+			;
 		}
+		return false;
 	}
 }
 enum ResourceType{
@@ -997,7 +1011,7 @@ enum ResourceType{
 }
 class ResourceCargo:TypedCargo{
 	public ResourceType Type;
-	public static bool Resource{
+	public override bool Resource{
 		get{
 			return true;
 		}
@@ -1013,9 +1027,9 @@ class ResourceCargo:TypedCargo{
 	
 	public static bool TryParse(string input,out ResourceCargo output){
 		output=null;
-		ResourceType? type;
-		if(Enum.TryParse(typeof(ResourceType),input,out type)&&type!=null){
-			output=new ResourceCargo((ResourceType)type);
+		ResourceType type;
+		if(Enum.TryParse(input,out type)){
+			output=new ResourceCargo(type);
 			return true;
 		}
 		return false;
@@ -1027,21 +1041,23 @@ enum CargoDirection{
 }
 
 struct CargoOrder{
-	public ItemCargo Cargo;
+	public TypedCargo Cargo;
 	public CargoDirection Direction;
-	public bool Dynamic=false;
-	public Quantity Value;
+	public bool Dynamic;
+	public Quantity? Value;
 	
-	public CargoOrder(ItemCargo cargo,CargoDirection direction){
+	public CargoOrder(TypedCargo cargo,CargoDirection direction){
 		Cargo=cargo;
 		Direction=direction;
 		Dynamic=true;
+		Value=null;
 	}
 	
-	public CargoOrder(ItemCargo cargo,CargoDirection direction,Quantity value){
+	public CargoOrder(TypedCargo cargo,CargoDirection direction,Quantity value){
 		Cargo=cargo;
 		Direction=direction;
 		Value=value;
+		Dynamic=false;
 	}
 	
 	public override string ToString(){
@@ -1061,20 +1077,26 @@ struct CargoOrder{
 		string[] args=input.Substring(1,input.Length-1).Split(';');
 		if(args.Length!=3)
 			return false;
-		ItemCargo cargo;
-		if(((!ResourceCargo.TryParse(args[0],out cargo))&&(!ItemCargo.TryParse(args[0],out cargo)))||cargo==null)
+		ResourceCargo cargo_r;
+		ItemCargo cargo_i;
+		TypedCargo cargo;
+		if(ResourceCargo.TryParse(args[0],out cargo_r))
+			cargo=cargo_r;
+		else if(ItemCargo.TryParse(args[0],out cargo_i))
+			cargo=cargo_i;
+		else
 			return false;
-		CargoDirection? direction;
-		if((!Enum.TryParse(typeof(CargoDirection),args[1],out direction))||direction==null)
+		CargoDirection direction;
+		if((!Enum.TryParse(args[1],out direction)))
 			return false;
 		bool dynamic=false;
-		float value;
-		if((!bool.TryParse(args[2],out dynamic))&&(!float.TryParse(args[2],out dynamic)))
+		Quantity value=Quantity.Invalid;
+		if((!bool.TryParse(args[2],out dynamic))&&(!Quantity.TryParse(args[2],out value)))
 			return false;
 		if(dynamic)
-			output=new CargoOrder(cargo,(CargoDirection)direction);
+			output=new CargoOrder(cargo,direction);
 		else
-			output=new CargoOrder(cargo,(CargoDirection)direction,value);
+			output=new CargoOrder(cargo,direction,(Quantity)value);
 		return true;
 	}
 }
@@ -1088,7 +1110,7 @@ class Dock{
 			_DockingConnector=value;
 			RefreshDockName();
 		}
-	};
+	}
 	public Vector3D DockPosition;
 	public Vector3D DockDirection;
 	public Vector3D DockUp;
@@ -1134,7 +1156,7 @@ class Dock{
 	
 	public void RefreshDockName(){
 		if(DockingConnector!=null&&DockingConnector.Status==MyShipConnectorStatus.Connected){
-			MyShipConnector Other=DockingConnector.Other;
+			IMyShipConnector Other=DockingConnector.OtherConnector;
 			if(Other!=null)
 				DockName=Other.CubeGrid.CustomName;
 		}
@@ -1147,7 +1169,7 @@ class CargoDock:Dock{
 		Orders=new List<CargoOrder>();
 	}
 	
-	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,List<CargoOrder> orders,string dockName):base(dockingConnector,dockPosition,docDirection,dockUp,dockName){
+	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,List<CargoOrder> orders,string dockName):base(dockingConnector,dockPosition,dockDirection,dockUp,dockName){
 		Orders=orders;
 	}
 	
@@ -1202,7 +1224,6 @@ class CargoDock:Dock{
 		if(strCount<5)
 			return false;
 		try{
-			
 			string p1=input.Substring(2,indices[0]);
 			string p2=input.Substring(indices[0]+3,indices[1]-(indices[0]+3));
 			string p3=input.Substring(indices[1]+3,indices[2]-(indices[1]+3));
@@ -1213,11 +1234,11 @@ class CargoDock:Dock{
 			if(dockingConnector==null)
 				return false;
 			Vector3D dockPosition,dockDirection,dockUp;
-			if(!Vector3D.TryParse(p3,dockPosition))
+			if(!Vector3D.TryParse(p3,out dockPosition))
 				return false;
-			if(!Vector3D.TryParse(p4,dockDirection))
+			if(!Vector3D.TryParse(p4,out dockDirection))
 				return false;
-			if(!Vector3D.TryParse(p5,dockUp))
+			if(!Vector3D.TryParse(p5,out dockUp))
 				return false;
 			if(p6[0]!='['||p6[p6.Length-1]!=']')
 				return false;
@@ -1235,25 +1256,25 @@ class CargoDock:Dock{
 							return false;
 						depth--;
 						break;
-					case ','
+					case ',':
 						orderIndices.Enqueue(i);
 						break;
 				}
 			}
 			int lastIndex=0;
-			List<CargoOrder> orders=new List<orders>();
+			List<CargoOrder> orders=new List<CargoOrder>();
 			for(int i=0;i<p6.Length;i++){
-				CargoOrder order;
+				CargoOrder? order;
 				if(i==orderIndices.Peek()){
-					if(!CargoOrder.TryParse(p6.Substring(lastIndex,i-1)))
+					if(!CargoOrder.TryParse(p6.Substring(lastIndex,i-1),out order))
 						return false;
-					orders.Add(order);
+					orders.Add((CargoOrder)order);
 					lastIndex=i+1;
 					orderIndices.Dequeue();
 					if(orderIndices.Count==0){
-						if(!CargoOrder.TryParse(p6.Substring(lastIndex)))
+						if(!CargoOrder.TryParse(p6.Substring(lastIndex),out order))
 							return false;
-						orders.Add(order);
+						orders.Add((CargoOrder)order);
 						break;
 					}
 				}
@@ -1336,7 +1357,7 @@ void Reset(){
 	Notifications=new List<Notification>();
 	DockingConnectors=new List<IMyShipConnector>();
 	List<Dock> FuelingDocks=new List<Dock>();
-	Queue<CargoDock> CargoDocks=new List<CargoDock>();
+	Queue<CargoDock> CargoDocks=new Queue<CargoDock>();
 }
 
 double MySize=0;
@@ -1367,20 +1388,11 @@ bool Setup(){
 		Write("Failed to find Controller", false, false);
 		return false;
 	}
-	bool has_main_ctrl=false;
-	foreach(IMyShipController Ctrl in Controllers){
-		if(Ctrl.CustomName.Equals(Controller.CustomName)){
-			has_main_ctrl=true;
-			break;
-		}
-	}
-	if(!has_main_ctrl)
-		Controllers.Add(Controller);
 	Forward=Controller.Orientation.Forward;
 	Up=Controller.Orientation.Up;
 	Left=Controller.Orientation.Left;
 	MySize=Controller.CubeGrid.GridSize;
-	DockingConnectors=GenericMethods<IMyShipConnector>.GetAllConstruction("");
+	DockingConnectors=GenericMethods<IMyShipConnector>.GetAllConstruct("");
 	ConnectorPruner();
 	string mode="";
 	string[] args=this.Storage.Split('\n');
@@ -1402,7 +1414,7 @@ bool Setup(){
 					case "Cargo Docks":
 						CargoDock cargoDock;
 						if(CargoDock.TryParse(arg,out cargoDock))
-							CargoDocks.Add(cargoDock);
+							CargoDocks.Enqueue(cargoDock);
 						break;
 				}
 				break;
@@ -1428,17 +1440,6 @@ public Program(){
 	Me.GetSurface(1).TextPadding=30.0f;
 	Echo("Beginning initialization");
 	Rnd=new Random();
-	/*string[] args=this.Storage.Split('•');
-	foreach(string arg in args){
-		if(!arg.Contains(':'))
-			continue;
-		int index=arg.IndexOf(':');
-		string name=arg.Substring(0,index);
-		string data=arg.Substring(index+1);
-		switch(name){
-			
-		}
-	}*/
 	Notifications=new List<Notification>();
 	Task_Queue=new Queue<Task>();
 	TaskParser(Me.CustomData);
@@ -1856,7 +1857,7 @@ int ConnectorPruner(){
 		}
 	}
 	if(removed>0)
-		Notifications.Add("Pruned "+removed.ToString()+" DockingConnectors",5);
+		Notifications.Add(new Notification("Pruned "+removed.ToString()+" DockingConnectors",5));
 	return removed;
 }
 
@@ -1873,7 +1874,7 @@ bool AddDock(){
 			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
 			dockDirection.Normalize();
 			FuelingDocks.Add(new Dock(Connector,dockPosition,dockDirection,Up_Vector));
-			Notifications.Add("Created new Fueling Dock with name \""+FuelingDocks[FuelingDocks.Count-1].DockName+"\"",10);
+			Notifications.Add(new Notification("Created new Fueling Dock with name \""+FuelingDocks[FuelingDocks.Count-1].DockName+"\"",10));
 			return true;
 		}
 	}
@@ -1890,7 +1891,7 @@ bool RemoveDock(){
 				for(int i=0;i<FuelingDocks.Count;i++){
 					Dock dock=FuelingDocks[i];
 					if((dock.DockPosition-DockConnector.GetPosition()).Length()<distance){
-						Notifications.Add("Removed Fueling Dock with name \""+dock.DockName+"\"",10);
+						Notifications.Add(new Notification("Removed Fueling Dock with name \""+dock.DockName+"\"",10));
 						FuelingDocks.RemoveAt(i);
 						return true;
 					}
@@ -1916,8 +1917,8 @@ bool AddCargoDock(){
 			dockDirection.Normalize();
 			CargoDocks.Enqueue(new CargoDock(Connector,dockPosition,dockDirection,Up_Vector));
 			for(int i=0;i<CargoDocks.Count-1;i++)
-				CargoDocks.Enqueue(CargoDocks.Dequeue);
-			Notifications.Add("Created new Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10);
+				CargoDocks.Enqueue(CargoDocks.Dequeue());
+			Notifications.Add(new Notification("Created new Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10));
 			return true;
 		}
 	}
@@ -1928,16 +1929,16 @@ bool RemoveNextCargoDock(){
 	ConnectorPruner();
 	if(CargoDocks.Count==0)
 		return false;
-	Notifications.Add("Removed Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10);
+	Notifications.Add(new Notification("Removed Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10));
 	return CargoDocks.Dequeue()!=null;
 }
 
 bool AddOrder(string data,CargoDirection direction){
-	string args[]=data.Split(' ');
+	string[] args=data.Split(' ');
 	if(args.Length<3||args.Length>4)
 		return false;
 	bool dynamic=args[0].Equals("dynamic");
-	Quantity? value=null;
+	Quantity value=Quantity.Invalid;
 	if(!dynamic){
 		QuantityType qt=QuantityType.Value;
 		if(args[0][args[0].Length-1]=='%'){
@@ -1951,6 +1952,7 @@ bool AddOrder(string data,CargoDirection direction){
 	}
 	
 	TypedCargo cargo;
+	CargoOrder order;
 	if(args[1].Equals("resource")){
 		if(args.Length!=3)
 			return false;
@@ -1974,16 +1976,50 @@ bool AddOrder(string data,CargoDirection direction){
 		string subtype="";
 		if(args.Length==4)
 			subtype=args[3];
-		cargo=new ItemCargo(Item.ByString(args[2]+' '+subtype));
+		List<MyItemType> items=Item.ByString(args[2]+' '+subtype);
+		if(items.Count==1)
+			cargo=new ItemCargo(items[0]);
+		else if(items.Count==0)
+			return false;
+		else {
+			int success=0,failed=0;
+			foreach(MyItemType item in items){
+				if(dynamic)
+					order=new CargoOrder(new ItemCargo(item),direction);
+				else
+					order=new CargoOrder(new ItemCargo(item),direction,value);
+				if(CargoDocks.Peek().AddOrder(order)){
+					success++;
+					Notifications.Add(new Notification("\tSuccess: "+item.ToString(),10));
+				}
+				else{
+					failed++;
+					Notifications.Add(new Notification("\tFailure: "+item.ToString(),10));
+				}
+			}
+			string s="s";
+			if(success==1)
+				s="";
+			if(success>0)
+				Notifications.Add(new Notification("Succesfully added "+success.ToString()+" new "+direction.ToString()+" Order"+s+".",10));
+			s="s";
+			if(failed==1)
+				s="";
+			if(failed>0)
+				Notifications.Add(new Notification("Failed to add "+failed.ToString()+" new "+direction.ToString()+" Order"+s+".",10));
+			return failed==0&&success>0;
+		}
 	}
 	else
 		return false;
-	CargoOrder order;
 	if(dynamic)
 		order=new CargoOrder(cargo,direction);
 	else
-		order=new CargoOrder(cargo,direction,(Quantity)value);
-	return Dock.Next.Peek().AddOrder(order);
+		order=new CargoOrder(cargo,direction,value);
+	bool output=CargoDocks.Peek().AddOrder(order);
+	if(output)
+		Notifications.Add(new Notification("Succesfully added new "+direction.ToString()+" Order.",10));
+	return output;
 }
 
 bool AddCollect(string data){

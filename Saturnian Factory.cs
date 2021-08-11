@@ -541,10 +541,9 @@ public static class Item{
 			output.Add(Package);
 			return output;
 		}
-		if(type.Equals("credit")||type.Equals("sc")){
+		if(type.Equals("credit")||type.Equals("sc"))
 			output.Add(Credit);
-			return output;
-		}
+		return output;
 	}
 	
 	public static class Raw{
