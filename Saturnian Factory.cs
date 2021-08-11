@@ -512,6 +512,41 @@ public static class Item{
 		}
 	}
 	
+	public static List<MyItemType> ByString(string name){
+		List<MyItemType> output=new List<MyItemType>();
+		int index=name.Trim().IndexOf(' ');
+		string subtype="";
+		if(index==-1)
+			index=name.Length;
+		else
+			subtype=name.Substring(index+1).ToLower();
+		string type=name.Substring(0,index).ToLower();
+		if(type.Equals("raw")||type.Equals("ore"))
+			return output.Concat(Raw.ByString(subtype)).ToList();
+		if(type.Equals("ingot")||type.Equals("wafer")||type.Equals("powder"))
+			return output.Concat(Ingot.ByString(subtype)).ToList();
+		if(type.Equals("component")||type.Equals("comp"))
+			return output.Concat(Comp.ByString(subtype)).ToList();
+		if(type.Equals("ammo")||type.Equals("ammunition"))
+			return output.Concat(Ammo.ByString(subtype)).ToList();
+		if(type.Equals("tool")||type.Equals("gun")||type.Equals("weapon"))
+			return output.Concat(Tool.ByString(subtype)).ToList();
+		if(type.Equals("consumable")||type.Equals("cons"))
+			return output.Concat(Cons.ByString(subtype)).ToList();
+		if(type.Equals("data")||type.Equals("datapad")){
+			output.Add(Datapad);
+			return output;
+		}
+		if(type.Equals("package")){
+			output.Add(Package);
+			return output;
+		}
+		if(type.Equals("credit")||type.Equals("sc")){
+			output.Add(Credit);
+			return output;
+		}
+	}
+	
 	public static class Raw{
 		static string B_O="MyObjectBuilder_Ore";
 		public static List<MyItemType> All{
@@ -532,6 +567,22 @@ public static class Item{
 				output.Add(Organic);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Ice=new MyItemType(B_O,"Ice");
 		public static MyItemType Stone=new MyItemType(B_O,"Stone");
@@ -565,6 +616,22 @@ public static class Item{
 				output.Add(Scrap);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Stone=new MyItemType(B_I,"Stone");
 		public static MyItemType Iron=new MyItemType(B_I,"Iron");
@@ -608,6 +675,22 @@ public static class Item{
 				return output;
 			}
 		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
 		public static MyItemType Steel=new MyItemType(B_C,"SteelPlate");
 		public static MyItemType Construction=new MyItemType(B_C,"Construction");
 		public static MyItemType Interior=new MyItemType(B_C,"InteriorPlate");
@@ -649,6 +732,22 @@ public static class Item{
 				output.Add(PistolE);
 				return output;
 			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
 		}
 		public static MyItemType Missile=new MyItemType(B_A,"Missile200mm");
 		public static MyItemType Container=new MyItemType(B_A,"NATO_25x184mm");
@@ -692,6 +791,22 @@ public static class Item{
 				return output;
 			}
 		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
 		public static MyItemType H2=new MyItemType("MyObjectBuilder_GasContainerObject","HydrogenBottle");
 		public static MyItemType O2=new MyItemType("MyObjectBuilder_OxygenContainerObject","OxygenBottle");
 		public static MyItemType Welder1=new MyItemType(B_T,"WelderItem");
@@ -728,6 +843,22 @@ public static class Item{
 				return output;
 			}
 		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
 		public static MyItemType Power=new MyItemType(B_C,"Powerkit");
 		public static MyItemType Medical=new MyItemType(B_C,"");
 		public static MyItemType Clang=new MyItemType(B_C,"ClangCola");
@@ -738,6 +869,7 @@ public static class Item{
 	public static MyItemType Package=new MyItemType("MyObjectBuilder_Package","Package");
 	public static MyItemType Credit=new MyItemType("MyObjectBuilder_PhysicalObject","SpaceCredit");
 }
+
 
 class InvBlock{
 	public IMyTerminalBlock Block;
