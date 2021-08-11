@@ -881,14 +881,144 @@ struct CargoOrder{
 			output+=Dynamic.ToString();
 		else
 			output+=Value.ToString();
+		output+="}";
+		return output;
+	}
+	
+	public static bool TryParse(string input,out CargoOrder? output){
+		output=null;
+		if(input.IndexOf('{')!=0||input.IndexOf('}')!=input.Length-1)
+			return false;
+		string[] args=input.Substring(1,input.Length-1).Split(';');
+		if(args.Length!=3)
+			return false;
+		ItemCargo cargo;
+		if(((!ResourceCargo.TryParse(args[0],out cargo))&&(!ItemCargo.TryParse(args[0],out cargo)))||cargo==null)
+			return false;
+		CargoDirection? direction;
+		if((!Enum.TryParse(typeof(CargoDirection),args[1],out direction))||direction==null)
+			return false;
+		bool dynamic=false;
+		float value;
+		if((!bool.TryParse(args[2],out dynamic))&&(!float.TryParse(args[2],out dynamic)))
+			return false;
+		if(dynamic)
+			output=new CargoOrder(cargo,(CargoDirection)direction);
+		else
+			output=new CargoOrder(cargo,(CargoDirection)direction,value);
+		return true;
 	}
 }
 
 class Dock{
 	public Vector3D DockPosition;
 	public Vector3D DockDirection;
+	public Vector3D DockUp;
+	public IMyShipConnector DockingConnector;
+	public Vector3D DockApproach{
+		get{
+			return DockPosition+2.5*DockDirection+25*DockUp;
+		}
+	}
 	
-	public List<CargoOrder>
+	public List<CargoOrder> Orders;
+	
+	public Dock(Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp){
+		DockPosition=dockPosition;
+		DockDirection=dockDirection;
+		DockUp=dockUp;
+		Orders=new List<CargoOrder>();
+	}
+	
+	protected Dock(Vector3D dockPosition,Vector3D dockDirection,Vector3D dockUp,List<CargoOrder> orders):this(dockPosition,docDirection,dockUp){
+		Orders=orders;
+	}
+	
+	public override string ToString(){
+		string output="{("+DockPosition.ToString()+"),("+DockDirection.ToString()+"),("+DockUp.ToString()+"),([";
+		for(int i=0;i<Orders.Count;i++){
+			if(i>0)
+				output+=',';
+			output+=Orders[i].ToString();
+		}
+		output+="])}";
+		return output;
+	}
+	
+	public static bool TryParse(string input,out Dock output){
+		output=null;
+		int[] indices={-1,-1,-1};
+		int strCount=0;
+		if(input.IndexOf("{(")!=0||input.IndexOf("])}")!=input.Length-3)
+			return false;
+		for(int i=2;i<input.Length-3;i++){
+			if(input.Substring(i,3).Equals("),(")){
+				if(strCount>2)
+					return false;
+				indices[strCount++]=i;
+			}
+		}
+		if(strCount<3)
+			return false;
+		try{
+			string p1=input.Substring(2,indices[0]);
+			string p2=input.Substring(indices[0]+3,indices[1]-(indices[0]+3));
+			string p3=input.Substring(indices[1]+3,indices[2]-(indices[1]+3));
+			string p4=input.Substring(indices[2]+3,input.Length-2-(indices[2]+3));
+			
+			Vector3D dockPosition,dockDirection,dockUp;
+			if(!Vector3D.TryParse(p1,dockPosition))
+				return false;
+			if(!Vector3D.TryParse(p2,dockDirection))
+				return false;
+			if(!Vector3D.TryParse(p3,dockUp))
+				return false;
+			if(p4[0]!='['||p4[p4.Length-1]!=']')
+				return false;
+			p4=p4.Substring(1,p4.Length-1);
+			Queue<int> orderIndices=new Queue<int>();
+			int depth=0;
+			for(int i=0;i<p4.Length;i++){
+				char c=p4[i];
+				switch(c){
+					case '{':
+						depth++;
+						break;
+					case '}':
+						if(depth<=0)
+							return false;
+						depth--;
+						break;
+					case ','
+						orderIndices.Enqueue(i);
+						break;
+				}
+			}
+			int lastIndex=0;
+			List<CargoOrder> orders=new List<orders>();
+			for(int i=0;i<p4.Length;i++){
+				CargoOrder order;
+				if(i==orderIndices.Peek()){
+					if(!CargoOrder.TryParse(p4.Substring(lastIndex,i-1)))
+						return false;
+					orders.Add(order);
+					lastIndex=i+1;
+					orderIndices.Dequeue();
+					if(orderIndices.Count==0){
+						if(!CargoOrder.TryParse(p4.Substring(lastIndex)))
+							return false;
+						orders.Add(order);
+						break;
+					}
+				}
+			}
+			output=new Dock(dockPosition,dockDirection,dockUp,orders);
+			return true;
+		}
+		catch(Exception){
+			return false;
+		}
+	}
 	
 }
 
