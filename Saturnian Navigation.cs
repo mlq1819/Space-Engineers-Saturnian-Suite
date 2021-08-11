@@ -1391,6 +1391,16 @@ bool PerformTask(Task task){
 	switch(task.Type){
 		case "Send":
 			return Task_Send(task);
+		case "Direction":
+			return Task_Direction(task);
+		case "Up":
+			return Task_Up(task);
+		case "Go":
+			return Task_Go(task);
+		case "Match":
+			return Task_Match(task);
+		case "Autoland":
+			return Task_Autoland(task);
 	}
 	return false;
 }
