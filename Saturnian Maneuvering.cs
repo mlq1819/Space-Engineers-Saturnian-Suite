@@ -2212,7 +2212,7 @@ bool Task_Match(Task task){
 }
 
 //Sets Autoland either on or off
-bool Task_AutolandOn(Task task){
+bool Task_Autoland(Task task){
 	bool do_autoland=false;
 	if(bool.TryParse(task.Qualifiers.Last(),out do_autoland)){
 		if(do_autoland)
