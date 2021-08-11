@@ -1867,8 +1867,10 @@ bool AddDock(){
 		if(Connector.Status==MyShipConnectorStatus.Connected&&Connector.OtherConnector.CubeGrid.GridSizeEnum==MyCubeSize.Large&&Connector.OtherConnector.CubeGrid.IsStatic){
 			IMyShipConnector DockConnector=Connector.OtherConnector;
 			foreach(Dock dock in FuelingDocks){
-				if((dock.DockPosition-DockConnector.GetPosition()).Length()<2)
+				if((dock.DockPosition-DockConnector.GetPosition()).Length()<2){
+					Notifications.Add(new Notification("Failed to create new Fueling Dock (already exists)",10));
 					return false;
+				}
 			}
 			Vector3D dockPosition=DockConnector.GetPosition();
 			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
@@ -1878,6 +1880,7 @@ bool AddDock(){
 			return true;
 		}
 	}
+	Notifications.Add(new Notification("Failed to create new Fueling Dock (no valid connectors)",10));
 	return false;
 }
 
@@ -1900,6 +1903,7 @@ bool RemoveDock(){
 		}
 		distance*=10;
 	}
+	Notifications.Add(new Notification("Failed to remove Fueling Dock; no nearby Fueling Docks",10));
 	return false;
 }
 
@@ -1909,8 +1913,11 @@ bool AddCargoDock(){
 		if(Connector.Status==MyShipConnectorStatus.Connected&&Connector.OtherConnector.CubeGrid.GridSizeEnum==MyCubeSize.Large&&Connector.OtherConnector.CubeGrid.IsStatic){
 			IMyShipConnector DockConnector=Connector.OtherConnector;
 			foreach(CargoDock dock in CargoDocks){
-				if((dock.DockPosition-DockConnector.GetPosition()).Length()<2)
+				if((dock.DockPosition-DockConnector.GetPosition()).Length()<2){
+					Notifications.Add(new Notification("Failed to create new Fueling Dock (already exists)",10));
+					//may remove later
 					return false;
+				}
 			}
 			Vector3D dockPosition=DockConnector.GetPosition();
 			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
@@ -1922,13 +1929,16 @@ bool AddCargoDock(){
 			return true;
 		}
 	}
+	Notifications.Add(new Notification("Failed to create new Cargo Dock (no valid connectors)",10));
 	return false;
 }
 
 bool RemoveNextCargoDock(){
 	ConnectorPruner();
-	if(CargoDocks.Count==0)
+	if(CargoDocks.Count==0){
+		Notifications.Add(new Notification("Failed to remove Cargo Dock; no saved Cargo Docks",10));
 		return false;
+	}
 	Notifications.Add(new Notification("Removed Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10));
 	return CargoDocks.Dequeue()!=null;
 }
