@@ -1136,6 +1136,11 @@ class Dock{
 		}
 	}
 	public string DockName;
+	public bool Docked{
+		get{
+			return DockDistance<3.25&&DockingConnector.Status==ConnectorStatus.Connectedl
+		}
+	}
 	
 	public Dock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward, Vector3D dockUp,string dockName="Unnamed Dock"){
 		DockName=dockName;
@@ -1183,13 +1188,16 @@ class Dock{
 }
 class CargoDock:Dock{
 	public List<CargoOrder> Orders;
+	public double IdleTimer;
 	
-	public CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,string dockName="Unnamed Cargo Dock"):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
+	public CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,string dockName="Unnamed Cargo Dock",double idleTimer):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
 		Orders=new List<CargoOrder>();
+		IdleTimer=idleTimer;
 	}
 	
-	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,List<CargoOrder> orders,string dockName):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
+	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,List<CargoOrder> orders,string dockName,double idleTimer):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
 		Orders=orders;
+		IdleTimer=idleTimer;
 	}
 	
 	public bool AddOrder(CargoOrder Order){
@@ -1217,7 +1225,7 @@ class CargoDock:Dock{
 	}
 	
 	public override string ToString(){
-		string output="{("+DockName+"),("+DockingConnector.CustomName.ToString()+"),("+DockPosition.ToString()+"),("+DockDirection.ToString()+"),("+DockForward.ToString()+"),("+DockUp.ToString()+"),([";
+		string output="{("+DockName+"),("+DockingConnector.CustomName.ToString()+"),("+DockPosition.ToString()+"),("+DockDirection.ToString()+"),("+DockForward.ToString()+"),("+DockUp.ToString()+"),("+Math.Round(IdleTimer,3).ToString()+"),([";
 		for(int i=0;i<Orders.Count;i++){
 			if(i>0)
 				output+=',';
@@ -1229,18 +1237,18 @@ class CargoDock:Dock{
 	
 	public static bool TryParse(string input,out CargoDock output){
 		output=null;
-		int[] indices={-1,-1,-1,-1,-1,-1};
+		int[] indices={-1,-1,-1,-1,-1,-1,-1};
 		int strCount=0;
 		if(input.IndexOf("{(")!=0||input.IndexOf("])}")!=input.Length-3)
 			return false;
 		for(int i=2;i<input.Length-3;i++){
 			if(input.Substring(i,3).Equals("),(")){
-				if(strCount>5)
+				if(strCount>6)
 					return false;
 				indices[strCount++]=i;
 			}
 		}
-		if(strCount<6)
+		if(strCount<7)
 			return false;
 		try{
 			string p1=input.Substring(2,indices[0]-2);
@@ -1249,11 +1257,13 @@ class CargoDock:Dock{
 			string p4=input.Substring(indices[2]+3,indices[3]-(indices[2]+3));
 			string p5=input.Substring(indices[3]+3,indices[4]-(indices[3]+3));
 			string p6=input.Substring(indices[4]+3,indices[5]-(indices[4]+3));
-			string p7=input.Substring(indices[5]+3,input.Length-2-(indices[5]+3));
+			string p7=input.Substring(indices[5]+3,indices[6]-(indices[5]+3));
+			string p8=input.Substring(indices[6]+3,input.Length-2-(indices[6]+3));
 			IMyShipConnector dockingConnector=GenericMethods<IMyShipConnector>.GetConstruct(p2);
 			if(dockingConnector==null)
 				return false;
 			Vector3D dockPosition,dockDirection,dockForward,dockUp;
+			double idleTimer;
 			if(!Vector3D.TryParse(p3,out dockPosition))
 				return false;
 			if(!Vector3D.TryParse(p4,out dockDirection))
@@ -1262,13 +1272,15 @@ class CargoDock:Dock{
 				return false;
 			if(!Vector3D.TryParse(p6,out dockUp))
 				return false;
-			if(p7[0]!='['||p7[p7.Length-1]!=']')
+			if(!double.TryParse(p7,out idleTimer))
 				return false;
-			p7=p7.Substring(1,p7.Length-1);
+			if(p8[0]!='['||p8[p8.Length-1]!=']')
+				return false;
+			p8=p8.Substring(1,p8.Length-1);
 			Queue<int> orderIndices=new Queue<int>();
 			int depth=0;
-			for(int i=0;i<p7.Length;i++){
-				char c=p7[i];
+			for(int i=0;i<p8.Length;i++){
+				char c=p8[i];
 				switch(c){
 					case '{':
 						depth++;
@@ -1285,23 +1297,23 @@ class CargoDock:Dock{
 			}
 			int lastIndex=0;
 			List<CargoOrder> orders=new List<CargoOrder>();
-			for(int i=0;i<p7.Length;i++){
+			for(int i=0;i<p8.Length;i++){
 				CargoOrder? order;
 				if(i==orderIndices.Peek()){
-					if(!CargoOrder.TryParse(p7.Substring(lastIndex,i-1),out order))
+					if(!CargoOrder.TryParse(p8.Substring(lastIndex,i-1),out order))
 						return false;
 					orders.Add((CargoOrder)order);
 					lastIndex=i+1;
 					orderIndices.Dequeue();
 					if(orderIndices.Count==0){
-						if(!CargoOrder.TryParse(p7.Substring(lastIndex),out order))
+						if(!CargoOrder.TryParse(p8.Substring(lastIndex),out order))
 							return false;
 						orders.Add((CargoOrder)order);
 						break;
 					}
 				}
 			}
-			output=new CargoDock(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,orders,p1);
+			output=new CargoDock(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,idleTimer,orders,p1);
 			return true;
 		}
 		catch(Exception){
@@ -1785,6 +1797,12 @@ class Task_Refuel:Ship_Task<Dock>{
 	}
 }
 class Task_Cargo:Ship_Task<CargoDock>{
+	public override bool Valid{
+		get{
+			return true;
+		}
+	}
+	
 	public Task_Cargo(TaskType type,CargoDock data):base("Cargo",type,data){
 		;
 	}
@@ -2267,7 +2285,7 @@ bool AddCargoDock(){
 			Vector3D dockPosition=DockConnector.GetPosition();
 			Vector3D dockDirection=LocalToGlobal(new Vector3D(0,0,-1),DockConnector);
 			dockDirection.Normalize();
-			CargoDocks.Enqueue(new CargoDock(Connector,dockPosition,dockDirection,Forward_Vector,Up_Vector));
+			CargoDocks.Enqueue(new CargoDock(Connector,dockPosition,dockDirection,Forward_Vector,Up_Vector,30));
 			for(int i=0;i<CargoDocks.Count-1;i++)
 				CargoDocks.Enqueue(CargoDocks.Dequeue());
 			Notifications.Add(new Notification("Created new Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10));
@@ -2286,6 +2304,14 @@ bool RemoveNextCargoDock(){
 	}
 	Notifications.Add(new Notification("Removed Cargo Dock with name \""+CargoDocks.Peek().DockName+"\"",10));
 	return CargoDocks.Dequeue()!=null;
+}
+
+bool SetCargoIdle(string data){
+	double idleTimer;
+	if(CargoDocks.Count==0||!double.TryParse(data,out idleTimer))
+		return false;
+	CargoDocks.Peek().IdleTimer=idleTimer;
+	return true;
 }
 
 bool AddOrder(string data,CargoDirection direction){
@@ -2385,12 +2411,39 @@ bool AddDeposit(string data){
 	return AddOrder(data,CargoDirection.Deposit);
 }
 
+Dock GetFuelingDock(){
+	foreach(Dock dock in FuelingDocks){
+		if(dock.Docked)
+			return dock;
+	}
+	return null;
+}
+
 bool AtRefuelStation(){
 	foreach(Dock dock in FuelingDocks){
-		if(dock.DockDistance<5&&dock.DockingConnector.Status==ConnectorStatus.Connected)
+		if(dock.Docked)
 			return true;
 	}
 	return false;
+}
+
+bool Undock(){
+	Dock dock=GetFuelingDock();
+	if(dock==null)
+		return false;
+	return Undock(dock);
+}
+
+bool Undock(Dock dock){
+	if(!dock.Docked)
+		return false;
+	foreach(ResourceContainer Container in CargoContainers)
+		Container.Off();
+	foreach(ResourceContainer Container in FuelContainers)
+		Container.On();
+	dock.DockingConnector.Disconnect();
+	Notifications.Add(new Notification("Undocked from "+dock.Name,10));
+	return true;
 }
 
 Vector3D ConnectorOffset(IMyShipConnector){
@@ -2483,20 +2536,27 @@ bool RefuelTask(){
 	if(current.Type==TaskType.Transfer){
 		if(PerformRefuel())
 			current=new Task_None(TaskType.Dock);
+		else
+			Display(1,"Refueling at "+current.Data.Name);
 	}
 	MyTask=current;
 	return true;
 }
 
+double CargoIdleTimer=0;
 bool CargoTask(){
 	Task_Cargo current=MyTask as Task_Cargo;
 	if(current==null)
 		return false;
 	if(current.Type!=TaskType.Transfer){
+		CargoIdleTimer=0;
 		current.Type=BeginDocking(current.Type,current.Data);
-		for(int i=0;i<CargoContainers.Count;i++)
-			SetBlockData(CargoContainers[i].Block,"StartingCapacity",CargoContainers[i].Capacity.ToString());
+		if(current.Type==TaskType.Transfer){
+			for(int i=0;i<CargoContainers.Count;i++)
+				SetBlockData(CargoContainers[i].Block,"StartingCapacity",CargoContainers[i].Capacity.ToString());
+		}
 	}
+	CargoIdleTimer=Math.Min(CargoIdleTimer+seconds_since_last_update,current.Data.IdleTimer);
 	if(current.Type==TaskType.Transfer){
 		bool completed_transfer=true;
 		bool refuel=AtRefuelStation();
@@ -2504,7 +2564,7 @@ bool CargoTask(){
 		CargoOrder? h2Order=null;
 		CargoOrder? o2Order=null;
 		foreach(CargoOrder Order in current.Data.Orders){
-			ResourceCargo cargo = Order.Cargo as ResourceCargo;
+			ResourceCargo cargo=Order.Cargo as ResourceCargo;
 			if(cargo!=null){
 				switch(cargo.Type){
 					case ResourceType.Power:
@@ -2636,22 +2696,45 @@ bool CargoTask(){
 				}
 			}
 		}
+		
+		
+		//Other, actual item transfers
+		
+		
 		if(completed_transfer){
-			current=new Task_None(TaskType.Dock);
+			current.Type=TaskType.Idle;
+		}
+		else
+			Display(1,"Transfering Cargo at "+current.Data.Name);
+	}
+	MyTask=current;
+	if(current.Type==TaskType.Idle){
+		if(CargoIdleTimer>=current.Data.IdleTimer){
 			if(CargoDocks.Count>1){
 				CargoDocks.Enqueue(CargoDocks.Dequeue());
-				
-				
-				
+				Undock(current.Data);
+				MyTask=new Task_Cargo(TaskType.Travel,CargoDocks.Peek());
 			}
-			
+			else
+				MyTask=new Task_None(TaskType.Dock);
+		}
+		else{
+			if(CargoDocks.Count>1)
+				Display(1,"Idling at Cargo Dock");
+			else{
+				double rem_time=current.Data.IdleTimer-CargoIdleTimer;
+				string time_str=Math.Round(rem_time,0).ToString()+"s";
+				if(rem_time>=60){
+					rem_time/=60;
+					time_str=Math.Round(rem_time,2).ToString()+"min";
+				}
+				if(rem_time>=60)
+					time_str=Math.Round(rem_time/60,0).ToString()+"hr, "+Math.Round(rem_time%60,2).ToString()+"min";
+				Display(1,"Idling at Cargo Dock: "+time_str+" remaining");
+			}
 		}
 	}
-	
-	//Other, actual item transfers
-	
-	MyTask=current;
-	return false;
+	return true;
 }
 
 bool RunTask(){
@@ -2681,6 +2764,8 @@ void Main_Program(string argument){
 		AddCargoDock();
 	else if(argument.ToLower().Equals("remove next cargo dock"))
 		RemoveNextCargoDock();
+	else if(argument.ToLower().IndexOf("set cargo idle:")==0)
+		AddCollect(argument.Substring(15).ToLower());
 	else if(argument.ToLower().IndexOf("add cargo collect:")==0)
 		AddCollect(argument.Substring(18).ToLower());
 	else if(argument.ToLower().IndexOf("add cargo deposit:")==0)
