@@ -1485,29 +1485,35 @@ enum TaskType{
 	Travel,
 	Job
 }
-
-abstract class Task<T>{
+abstract class List_Task{
 	public TaskType Type;
 	public string Name;
+}
+abstract class Task<T>:List_Task{
 	public T Data;
-	
-	protected Task<T>(TaskType type,string name){
-		Type=type;
-		Name=name;
+	public virtual bool Valid{
+		get{
+			return Type!=TaskType.Idle;
+		}
+	}
+	public static Task_None None{
+		get{
+			return new Task_None();
+		}
 	}
 	
-	protected Task<T>(TaskType type,string name,T data){
+	protected Task(string name,TaskType type,T data){
 		Type=type;
 		Name=name;
 		Data=data;
 	}
 	
 	public override string ToString(){
-		return "{("+Type.ToString()+');('+Name.ToString()+");("+Data.ToString()+")}";
+		return "{("+Name.ToString()+");("+Type.ToString()+");("+Data.ToString()+")}";
 	}
 	
-	protected static string[] StringParser(string input){
-		if(input.IndexOf("{(")!=0||!input.Substring(input.Length-2).Equals(")}"));
+	public static string[] StringParser(string input){
+		if(input.IndexOf("{(")!=0||!input.Substring(input.Length-2).Equals(")}"))
 			throw new ArgumentException("Bad format");
 		int[] indices={-1,-1};
 		int strCount=0;
@@ -1521,39 +1527,114 @@ abstract class Task<T>{
 		if(strCount<2)
 			throw new ArgumentException("Bad format");
 		
-		string[] output=[input.Substring(2,indices[0]-2),input.Substring(indices[0],indices[1]-indices[0]),input.Subtring(indices[2],input.Length-2-indices[2])];
+		string[] output={input.Substring(2,indices[0]-2),input.Substring(indices[0],indices[1]-indices[0]),input.Substring(indices[2],input.Length-2-indices[2])};
 		return output;
 	}
-}
-class Task_Refuel:Task<Dock>{
 	
-	public Task_Refuel(string name,Dock data):base(TaskType.,name,data){
+}
+class Task_None:Task<string>{
+	public override bool Valid{
+		get{
+			return !base.Valid;
+		}
+	}
+	
+	public Task_None():base("None",TaskType.Idle,""){
 		;
 	}
 	
-	public override string ToString(){
-		return "{("+Type.ToString()+');('+Name.ToString()+");("+Data.ToString()+")}";
+	public static Task_None Parse(string input){
+		if(!input.Equals((new Task_None()).ToString()))
+			throw new ArgumentException("Bad Format");
+		return new Task_None();
+	}
+	
+	public static bool TryParse(string input,out Task_None output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+class Task_Refuel:Task<Dock>{
+	public override bool Valid{
+		get{
+			return base.Valid&&Type!=TaskType.Job;
+		}
+	}
+	
+	public Task_Refuel(TaskType type,Dock data):base("Refuel",type,data){
+		;
+	}
+	
+	public static Task_Refuel Parse(string input){
+		string[] args=Task<Dock>.StringParser(input);
+		TaskType type;
+		Dock data;
+		if((!args[0].Equals("Refuel"))||(!Enum.TryParse(args[1],out type))||(!Dock.TryParse(args[2],out data)))
+			throw new ArgumentException("Bad Format");
+		return new Task_Refuel(type,data);
 	}
 	
 	public static bool TryParse(string input,out Task_Refuel output){
 		output=null;
 		try{
-			string[] args=Task<Dock>.StringParser(input);
-			TaskType type;
-			if((!Enum.TryParse(args[0],out type))||type==TaskType.Idle||type=TaskType.Job)
-				return false;
-			Dock data;
-			if(!Dock.TryParse(args[2],out data))
-				return false;
-			output=new Task_Refuel(type,args[1],data);
-			return true;
+			output=Parse(input);
+			return output!=null;
 		}
-		catch(Exception){
+		catch{
+			return false;
+		}
+	}
+}
+class Task_Cargo:Task<CargoDock>{
+	public override bool Valid{
+		get{
+			return base.Valid&&Type!=TaskType.Job;
+		}
+	}
+	
+	public Task_Cargo(TaskType type,CargoDock data):base("Cargo",type,data){
+		;
+	}
+	
+	public static Task_Cargo Parse(string input){
+		string[] args=Task<Dock>.StringParser(input);
+		TaskType type;
+		CargoDock data;
+		if((!args[0].Equals("Cargo"))||(!Enum.TryParse(args[1],out type))||(!CargoDock.TryParse(args[2],out data)))
+			throw new ArgumentException("Bad Format");
+		return new Task_Cargo(type,data);
+	}
+	
+	public static bool TryParse(string input,out Task_Cargo output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
 			return false;
 		}
 	}
 }
 
+List_Task ParseTask(string input){
+	string name=Task<int>.StringParser(input)[0];
+	switch(name){
+		case "None":
+			return Task_None.Parse(input);
+		case "Refuel":
+			return Task_Refuel.Parse(input);
+		case "Cargo":
+			return Task_Refuel.Parse(input);
+	}
+	return null;
+}
 
 class Notification{
 	public string Text;
