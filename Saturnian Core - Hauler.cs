@@ -49,9 +49,10 @@
 
 
 TODO: 
-- Navigation Integration
-- Resource Integration?
-	Add item integration for cargo docking
+- Complete Cargo Transfer
+	Add inventory management
+- Resource Integration
+	Check if fuel is low
 	
 - Determine what functions all ship cores need
 */
@@ -1451,6 +1452,160 @@ class GasContainer:ResourceContainer{
 	}
 }
 
+enum TaskType{
+	Idle,
+	Transfer,
+	Dock,
+	Travel,
+	Job
+}
+abstract class Gen_Task{
+	public TaskType Type;
+	public string Name;
+}
+abstract class Ship_Task<T>:Gen_Task{
+	public T Data;
+	public virtual bool Valid{
+		get{
+			return Type!=TaskType.Idle;
+		}
+	}
+	
+	protected Ship_Task(string name,TaskType type,T data){
+		Type=type;
+		Name=name;
+		Data=data;
+	}
+	
+	public override string ToString(){
+		return "{("+Name.ToString()+");("+Type.ToString()+");("+Data.ToString()+")}";
+	}
+	
+	public static string[] StringParser(string input){
+		if(input.IndexOf("{(")!=0||!input.Substring(input.Length-2).Equals(")}"))
+			throw new ArgumentException("Bad format");
+		int[] indices={-1,-1};
+		int strCount=0;
+		for(int i=2;i<input.Length-2;i++){
+			if(input.Substring(i,3).Equals(");(")){
+				if(strCount>2)
+					throw new ArgumentException("Bad format");
+				indices[strCount++]=i;
+			}
+		}
+		if(strCount<2)
+			throw new ArgumentException("Bad format");
+		
+		string[] output={input.Substring(2,indices[0]-2),input.Substring(indices[0],indices[1]-indices[0]),input.Substring(indices[2],input.Length-2-indices[2])};
+		return output;
+	}
+	
+}
+class Task_None:Ship_Task<string>{
+	public override bool Valid{
+		get{
+			return (!base.Valid)||Type!=TaskType.Dock;
+		}
+	}
+	
+	public Task_None():base("None",TaskType.Idle,""){
+		;
+	}
+	
+	public Task_None(TaskType type):base("None",type,""){
+		;
+	}
+	
+	public static Task_None Parse(string input){
+		string[] args=Ship_Task<Dock>.StringParser(input);
+		TaskType type;
+		Dock data;
+		if((!args[0].Equals("None"))||(!Enum.TryParse(args[1],out type))||(!Dock.TryParse(args[2],out data))||data.Length>0)
+			throw new ArgumentException("Bad Format");
+		return new Task_None(type);
+	}
+	
+	public static bool TryParse(string input,out Task_None output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+class Task_Refuel:Ship_Task<Dock>{
+	public Task_Refuel(TaskType type,Dock data):base("Refuel",type,data){
+		;
+	}
+	
+	public static Task_Refuel Parse(string input){
+		string[] args=Ship_Task<Dock>.StringParser(input);
+		TaskType type;
+		Dock data;
+		if((!args[0].Equals("Refuel"))||(!Enum.TryParse(args[1],out type))||(!Dock.TryParse(args[2],out data)))
+			throw new ArgumentException("Bad Format");
+		return new Task_Refuel(type,data);
+	}
+	
+	public static bool TryParse(string input,out Task_Refuel output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+class Task_Cargo:Ship_Task<CargoDock>{
+	public override bool Valid{
+		get{
+			return true;
+		}
+	}
+	
+	public Task_Cargo(TaskType type,CargoDock data):base("Cargo",type,data){
+		;
+	}
+	
+	public static Task_Cargo Parse(string input){
+		string[] args=Ship_Task<Dock>.StringParser(input);
+		TaskType type;
+		CargoDock data;
+		if((!args[0].Equals("Cargo"))||(!Enum.TryParse(args[1],out type))||(!CargoDock.TryParse(args[2],out data)))
+			throw new ArgumentException("Bad Format");
+		return new Task_Cargo(type,data);
+	}
+	
+	public static bool TryParse(string input,out Task_Cargo output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+
+Gen_Task ParseTask(string input){
+	string name=Ship_Task<int>.StringParser(input)[0];
+	switch(name){
+		case "None":
+			return Task_None.Parse(input);
+		case "Refuel":
+			return Task_Refuel.Parse(input);
+		case "Cargo":
+			return Task_Refuel.Parse(input);
+	}
+	return null;
+}
+
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
@@ -1685,160 +1840,6 @@ bool FactoryReset(){
 	this.Storage="";
 	Me.Enabled=false;
 	return true;
-}
-
-enum TaskType{
-	Idle,
-	Transfer,
-	Dock,
-	Travel,
-	Job
-}
-abstract class Gen_Task{
-	public TaskType Type;
-	public string Name;
-}
-abstract class Ship_Task<T>:Gen_Task{
-	public T Data;
-	public virtual bool Valid{
-		get{
-			return Type!=TaskType.Idle;
-		}
-	}
-	
-	protected Ship_Task(string name,TaskType type,T data){
-		Type=type;
-		Name=name;
-		Data=data;
-	}
-	
-	public override string ToString(){
-		return "{("+Name.ToString()+");("+Type.ToString()+");("+Data.ToString()+")}";
-	}
-	
-	public static string[] StringParser(string input){
-		if(input.IndexOf("{(")!=0||!input.Substring(input.Length-2).Equals(")}"))
-			throw new ArgumentException("Bad format");
-		int[] indices={-1,-1};
-		int strCount=0;
-		for(int i=2;i<input.Length-2;i++){
-			if(input.Substring(i,3).Equals(");(")){
-				if(strCount>2)
-					throw new ArgumentException("Bad format");
-				indices[strCount++]=i;
-			}
-		}
-		if(strCount<2)
-			throw new ArgumentException("Bad format");
-		
-		string[] output={input.Substring(2,indices[0]-2),input.Substring(indices[0],indices[1]-indices[0]),input.Substring(indices[2],input.Length-2-indices[2])};
-		return output;
-	}
-	
-}
-class Task_None:Ship_Task<string>{
-	public override bool Valid{
-		get{
-			return (!base.Valid)||Type!=TaskType.Dock;
-		}
-	}
-	
-	public Task_None():base("None",TaskType.Idle,""){
-		;
-	}
-	
-	public Task_None(TaskType type):base("None",type,""){
-		;
-	}
-	
-	public static Task_None Parse(string input){
-		string[] args=Ship_Task<Dock>.StringParser(input);
-		TaskType type;
-		Dock data;
-		if((!args[0].Equals("None"))||(!Enum.TryParse(args[1],out type))||(!Dock.TryParse(args[2],out data))||data.Length>0)
-			throw new ArgumentException("Bad Format");
-		return new Task_None(type);
-	}
-	
-	public static bool TryParse(string input,out Task_None output){
-		output=null;
-		try{
-			output=Parse(input);
-			return output!=null;
-		}
-		catch{
-			return false;
-		}
-	}
-}
-class Task_Refuel:Ship_Task<Dock>{
-	public Task_Refuel(TaskType type,Dock data):base("Refuel",type,data){
-		;
-	}
-	
-	public static Task_Refuel Parse(string input){
-		string[] args=Ship_Task<Dock>.StringParser(input);
-		TaskType type;
-		Dock data;
-		if((!args[0].Equals("Refuel"))||(!Enum.TryParse(args[1],out type))||(!Dock.TryParse(args[2],out data)))
-			throw new ArgumentException("Bad Format");
-		return new Task_Refuel(type,data);
-	}
-	
-	public static bool TryParse(string input,out Task_Refuel output){
-		output=null;
-		try{
-			output=Parse(input);
-			return output!=null;
-		}
-		catch{
-			return false;
-		}
-	}
-}
-class Task_Cargo:Ship_Task<CargoDock>{
-	public override bool Valid{
-		get{
-			return true;
-		}
-	}
-	
-	public Task_Cargo(TaskType type,CargoDock data):base("Cargo",type,data){
-		;
-	}
-	
-	public static Task_Cargo Parse(string input){
-		string[] args=Ship_Task<Dock>.StringParser(input);
-		TaskType type;
-		CargoDock data;
-		if((!args[0].Equals("Cargo"))||(!Enum.TryParse(args[1],out type))||(!CargoDock.TryParse(args[2],out data)))
-			throw new ArgumentException("Bad Format");
-		return new Task_Cargo(type,data);
-	}
-	
-	public static bool TryParse(string input,out Task_Cargo output){
-		output=null;
-		try{
-			output=Parse(input);
-			return output!=null;
-		}
-		catch{
-			return false;
-		}
-	}
-}
-
-Gen_Task ParseTask(string input){
-	string name=Ship_Task<int>.StringParser(input)[0];
-	switch(name){
-		case "None":
-			return Task_None.Parse(input);
-		case "Refuel":
-			return Task_Refuel.Parse(input);
-		case "Cargo":
-			return Task_Refuel.Parse(input);
-	}
-	return null;
 }
 
 class Notification{
@@ -2698,7 +2699,7 @@ bool CargoTask(){
 		}
 		
 		
-		//Other, actual item transfers
+		//Other, inventory item transfers
 		
 		
 		if(completed_transfer){
