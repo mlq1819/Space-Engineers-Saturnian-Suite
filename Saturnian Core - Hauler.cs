@@ -1224,7 +1224,7 @@ class CargoDock:Dock{
 		if(strCount<5)
 			return false;
 		try{
-			string p1=input.Substring(2,indices[0]);
+			string p1=input.Substring(2,indices[0]-2);
 			string p2=input.Substring(indices[0]+3,indices[1]-(indices[0]+3));
 			string p3=input.Substring(indices[1]+3,indices[2]-(indices[1]+3));
 			string p4=input.Substring(indices[2]+3,indices[3]-(indices[2]+3));
@@ -1477,6 +1477,83 @@ bool FactoryReset(){
 	Me.Enabled=false;
 	return true;
 }
+
+enum TaskType{
+	Idle,
+	Transfer,
+	Dock,
+	Travel,
+	Job
+}
+
+abstract class Task<T>{
+	public TaskType Type;
+	public string Name;
+	public T Data;
+	
+	protected Task<T>(TaskType type,string name){
+		Type=type;
+		Name=name;
+	}
+	
+	protected Task<T>(TaskType type,string name,T data){
+		Type=type;
+		Name=name;
+		Data=data;
+	}
+	
+	public override string ToString(){
+		return "{("+Type.ToString()+');('+Name.ToString()+");("+Data.ToString()+")}";
+	}
+	
+	protected static string[] StringParser(string input){
+		if(input.IndexOf("{(")!=0||!input.Substring(input.Length-2).Equals(")}"));
+			throw new ArgumentException("Bad format");
+		int[] indices={-1,-1};
+		int strCount=0;
+		for(int i=2;i<input.Length-2;i++){
+			if(input.Substring(i,3).Equals(");(")){
+				if(strCount>2)
+					throw new ArgumentException("Bad format");
+				indices[strCount++]=i;
+			}
+		}
+		if(strCount<2)
+			throw new ArgumentException("Bad format");
+		
+		string[] output=[input.Substring(2,indices[0]-2),input.Substring(indices[0],indices[1]-indices[0]),input.Subtring(indices[2],input.Length-2-indices[2])];
+		return output;
+	}
+}
+class Task_Refuel:Task<Dock>{
+	
+	public Task_Refuel(string name,Dock data):base(TaskType.,name,data){
+		;
+	}
+	
+	public override string ToString(){
+		return "{("+Type.ToString()+');('+Name.ToString()+");("+Data.ToString()+")}";
+	}
+	
+	public static bool TryParse(string input,out Task_Refuel output){
+		output=null;
+		try{
+			string[] args=Task<Dock>.StringParser(input);
+			TaskType type;
+			if((!Enum.TryParse(args[0],out type))||type==TaskType.Idle||type=TaskType.Job)
+				return false;
+			Dock data;
+			if(!Dock.TryParse(args[2],out data))
+				return false;
+			output=new Task_Refuel(type,args[1],data);
+			return true;
+		}
+		catch(Exception){
+			return false;
+		}
+	}
+}
+
 
 class Notification{
 	public string Text;
