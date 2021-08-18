@@ -916,8 +916,8 @@ enum QuantityType{
 	Value
 }
 struct Quantity{
-	float Value;
-	QuantityType Type;
+	public float Value;
+	public QuantityType Type;
 	bool Valid{
 		get{
 			if(Value<0)
@@ -1139,7 +1139,7 @@ class Dock{
 	public string DockName;
 	public bool Docked{
 		get{
-			return DockDistance<3.25&&DockingConnector.Status==ConnectorStatus.Connectedl
+			return DockDistance<3.25&&DockingConnector.Status==MyShipConnectorStatus.Connected;
 		}
 	}
 	
@@ -1191,12 +1191,12 @@ class CargoDock:Dock{
 	public List<CargoOrder> Orders;
 	public double IdleTimer;
 	
-	public CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,string dockName="Unnamed Cargo Dock",double idleTimer):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
+	public CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,double idleTimer,string dockName="Unnamed Cargo Dock"):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
 		Orders=new List<CargoOrder>();
 		IdleTimer=idleTimer;
 	}
 	
-	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,List<CargoOrder> orders,string dockName,double idleTimer):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
+	protected CargoDock(IMyShipConnector dockingConnector,Vector3D dockPosition,Vector3D dockDirection,Vector3D dockForward,Vector3D dockUp,double idleTimer,List<CargoOrder> orders,string dockName):base(dockingConnector,dockPosition,dockDirection,dockForward,dockUp,dockName){
 		Orders=orders;
 		IdleTimer=idleTimer;
 	}
@@ -1331,16 +1331,16 @@ enum ContainerStatus{
 	Out
 }
 abstract class ResourceContainer{
-	public virtual IMyTerminalBlock Block{get;set;}
-	public virtual float Capacity{get;}
-	public virtual float Max{get;}
-	public virtual float Current{get;}
+	public abstract IMyTerminalBlock Block{get;set;}
+	public abstract float Capacity{get;}
+	public abstract float Max{get;}
+	public abstract float Current{get;}
 	public ContainerStatus Status;
 	
-	public virtual void On();
-	public virtual void Off();
-	public virtual void In();
-	public virtual void Out();
+	public abstract void On();
+	public abstract void Off();
+	public abstract void In();
+	public abstract void Out();
 }
 class PowerContainer:ResourceContainer{
 	public IMyBatteryBlock Battery;
@@ -1373,25 +1373,25 @@ class PowerContainer:ResourceContainer{
 		On();
 	}
 	
-	public override bool On(){
+	public override void On(){
 		Battery.ChargeMode=ChargeMode.Auto;
 		Battery.Enabled=true;
 		Status=ContainerStatus.On;
 	}
 	
-	public override bool Off(){
+	public override void Off(){
 		Battery.ChargeMode=ChargeMode.Auto;
 		Battery.Enabled=false;
 		Status=ContainerStatus.Off;
 	}
 	
-	public override bool In(){
+	public override void In(){
 		Battery.ChargeMode=ChargeMode.Recharge;
 		Battery.Enabled=true;
 		Status=ContainerStatus.In;
 	}
 	
-	public override bool Out(){
+	public override void Out(){
 		Battery.ChargeMode=ChargeMode.Discharge;
 		Battery.Enabled=true;
 		Status=ContainerStatus.Out;
@@ -1409,7 +1409,7 @@ class GasContainer:ResourceContainer{
 	}
 	public override float Capacity{
 		get{
-			return Tank.FilledRatio;
+			return (float)Tank.FilledRatio;
 		}
 	}
 	public override float Max{
@@ -1428,25 +1428,25 @@ class GasContainer:ResourceContainer{
 		On();
 	}
 	
-	public override bool On(){
+	public override void On(){
 		Tank.Stockpile=false;
 		Tank.Enabled=true;
 		Status=ContainerStatus.On;
 	}
 	
-	public override bool Off(){
+	public override void Off(){
 		Tank.Stockpile=false;
 		Tank.Enabled=false;
 		Status=ContainerStatus.Off;
 	}
 	
-	public override bool In(){
+	public override void In(){
 		Tank.Stockpile=true;
 		Tank.Enabled=true;
 		Status=ContainerStatus.In;
 	}
 	
-	public override bool Out(){
+	public override void Out(){
 		Tank.Stockpile=false;
 		Tank.Enabled=true;
 	}
@@ -1519,8 +1519,7 @@ class Task_None:Ship_Task<string>{
 	public static Task_None Parse(string input){
 		string[] args=Ship_Task<Dock>.StringParser(input);
 		TaskType type;
-		Dock data;
-		if((!args[0].Equals("None"))||(!Enum.TryParse(args[1],out type))||(!Dock.TryParse(args[2],out data))||data.Length>0)
+		if((!args[0].Equals("None"))||(!Enum.TryParse(args[1],out type))||args[2].Length>0)
 			throw new ArgumentException("Bad Format");
 		return new Task_None(type);
 	}
@@ -1618,8 +1617,8 @@ Queue<CargoDock> CargoDocks;
 List<IMyShipConnector> DockingConnectors;
 Gen_Task MyTask;
 IMyProgrammableBlock Navigation;
-List<ResourceContainer> FuelContainer;
-List<ResourceContainer> CargoContainer;
+List<ResourceContainer> FuelContainers;
+List<ResourceContainer> CargoContainers;
 
 Base6Directions.Direction Forward;
 Base6Directions.Direction Backward{
@@ -1681,8 +1680,8 @@ void Reset(){
 	Queue<CargoDock> CargoDocks=new Queue<CargoDock>();
 	MyTask=new Task_None();
 	Navigation=null;
-	FuelContainer=new List<ResourceContainer>();
-	CargoContainer=new List<ResourceContainer>();
+	FuelContainers=new List<ResourceContainer>();
+	CargoContainers=new List<ResourceContainer>();
 }
 
 double MySize=0;
@@ -1748,6 +1747,7 @@ bool Setup(){
 						catch{
 							MyTask=new Task_None();
 						}
+						break;
 				}
 				break;
 		}
@@ -1764,18 +1764,18 @@ bool Setup(){
 		if(HasBlockData(Container.Block,"Job")){
 			string job=GetBlockData(Container.Block,"Job");
 			if(job.Equals("Fuel"))
-				FuelContainer.Add(Container);
+				FuelContainers.Add(Container);
 			else if(job.Equals("Cargo"))
-				CargoContainer.Add(Container);
+				CargoContainers.Add(Container);
 		}
 		else{
 			if(Container.Block.CustomName.ToLower().Contains("fuel")||!Container.Block.CustomName.ToLower().Contains("cargo")){
 				SetBlockData(Container.Block,"Job","Fuel");
-				FuelContainer.Add(Container);
+				FuelContainers.Add(Container);
 			}
 			else{
 				SetBlockData(Container.Block,"Job","Cargo");
-				CargoContainer.Add(Container);
+				CargoContainers.Add(Container);
 			}
 		}
 	}
@@ -2443,11 +2443,11 @@ bool Undock(Dock dock){
 	foreach(ResourceContainer Container in FuelContainers)
 		Container.On();
 	dock.DockingConnector.Disconnect();
-	Notifications.Add(new Notification("Undocked from "+dock.Name,10));
+	Notifications.Add(new Notification("Undocked from "+dock.DockName,10));
 	return true;
 }
 
-Vector3D ConnectorOffset(IMyShipConnector){
+Vector3D ConnectorOffset(IMyShipConnector connector){
 	return connector.GetPosition()-Controller.GetPosition();
 }
 
@@ -2459,6 +2459,7 @@ TaskType BeginDocking(TaskType current,Dock dock){
 	Vector3D offset_final=dock.DockFinal-ConnectorOffset(connector);
 	
 	Vector3D DockDirection=dock.DockDirection;
+	Vector3D DockForward=dock.DockForward;
 	Vector3D DockUp=dock.DockUp;
 	double approach_distance=(connector.GetPosition()-offset_approach).Length();
 	double dock_distance=(connector.GetPosition()-offset_target).Length();
@@ -2470,7 +2471,7 @@ TaskType BeginDocking(TaskType current,Dock dock){
 			Navigation.TryRun("Match\nUntil\n"+DockDirection.ToString());
 			Navigation.TryRun("Up\nUntil\n"+DockUp.ToString());
 			current=TaskType.Job;
-			SetBlockData(dock.DockingConnector,"AutoDockTimer",0);
+			SetBlockData(dock.DockingConnector,"AutoDockTimer","0");
 		}
 		else{
 			if(approach_distance<100+MySize){
@@ -2486,7 +2487,7 @@ TaskType BeginDocking(TaskType current,Dock dock){
 			if(dock_distance<0.25){
 				Navigation.TryRun("Go\nUntil\n"+offset_final.ToString());
 				current=TaskType.Dock;
-				SetBlockData(dock.DockingConnector,"AutoDockTimer",0);
+				SetBlockData(dock.DockingConnector,"AutoDockTimer","0");
 			}
 		}
 		else
@@ -2495,7 +2496,7 @@ TaskType BeginDocking(TaskType current,Dock dock){
 	if(current==TaskType.Dock){
 		double autoDockTimer=0;
 		if(dock.DockingConnector.Status==MyShipConnectorStatus.Connectable){
-			double.TryParse(GetblockData(dock.DockingConnector,"AutoDockTimer"));
+			double.TryParse(GetBlockData(dock.DockingConnector,"AutoDockTimer"),out autoDockTimer);
 			autoDockTimer+=seconds_since_last_update;
 			if(autoDockTimer>2)
 				dock.DockingConnector.Connect();
@@ -2505,7 +2506,7 @@ TaskType BeginDocking(TaskType current,Dock dock){
 			Navigation.TryRun("Match\nStop");
 			Navigation.TryRun("Up\nStop");
 			current=TaskType.Transfer;
-			SetBlockData(dock.DockingConnector,"AutoDockTimer",0);
+			SetBlockData(dock.DockingConnector,"AutoDockTimer","0");
 		}
 		else
 			SetBlockData(dock.DockingConnector,"AutoDockTimer",Math.Round(autoDockTimer,3).ToString());
@@ -2534,13 +2535,13 @@ bool RefuelTask(){
 		return false;
 	if(current.Type!=TaskType.Transfer)
 		current.Type=BeginDocking(current.Type,current.Data);
+	MyTask=current;
 	if(current.Type==TaskType.Transfer){
 		if(PerformRefuel())
-			current=new Task_None(TaskType.Dock);
+			MyTask=new Task_None(TaskType.Dock);
 		else
-			Display(1,"Refueling at "+current.Data.Name);
+			Display(1,"Refueling at "+current.Data.DockName);
 	}
-	MyTask=current;
 	return true;
 }
 
@@ -2580,23 +2581,22 @@ bool CargoTask(){
 				}
 			}
 		}
-		min_capacity=Math.Min(min_capacity,Container.Capacity);
 		for(int i=0;i<FuelContainers.Count;i++){
-			CargoContainer Container=FuelContainers[i];
+			ResourceContainer Container=FuelContainers[i];
 			PowerContainer P_Container=Container as PowerContainer;
 			GasContainer G_Container=Container as GasContainer;
-			CargoOrder myOrder=null;
+			CargoOrder? myOrder=null;
 			if(P_Container!=null)
 				myOrder=(CargoOrder)powerOrder;
 			else if(G_Container!=null){
 				if(G_Container.Tank.DefinitionDisplayNameText.ToLower().Contains("hydrogen"))
-					myOrder=(CargoOrder)h2Order;
+					myOrder=h2Order;
 				else
-					myOrder=(CargoOrder)o2Order;
+					myOrder=o2Order;
 			}
 			if(refuel&&myOrder==null){
 				if(Container.Capacity<1){
-					if(Container<0.75f)
+					if(Container.Capacity<0.75f)
 						completed_transfer=false;
 					if(Container.Status!=ContainerStatus.In)
 						Container.In();
@@ -2608,17 +2608,17 @@ bool CargoTask(){
 				Container.Off();
 		}
 		for(int i=0;i<CargoContainers.Count;i++){
-			CargoContainer Container=CargoContainers[i];
+			ResourceContainer Container=CargoContainers[i];
 			PowerContainer P_Container=Container as PowerContainer;
 			GasContainer G_Container=Container as GasContainer;
-			CargoOrder myOrder=null;
+			CargoOrder? myOrder=null;
 			if(P_Container!=null)
-				myOrder=(CargoOrder)powerOrder;
+				myOrder=powerOrder;
 			else if(G_Container!=null){
 				if(G_Container.Tank.DefinitionDisplayNameText.ToLower().Contains("hydrogen"))
-					myOrder=(CargoOrder)h2Order;
+					myOrder=h2Order;
 				else
-					myOrder=(CargoOrder)o2Order;
+					myOrder=o2Order;
 			}
 			if(myOrder!=null){
 				float last_charge=1;
@@ -2629,11 +2629,11 @@ bool CargoTask(){
 					charge_timer=Math.Min(300,charge_timer+seconds_since_last_update);
 				}
 				SetBlockData(Container.Block,"LastCharge",Container.Capacity.ToString());
-				SetBlockData(Container.Block,"ChargeTimer",charge.ToString());
+				SetBlockData(Container.Block,"ChargeTimer",charge_timer.ToString());
 				float starting_capacity=0;
-				float.TryParse(GetBlockData(Container.Block,"StartingCapacity"),out capacity);
-				if(myOrder.Dynamic){
-					if(myOrder.Direction==CargoDirection.Deposit){
+				float.TryParse(GetBlockData(Container.Block,"StartingCapacity"),out starting_capacity);
+				if(((CargoOrder)myOrder).Dynamic){
+					if(((CargoOrder)myOrder).Direction==CargoDirection.Deposit){
 						if(charge_timer>60||Container.Capacity==0){
 							if(Container.Status!=ContainerStatus.Off)
 								Container.Off();
@@ -2642,7 +2642,7 @@ bool CargoTask(){
 							if(Container.Status!=ContainerStatus.Out)
 								Container.Out();
 						}
-						if(charge_timer<15&&container.Capacity>0)
+						if(charge_timer<15&&Container.Capacity>0)
 							completed_transfer=false;
 					}
 					else{
@@ -2654,17 +2654,17 @@ bool CargoTask(){
 							if(Container.Status!=ContainerStatus.In)
 								Container.In();
 						}
-						if(charge_timer<15||container.Capacity<1)
+						if(charge_timer<15||Container.Capacity<1)
 							completed_transfer=false;
 					}
 				}
 				else{
 					float target_capacity=0;
-					if(myOrder.Direction==CargoDirection.Deposit){
-						if(((Quantity)myOrder.Quantity).Type==QuantityType.Percent)
-							target_capacity=starting_capacity*((Quantity)myOrder.Quantity).Value;
+					if(((CargoOrder)myOrder).Direction==CargoDirection.Deposit){
+						if(((Quantity)((CargoOrder)myOrder).Value).Type==QuantityType.Percent)
+							target_capacity=starting_capacity*((Quantity)((CargoOrder)myOrder).Value).Value;
 						else{
-							target_capacity=((Quantity)myOrder.Quantity).Value/Container.Max;
+							target_capacity=((Quantity)((CargoOrder)myOrder).Value).Value/Container.Max;
 							target_capacity=Math.Max(starting_capacity-target_capacity,0);
 						}
 						if(Container.Capacity<=target_capacity){
@@ -2678,10 +2678,10 @@ bool CargoTask(){
 						}
 					}
 					else{
-						if(((Quantity)myOrder.Quantity).Type==QuantityType.Percent)
-							target_capacity=((Quantity)myOrder.Quantity).Value;
+						if(((Quantity)((CargoOrder)myOrder).Value).Type==QuantityType.Percent)
+							target_capacity=((Quantity)((CargoOrder)myOrder).Value).Value;
 						else{
-							target_capacity=((Quantity)myOrder.Quantity).Value/Container.Max;
+							target_capacity=((Quantity)((CargoOrder)myOrder).Value).Value/Container.Max;
 							target_capacity=Math.Min(starting_capacity+target_capacity,1);
 						}
 						if(Container.Capacity>=target_capacity){
@@ -2706,7 +2706,7 @@ bool CargoTask(){
 			current.Type=TaskType.Idle;
 		}
 		else
-			Display(1,"Transfering Cargo at "+current.Data.Name);
+			Display(1,"Transfering Cargo at "+current.Data.DockName);
 	}
 	MyTask=current;
 	if(current.Type==TaskType.Idle){
@@ -2721,7 +2721,7 @@ bool CargoTask(){
 		}
 		else{
 			if(CargoDocks.Count>1)
-				Display(1,"Idling at Cargo Dock");
+				Display(1,"Idling at Cargo Dock "+current.Data.DockName);
 			else{
 				double rem_time=current.Data.IdleTimer-CargoIdleTimer;
 				string time_str=Math.Round(rem_time,0).ToString()+"s";
@@ -2731,7 +2731,7 @@ bool CargoTask(){
 				}
 				if(rem_time>=60)
 					time_str=Math.Round(rem_time/60,0).ToString()+"hr, "+Math.Round(rem_time%60,2).ToString()+"min";
-				Display(1,"Idling at Cargo Dock: "+time_str+" remaining");
+				Display(1,"Idling at Cargo Dock "+current.Data.DockName+": "+time_str+" remaining");
 			}
 		}
 	}
