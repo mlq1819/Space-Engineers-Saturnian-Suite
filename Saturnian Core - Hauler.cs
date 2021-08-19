@@ -2114,7 +2114,11 @@ class Task{
 			new Vector2(1,-1)
 			)); //Params: ProgName, [Arguments]
 			
-			
+			output.Add(new TaskFormat(
+			"Alert",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Once}),
+			new Vector2(1,-1)
+			)); //Params: Type, Quantity
 			
 			return output;
 		}
@@ -2136,8 +2140,13 @@ bool Task_Send(Task task){
 	return target.TryRun(arguments);
 }
 
-//Considers an alert from R
+//Considers an alert from Resources
 bool Task_Alert(Task task){
+	TypedCargo type;
+	Quantity value;
+	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&Quantity.TryParse(task.Qualifiers[1],out value)))
+		return false;
+	
 	
 }
 
@@ -2159,6 +2168,8 @@ bool PerformTask(Task task){
 	switch(task.Type){
 		case "Send":
 			return Task_Send(task);
+		case "Alert":
+			return Task_Alert(task);
 	}
 	return false;
 }
