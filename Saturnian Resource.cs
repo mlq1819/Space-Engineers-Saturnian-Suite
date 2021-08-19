@@ -489,58 +489,651 @@ struct CustomPanel{
 	}
 }
 
+//Contains raw IDs for items of each type
+public static class Item{
+	public static List<MyItemType> All{
+		get{
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType I in Raw.All)
+				output.Add(I);
+			foreach(MyItemType I in Ingot.All)
+				output.Add(I);
+			foreach(MyItemType I in Comp.All)
+				output.Add(I);
+			foreach(MyItemType I in Ammo.All)
+				output.Add(I);
+			foreach(MyItemType I in Tool.All)
+				output.Add(I);
+			foreach(MyItemType I in Cons.All)
+				output.Add(I);
+			output.Add(Datapad);
+			output.Add(Package);
+			output.Add(Credit);
+			return output;
+		}
+	}
+	
+	public static List<MyItemType> ByString(string name){
+		List<MyItemType> output=new List<MyItemType>();
+		int index=name.Trim().IndexOf(' ');
+		string subtype="";
+		if(index==-1)
+			index=name.Length;
+		else
+			subtype=name.Substring(index+1).ToLower();
+		string type=name.Substring(0,index).ToLower();
+		if(type.Equals("raw")||type.Equals("ore"))
+			return output.Concat(Raw.ByString(subtype)).ToList();
+		if(type.Equals("ingot")||type.Equals("wafer")||type.Equals("powder"))
+			return output.Concat(Ingot.ByString(subtype)).ToList();
+		if(type.Equals("component")||type.Equals("comp"))
+			return output.Concat(Comp.ByString(subtype)).ToList();
+		if(type.Equals("ammo")||type.Equals("ammunition"))
+			return output.Concat(Ammo.ByString(subtype)).ToList();
+		if(type.Equals("tool")||type.Equals("gun")||type.Equals("weapon"))
+			return output.Concat(Tool.ByString(subtype)).ToList();
+		if(type.Equals("consumable")||type.Equals("cons"))
+			return output.Concat(Cons.ByString(subtype)).ToList();
+		if(type.Equals("data")||type.Equals("datapad")){
+			output.Add(Datapad);
+			return output;
+		}
+		if(type.Equals("package")){
+			output.Add(Package);
+			return output;
+		}
+		if(type.Equals("credit")||type.Equals("sc"))
+			output.Add(Credit);
+		return output;
+	}
+	
+	public static class Raw{
+		static string B_O="MyObjectBuilder_Ore";
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Ice);
+				output.Add(Stone);
+				output.Add(Iron);
+				output.Add(Nickel);
+				output.Add(Silicon);
+				output.Add(Cobalt);
+				output.Add(Uranium);
+				output.Add(Magnesium);
+				output.Add(Silver);
+				output.Add(Gold);
+				output.Add(Platinum);
+				output.Add(Scrap);
+				output.Add(Organic);
+				return output;
+			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
+		public static MyItemType Ice=new MyItemType(B_O,"Ice");
+		public static MyItemType Stone=new MyItemType(B_O,"Stone");
+		public static MyItemType Iron=new MyItemType(B_O,"Iron");
+		public static MyItemType Nickel=new MyItemType(B_O,"Nickel");
+		public static MyItemType Silicon=new MyItemType(B_O,"Silicon");
+		public static MyItemType Cobalt=new MyItemType(B_O,"Cobalt");
+		public static MyItemType Uranium=new MyItemType(B_O,"Uranium");
+		public static MyItemType Magnesium=new MyItemType(B_O,"Magnesium");
+		public static MyItemType Silver=new MyItemType(B_O,"Silver");
+		public static MyItemType Gold=new MyItemType(B_O,"Gold");
+		public static MyItemType Platinum=new MyItemType(B_O,"Platinum");
+		public static MyItemType Scrap=new MyItemType(B_O,"Scrap");
+		public static MyItemType Organic=new MyItemType(B_O,"Organic");
+	}
+	public static class Ingot{
+		static string B_I="MyObjectBuilder_Ingot";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Stone);
+				output.Add(Iron);
+				output.Add(Nickel);
+				output.Add(Silicon);
+				output.Add(Cobalt);
+				output.Add(Uranium);
+				output.Add(Magnesium);
+				output.Add(Silver);
+				output.Add(Gold);
+				output.Add(Platinum);
+				output.Add(Scrap);
+				return output;
+			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
+		public static MyItemType Stone=new MyItemType(B_I,"Stone");
+		public static MyItemType Iron=new MyItemType(B_I,"Iron");
+		public static MyItemType Nickel=new MyItemType(B_I,"Nickel");
+		public static MyItemType Silicon=new MyItemType(B_I,"Silicon");
+		public static MyItemType Cobalt=new MyItemType(B_I,"Cobalt");
+		public static MyItemType Uranium=new MyItemType(B_I,"Uranium");
+		public static MyItemType Magnesium=new MyItemType(B_I,"Magnesium");
+		public static MyItemType Silver=new MyItemType(B_I,"Silver");
+		public static MyItemType Gold=new MyItemType(B_I,"Gold");
+		public static MyItemType Platinum=new MyItemType(B_I,"Platinum");
+		public static MyItemType Scrap=new MyItemType(B_I,"Scrap");
+	}
+	public static class Comp{
+		static string B_C="MyObjectBuilder_Component";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Steel);
+				output.Add(Construction);
+				output.Add(Interior);
+				output.Add(Motor);
+				output.Add(Computer);
+				output.Add(Small);
+				output.Add(Large);
+				output.Add(Grid);
+				output.Add(Display);
+				output.Add(Girder);
+				output.Add(Thrust);
+				output.Add(Reactor);
+				output.Add(Super);
+				output.Add(Power);
+				output.Add(Detector);
+				output.Add(Grav);
+				output.Add(Medical);
+				output.Add(Radio);
+				output.Add(Solar);
+				output.Add(Explosive);
+				output.Add(Zone);
+				output.Add(Canvas);
+				return output;
+			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
+		public static MyItemType Steel=new MyItemType(B_C,"SteelPlate");
+		public static MyItemType Construction=new MyItemType(B_C,"Construction");
+		public static MyItemType Interior=new MyItemType(B_C,"InteriorPlate");
+		public static MyItemType Motor=new MyItemType(B_C,"Motor");
+		public static MyItemType Computer=new MyItemType(B_C,"Computer");
+		public static MyItemType Small=new MyItemType(B_C,"SmallTube");
+		public static MyItemType Large=new MyItemType(B_C,"LargeTube");
+		public static MyItemType Grid=new MyItemType(B_C,"MetalGrid");
+		public static MyItemType Display=new MyItemType(B_C,"Display");
+		public static MyItemType Girder=new MyItemType(B_C,"Girder");
+		public static MyItemType Glass=new MyItemType(B_C,"BulletproofGlass");
+		public static MyItemType Thrust=new MyItemType(B_C,"Thrust");
+		public static MyItemType Reactor=new MyItemType(B_C,"Reactor");
+		public static MyItemType Super=new MyItemType(B_C,"Superconductor");
+		public static MyItemType Power=new MyItemType(B_C,"PowerCell");
+		public static MyItemType Detector=new MyItemType(B_C,"Detector");
+		public static MyItemType Grav=new MyItemType(B_C,"GravityGenerator");
+		public static MyItemType Medical=new MyItemType(B_C,"Medical");
+		public static MyItemType Radio=new MyItemType(B_C,"RadioCommunication");
+		public static MyItemType Solar=new MyItemType(B_C,"SolarCell");
+		public static MyItemType Explosive=new MyItemType(B_C,"Explosives");
+		public static MyItemType Zone=new MyItemType(B_C,"ZoneChip");
+		public static MyItemType Canvas=new MyItemType(B_C,"Canvas");
+	}
+	public static class Ammo{
+		static string B_A="MyObjectBuilder_AmmoMagazine";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Missile);
+				output.Add(Container);
+				output.Add(Magazine);
+				output.Add(RifleB);
+				output.Add(RifleP);
+				output.Add(RifleA);
+				output.Add(RifleE);
+				output.Add(PistolB);
+				output.Add(PistolA);
+				output.Add(PistolE);
+				return output;
+			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
+		public static MyItemType Missile=new MyItemType(B_A,"Missile200mm");
+		public static MyItemType Container=new MyItemType(B_A,"NATO_25x184mm");
+		public static MyItemType Magazine=new MyItemType(B_A,"NATO_5p56x45mm");
+		public static MyItemType RifleB=new MyItemType(B_A,"AutomaticRifleGun_Mag_20rd");
+		public static MyItemType RifleP=new MyItemType(B_A,"PreciseAutomaticRifleGun_Mag_5rd");
+		public static MyItemType RifleA=new MyItemType(B_A,"RapidFireAutomaticRifleGun_Mag_50rd");
+		public static MyItemType RifleE=new MyItemType(B_A,"UltimateAutomaticRifleGun_Mag_30rd");
+		public static MyItemType PistolB=new MyItemType(B_A,"SemiAutoPistolMagazine");
+		public static MyItemType PistolA=new MyItemType(B_A,"FullAutoPistolMagazine");
+		public static MyItemType PistolE=new MyItemType(B_A,"ElitePistolMagazine");
+	}
+	public static class Tool{
+		static string B_T="MyObjectBuilder_PhysicalGunObject";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(H2);
+				output.Add(O2);
+				output.Add(Welder1);
+				output.Add(Welder2);
+				output.Add(Welder3);
+				output.Add(Welder4);
+				output.Add(Grinder1);
+				output.Add(Grinder2);
+				output.Add(Grinder3);
+				output.Add(Grinder4);
+				output.Add(Drill1);
+				output.Add(Drill2);
+				output.Add(Drill3);
+				output.Add(Drill4);
+				output.Add(RifleB);
+				output.Add(RifleP);
+				output.Add(RifleA);
+				output.Add(RifleE);
+				output.Add(PistolB);
+				output.Add(PistolA);
+				output.Add(PistolE);
+				output.Add(RocketB);
+				output.Add(RocketP);
+				return output;
+			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
+		public static MyItemType H2=new MyItemType("MyObjectBuilder_GasContainerObject","HydrogenBottle");
+		public static MyItemType O2=new MyItemType("MyObjectBuilder_OxygenContainerObject","OxygenBottle");
+		public static MyItemType Welder1=new MyItemType(B_T,"WelderItem");
+		public static MyItemType Welder2=new MyItemType(B_T,"Welder2Item");
+		public static MyItemType Welder3=new MyItemType(B_T,"Welder3Item");
+		public static MyItemType Welder4=new MyItemType(B_T,"Welder4Item");
+		public static MyItemType Grinder1=new MyItemType(B_T,"AngleGrinderItem");
+		public static MyItemType Grinder2=new MyItemType(B_T,"AngleGrinder2Item");
+		public static MyItemType Grinder3=new MyItemType(B_T,"AngleGrinder3Item");
+		public static MyItemType Grinder4=new MyItemType(B_T,"AngleGrinder4Item");
+		public static MyItemType Drill1=new MyItemType(B_T,"HandDrillItem");
+		public static MyItemType Drill2=new MyItemType(B_T,"HandDrill2Item");
+		public static MyItemType Drill3=new MyItemType(B_T,"HandDrill3Item");
+		public static MyItemType Drill4=new MyItemType(B_T,"HandDrill4Item");
+		public static MyItemType RifleB=new MyItemType(B_T,"AutomaticRifleItem");
+		public static MyItemType RifleP=new MyItemType(B_T,"PreciseAutomaticRifleItem");
+		public static MyItemType RifleA=new MyItemType(B_T,"RapidFireAutomaticRifleItem");
+		public static MyItemType RifleE=new MyItemType(B_T,"UltimateAutomaticRifleItem");
+		public static MyItemType PistolB=new MyItemType(B_T,"SemiAutoPistolItem");
+		public static MyItemType PistolA=new MyItemType(B_T,"FullAutoPistolItem");
+		public static MyItemType PistolE=new MyItemType(B_T,"ElitePistolItem");
+		public static MyItemType RocketB=new MyItemType(B_T,"BasicHandHeldLauncherItem");
+		public static MyItemType RocketP=new MyItemType(B_T,"AdvancedHandHeldLauncherItem");
+	}
+	public static class Cons{
+		static string B_C="MyObjectBuilder_ConsumableItem";
+		public static List<MyItemType> All{		
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Power);
+				output.Add(Medical);
+				output.Add(Clang);
+				output.Add(Cosmic);
+				return output;
+			}
+		}
+		public static List<MyItemType> ByString(string subtype){
+			if(subtype.Trim().Length==0)
+				return All;
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType item in All){
+				if(item.SubtypeId.ToLower().Equals(subtype))
+					output.Add(item);
+			}
+			if(output.Count==0){
+				foreach(MyItemType item in All){
+					if(item.SubtypeId.ToLower().Contains(subtype)||subtype.Contains(item.SubtypeId.ToLower()))
+						output.Add(item);
+				}
+			}
+			return output;
+		}
+		public static MyItemType Power=new MyItemType(B_C,"Powerkit");
+		public static MyItemType Medical=new MyItemType(B_C,"");
+		public static MyItemType Clang=new MyItemType(B_C,"ClangCola");
+		public static MyItemType Cosmic=new MyItemType(B_C,"CosmicCoffee");
+	}
+	
+	public static MyItemType Datapad=new MyItemType("MyObjectBuilder_Datapad","Datapad");
+	public static MyItemType Package=new MyItemType("MyObjectBuilder_Package","Package");
+	public static MyItemType Credit=new MyItemType("MyObjectBuilder_PhysicalObject","SpaceCredit");
+}
+
+enum ContainerStatus{
+	On,
+	Off,
+	In,
+	Out
+}
+abstract class ResourceContainer{
+	public abstract IMyTerminalBlock Block{get;set;}
+	public abstract float Capacity{get;}
+	public abstract float Max{get;}
+	public abstract float Current{get;}
+	public ContainerStatus Status;
+	
+	public abstract void On();
+	public abstract void Off();
+	public abstract void In();
+	public abstract void Out();
+}
+class PowerContainer:ResourceContainer{
+	public IMyBatteryBlock Battery;
+	public override IMyTerminalBlock Block{
+		get{
+			return Battery;
+		}
+		set{
+			Battery=value as IMyBatteryBlock;
+		}
+	}
+	public override float Capacity{
+		get{
+			return Battery.CurrentStoredPower/Battery.MaxStoredPower;
+		}
+	}
+	public override float Max{
+		get{
+			return Battery.MaxStoredPower;
+		}
+	}
+	public override float Current{
+		get{
+			return Battery.CurrentStoredPower;
+		}
+	}
+	
+	public PowerContainer(IMyBatteryBlock battery){
+		Battery=battery;
+		On();
+	}
+	
+	public override void On(){
+		Battery.ChargeMode=ChargeMode.Auto;
+		Battery.Enabled=true;
+		Status=ContainerStatus.On;
+	}
+	
+	public override void Off(){
+		Battery.ChargeMode=ChargeMode.Auto;
+		Battery.Enabled=false;
+		Status=ContainerStatus.Off;
+	}
+	
+	public override void In(){
+		Battery.ChargeMode=ChargeMode.Recharge;
+		Battery.Enabled=true;
+		Status=ContainerStatus.In;
+	}
+	
+	public override void Out(){
+		Battery.ChargeMode=ChargeMode.Discharge;
+		Battery.Enabled=true;
+		Status=ContainerStatus.Out;
+	}
+}
+class GasContainer:ResourceContainer{
+	public IMyGasTank Tank;
+	public override IMyTerminalBlock Block{
+		get{
+			return Tank;
+		}
+		set{
+			Tank=value as IMyGasTank;
+		}
+	}
+	public override float Capacity{
+		get{
+			return (float)Tank.FilledRatio;
+		}
+	}
+	public override float Max{
+		get{
+			return Tank.Capacity;
+		}
+	}
+	public override float Current{
+		get{
+			return Max*Capacity;
+		}
+	}
+	
+	public GasContainer(IMyGasTank tank){
+		Tank=tank;
+		On();
+	}
+	
+	public override void On(){
+		Tank.Stockpile=false;
+		Tank.Enabled=true;
+		Status=ContainerStatus.On;
+	}
+	
+	public override void Off(){
+		Tank.Stockpile=false;
+		Tank.Enabled=false;
+		Status=ContainerStatus.Off;
+	}
+	
+	public override void In(){
+		Tank.Stockpile=true;
+		Tank.Enabled=true;
+		Status=ContainerStatus.In;
+	}
+	
+	public override void Out(){
+		Tank.Stockpile=false;
+		Tank.Enabled=true;
+	}
+}
+
+enum ResourceType{
+	Power,
+	Hydrogen,
+	Oxygen
+}
+abstract class TypedCargo{
+	public virtual bool Item{
+		get{
+			return false;
+		}
+	}
+	public virtual bool Resource{
+		get{
+			return false;
+		}
+	}
+	
+	public static TypedCargo Parse(string input){
+		ResourceCargo cargo_r;
+		ItemCargo cargo_i;
+		if(ResourceCargo.TryParse(input,out cargo_r))
+			return cargo_r;
+		else if(ItemCargo.TryParse(input,out cargo_i))
+			return cargo_i;
+		throw new ArgumentException("Bad format");
+	}
+}
+class ItemCargo:TypedCargo{
+	public MyItemType Type;
+	public override bool Item{
+		get{
+			return true;
+		}
+	}
+	
+	public ItemCargo(MyItemType type){
+		Type=type;
+	}
+	
+	public override string ToString(){
+		return Type.ToString();
+	}
+	
+	public static ItemCargo Parse(string input){
+		return new ItemCargo(MyItemType.Parse(input));
+	}
+	
+	public static bool TryParse(string input,out ItemCargo output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+class ResourceCargo:TypedCargo{
+	public ResourceType Type;
+	public override bool Resource{
+		get{
+			return true;
+		}
+	}
+	
+	public ResourceCargo(ResourceType type){
+		Type=type;
+	}
+	
+	public override string ToString(){
+		return Type.ToString();
+	}
+	
+	public static ResourceCargo Parse(string input){
+		return new ResourceCargo(Enum.Parse<ResourceType>(input));
+	}
+	
+	public static bool TryParse(string input,out ResourceCargo output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+class Watch{
+	public TypedCargo Type;
+	public double Quantity;
+	
+	public Watch(TypedCargo type, double quantity){
+		Type=type;
+		Quantity=quantity;
+	}
+	
+	public override string ToString(){
+		return '('+Type.ToString()+','+Quantity.ToString()+')';
+	}
+	
+	public static Watch Parse(string input){
+		if(input[0]!='('||input[input.Length-1]!=')'||input.IndexOf(',')<0)
+			throw new ArgumentException("Bad format");
+		int index=input.IndexOf(',');
+		string p1,p2;
+		p1=input.Substring(1,index-1);
+		p2=input.Substring(index+1,input.Length-index-2);
+		return new Watch(TypedCargo.Parse(p1),double.Parse(p2));
+	}
+	
+	public static bool TryParse(string input,out Watch output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+
+
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
 double seconds_since_last_update=0;
 Random Rnd;
 
-IMyShipController Controller;
-List<IMyShipController> Controllers;
+List<Watch> Watches;
+List<IMyTerminalBlock> Inventories;
 
-Base6Directions.Direction Forward;
-Base6Directions.Direction Backward{
-	get{
-		return Base6Directions.GetOppositeDirection(Forward);
-	}
-}
-Base6Directions.Direction Up;
-Base6Directions.Direction Down{
-	get{
-		return Base6Directions.GetOppositeDirection(Up);
-	}
-}
-Base6Directions.Direction Left;
-Base6Directions.Direction Right{
-	get{
-		return Base6Directions.GetOppositeDirection(Left);
-	}
-}
-
-Vector3D Forward_Vector;
-Vector3D Backward_Vector{
-	get{
-		return -1*Forward_Vector;
-	}
-}
-Vector3D Up_Vector;
-Vector3D Down_Vector{
-	get{
-		return -1*Up_Vector;
-	}
-}
-Vector3D Left_Vector;
-Vector3D Right_Vector{
-	get{
-		return -1*Left_Vector;
-	}
-}
-
-bool MainControllerFunction(IMyShipController ctr){
-	return ctr.IsMainCockpit&&ControllerFunction(ctr);
-}
-bool ControllerFunction(IMyShipController ctr){
-	return ctr.IsSameConstructAs(Me)&&ctr.CanControlShip&&ctr.ControlThrusters;
+bool InventoryFunction(IMyTerminalBlock Block){
+	return Block.HasInventory&&Me.IsSameConstructAs(Block);
 }
 
 UpdateFrequency GetUpdateFrequency(){
@@ -554,6 +1147,8 @@ void Reset(){
 	Controllers=new List<IMyShipController>();
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
+	Watches=new List<Watch>();
+	Inventories=new List<IMyTerminalBlock>();
 }
 
 double MySize=0;
@@ -577,27 +1172,27 @@ bool Setup(){
 		Panel.Display.TextPadding=0;
 		Panel.Display.FontSize=0.5f;
 	}*/
-	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
-	if(Controller==null)
-		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
-	Controllers=GenericMethods<IMyShipController>.GetAllFunc(ControllerFunction);
-	if(Controller==null){
-		Write("Failed to find Controller", false, false);
-		return false;
-	}
-	bool has_main_ctrl=false;
-	foreach(IMyShipController Ctrl in Controllers){
-		if(Ctrl.CustomName.Equals(Controller.CustomName)){
-			has_main_ctrl=true;
-			break;
+	Inventories=GenericMethods<IMyTerminalBlock>.GetAllFunc(InventoryFunction);
+	
+	string mode="";
+	string[] args=this.Storage.Split('\n');
+	foreach(string arg in args){
+		switch(arg){
+			case "Watch":
+				mode=arg;
+				break;
+			default:
+				switch(mode){
+					case "Watch":
+						Watch watch;
+						if(Watch.TryParse(arg,out watch))
+							Watches.Add(watch);
+						break;
+				}
+				break;
 		}
 	}
-	if(!has_main_ctrl)
-		Controllers.Add(Controller);
-	Forward=Controller.Orientation.Forward;
-	Up=Controller.Orientation.Up;
-	Left=Controller.Orientation.Left;
-	MySize=Controller.CubeGrid.GridSize;
+	
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
@@ -637,7 +1232,10 @@ public Program(){
 }
 
 public void Save(){
-	this.Storage="";
+	this.Storage="Watch";
+	foreach(Watch watch in Watches)
+		this.Storage+='\n'+watch.ToString();
+	
 	Me.CustomData="";
 	foreach(Task T in Task_Queue){
 		Me.CustomData+=T.ToString()+'•';
@@ -893,7 +1491,11 @@ class Task{
 			new Vector2(1,-1)
 			)); //Params: ProgName, [Arguments]
 			
-			
+			output.Add(new TaskFormat(
+			"Watch",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Until}),
+			new Vector2(2,2)
+			)); //Params: WatchType, Quantity
 			
 			return output;
 		}
@@ -915,6 +1517,11 @@ bool Task_Send(Task task){
 	return target.TryRun(arguments);
 }
 
+//Sets a new watch on a particular tem
+bool Task_Watch(Task task){
+	
+}
+
 bool PerformTask(Task task){
 	if(task.Duration==Quantifier.Stop){
 		Queue<Task> Recycling=new Queue<Task>();
@@ -933,6 +1540,8 @@ bool PerformTask(Task task){
 	switch(task.Type){
 		case "Send":
 			return Task_Send(task);
+		case "Watch":
+			return Task_Watch(task);
 	}
 	return false;
 }
