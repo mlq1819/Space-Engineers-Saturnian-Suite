@@ -2146,8 +2146,23 @@ bool Task_Alert(Task task){
 	Quantity value;
 	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&Quantity.TryParse(task.Qualifiers[1],out value)))
 		return false;
-	
-	
+	if(type.Item)
+		return false;
+	if(!(type.Resource&&value.Type==QuantityType.Percent))
+		return false;
+	ResourceType Type=(type as ResourceCargo).Type;
+	if(value.Value<=0.25f){
+		Notifications.Add(new Notification(Type.ToString()+" at "+Math.Round(value.Value*100,1)+"%",1.6);
+		if(!MyTask.Name.Equals("Refuel")){
+			if(AtRefuelStation())
+				MyTask=new Task_Refuel(TaskType.Transfer,GetFuelingDock());
+			else
+				MyTask=new Task_Refuel(TaskType.Travel,NearestDock());
+			Dock dock=(MyTask as Task_Refuel).Data;
+			Notifications.Add(new Notification("Set Refueling Course to "+dock.Data.DockName,Math.Min(60,dock.DockDistance/50)));
+		}
+	}
+	return true;
 }
 
 bool PerformTask(Task task){
@@ -2473,6 +2488,17 @@ bool AddDeposit(string data){
 Dock GetFuelingDock(){
 	foreach(Dock dock in FuelingDocks){
 		if(dock.Docked)
+			return dock;
+	}
+	return null;
+}
+
+Dock NearestDock(){
+	double distance=double.MaxValue;
+	foreach(Dock dock in FuelingDocks)
+		distance=Math.Min(distance,dock.DockDistance);
+	foreach(Dock dock in FuelingDocks){
+		if(dock.DockDistance-1<=distance)
 			return dock;
 	}
 	return null;
