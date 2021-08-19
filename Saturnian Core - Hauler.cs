@@ -2136,6 +2136,11 @@ bool Task_Send(Task task){
 	return target.TryRun(arguments);
 }
 
+//Considers an alert from R
+bool Task_Alert(Task task){
+	
+}
+
 bool PerformTask(Task task){
 	if(task.Duration==Quantifier.Stop){
 		Queue<Task> Recycling=new Queue<Task>();

@@ -1099,27 +1099,81 @@ class ResourceCargo:TypedCargo{
 	}
 }
 
-class Watch{
-	public TypedCargo Type;
-	public double Quantity;
+enum QuantityType{
+	Percent,
+	Value
+}
+struct Quantity{
+	public float Value;
+	public QuantityType Type;
+	bool Valid{
+		get{
+			if(Value<0)
+				return false;
+			if(Type.Equals(QuantityType.Percent))
+				return Value<=1;
+			return true;
+		}
+	}
+	public static Quantity Invalid{
+		get{
+			return new Quantity(-1,QuantityType.Value);
+		}
+	}
 	
-	public Watch(TypedCargo type, double quantity){
+	public Quantity(float value,QuantityType type){
 		Type=type;
-		Quantity=quantity;
+		value=Math.Max(0,value);
+		if(Type==QuantityType.Percent)
+			value=Math.Min(1,value);
+		Value=value;
 	}
 	
 	public override string ToString(){
-		return '('+Type.ToString()+','+Quantity.ToString()+')';
+		return "("+Value.ToString()+","+Type.ToString()+")";
+	}
+	
+	public static Quantity Parse(string input){
+		if(input.IndexOf('(')!=0||input.IndexOf(')')!=input.Length-1)
+			throw new ArgumentException("Bad format");
+		string[] args=input.Substring(1,input.Length-2).Split(',');
+		if(args.Length!=2)
+			throw new ArgumentException("Bad format");
+		return new Quantity(float.Parse(args[0],Enum.Parse<QuantityType>(args[1])));
+	}
+	
+	public static bool TryParse(string input,out Quantity output){
+		output=Invalid;
+		try{
+			output=Parse(input);
+			return output!=Invalid;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+class Watch{
+	public TypedCargo Type;
+	public Quantity Value;
+	
+	public Watch(TypedCargo type, Quantity value){
+		Type=type;
+		Value=value;
+	}
+	
+	public override string ToString(){
+		return '('+Type.ToString()+','+Value.ToString()+')';
 	}
 	
 	public static Watch Parse(string input){
-		if(input[0]!='('||input[input.Length-1]!=')'||input.IndexOf(',')<0)
+		if(input[0]!='('||input[input.Length-1]!=')'||input.IndexOf(',')<0||input.Substring(input.IndexOf(',')).IndexOf(',')<0)
 			throw new ArgumentException("Bad format");
 		int index=input.IndexOf(',');
 		string p1,p2;
 		p1=input.Substring(1,index-1);
 		p2=input.Substring(index+1,input.Length-index-2);
-		return new Watch(TypedCargo.Parse(p1),double.Parse(p2));
+		return new Watch(TypedCargo.Parse(p1),Quantity.Parse(p2));
 	}
 	
 	public static bool TryParse(string input,out Watch output){
@@ -1680,7 +1734,7 @@ class Task{
 			"Watch",
 			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
 			new Vector2(2,2)
-			)); //Params: WatchType, Quantity
+			)); //Params: Type, Quantity
 			
 			return output;
 		}
@@ -1705,17 +1759,17 @@ bool Task_Send(Task task){
 //Sets a new watch on a particular item or resource
 bool Task_Watch(Task task){
 	TypedCargo type;
-	double quantity;
-	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&double.TryParse(task.Qualifiers[1],out quantity))
+	Quantity value;
+	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&Quantity.TryParse(task.Qualifiers[1],out value))
 		return false;
 	for(int i=0;i<Watches.Count;i++){
 		if(Watches[i].Type.Equals(type)){
-			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Quantity,1).ToString()+"->"+Math.Round(quantity,1).ToString()+")",10));
-			Watches[i].Quantity=quantity;
+			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Value,1).ToString()+"->"+Math.Round(value,1).ToString()+")",10));
+			Watches[i].Value=value;
 			return true;
 		}
 	}
-	Watch newWatch=new Watch(type,quantity);
+	Watch newWatch=new Watch(type,value);
 	Watches.Add(newWatch);
 	Notifications.Add(new Notification("Added new Watch: "+newWatch.ToString(),10));
 	return true;
@@ -1852,7 +1906,41 @@ void Main_Program(string argument){
 			}
 			else if(watch.Type.Resource){
 				ResourceType Type=(watch.Type as ResourceCargo).Type;
-				foreach()
+				double stored=0;
+				double max=0;
+				foreach(ResourceContainer Container in FuelContainers){
+					if(Container.Type==Type.Type){
+						stored+=Container.Current;
+						max+=Container.Max;
+					}
+				}
+				double percent=stored/max;
+				bool Alert=false;
+				string watchStr=Type.ToString()+": ";
+				if(watch.Value.Type==QuantityType.Percent){
+					Alert=percent<watch.Value.Value||stored==0;
+					watchStr+=Math.Round(percent*100,1).ToString()+"% | "+Math.Round(watch.Value.Value*100,1).ToString()+"%";
+				}
+				else{
+					Alert=stored<watch.Value.Value||stored==0;
+					string typeStr=" L";
+					if(Type==ResourceType.Power)
+						typeStr=" kWh";
+					watchStr+=Math.Round(stored*100,0).ToString()+typeStr+" | "+Math.Round(watch.Value.Value,0).ToString()+typeStr;
+				}
+				
+				if(Alert){
+					Quantity output;
+					if(watch.Value.Type==QuantityType.Percent)
+						output=new Quantity(percent,QuantityType.Percent);
+					else
+						output=new Quantity(stored,QuantityType.Value);
+					Core.TryRun("Alert\nOnce\n"+Type.ToString()+'\n'+output.ToString()));
+					watchStr="Alerted "+watchStr;
+				}
+				else
+					watchStr="Watching "+watchStr;
+				Display(1,watchStr);
 			}
 		}
 	}
