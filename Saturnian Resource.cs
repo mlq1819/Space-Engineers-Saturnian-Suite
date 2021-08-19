@@ -424,7 +424,7 @@ void Write(string text,bool new_line=true,bool append=true){
 		Surface.WriteText(text,append);
 }
 
-int Display_Count=5;
+int Display_Count=6;
 int _Current_Display=1;
 int Current_Display{
 	get{
@@ -1024,6 +1024,17 @@ abstract class TypedCargo{
 			return cargo_i;
 		throw new ArgumentException("Bad format");
 	}
+	
+	public static bool TryParse(string input,out TypedCargo output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
 }
 class ItemCargo:TypedCargo{
 	public MyItemType Type;
@@ -1122,6 +1133,147 @@ class Watch{
 	}
 }
 
+enum ContainerStatus{
+	On,
+	Off,
+	In,
+	Out
+}
+abstract class ResourceContainer{
+	public abstract IMyTerminalBlock Block{get;set;}
+	public abstract float Capacity{get;}
+	public abstract float Max{get;}
+	public abstract float Current{get;}
+	public abstract ResourceType Type{get;}
+	public ContainerStatus Status;
+	
+	public abstract void On();
+	public abstract void Off();
+	public abstract void In();
+	public abstract void Out();
+}
+class PowerContainer:ResourceContainer{
+	public IMyBatteryBlock Battery;
+	public override IMyTerminalBlock Block{
+		get{
+			return Battery;
+		}
+		set{
+			Battery=value as IMyBatteryBlock;
+		}
+	}
+	public override float Capacity{
+		get{
+			return Battery.CurrentStoredPower/Battery.MaxStoredPower;
+		}
+	}
+	public override float Max{
+		get{
+			return Battery.MaxStoredPower;
+		}
+	}
+	public override float Current{
+		get{
+			return Battery.CurrentStoredPower;
+		}
+	}
+	public override ResourceType Type{
+		get{
+			return ResourceType.Power;
+		}
+	}
+	
+	public PowerContainer(IMyBatteryBlock battery){
+		Battery=battery;
+		On();
+	}
+	
+	public override void On(){
+		Battery.ChargeMode=ChargeMode.Auto;
+		Battery.Enabled=true;
+		Status=ContainerStatus.On;
+	}
+	
+	public override void Off(){
+		Battery.ChargeMode=ChargeMode.Auto;
+		Battery.Enabled=false;
+		Status=ContainerStatus.Off;
+	}
+	
+	public override void In(){
+		Battery.ChargeMode=ChargeMode.Recharge;
+		Battery.Enabled=true;
+		Status=ContainerStatus.In;
+	}
+	
+	public override void Out(){
+		Battery.ChargeMode=ChargeMode.Discharge;
+		Battery.Enabled=true;
+		Status=ContainerStatus.Out;
+	}
+}
+class GasContainer:ResourceContainer{
+	public IMyGasTank Tank;
+	public override IMyTerminalBlock Block{
+		get{
+			return Tank;
+		}
+		set{
+			Tank=value as IMyGasTank;
+		}
+	}
+	public override float Capacity{
+		get{
+			return (float)Tank.FilledRatio;
+		}
+	}
+	public override float Max{
+		get{
+			return Tank.Capacity;
+		}
+	}
+	public override float Current{
+		get{
+			return Max*Capacity;
+		}
+	}
+	public override ResourceType Type{
+		get{
+			if(Tank.DefinitionDisplayNameText.ToLower().Contains("hydrogen"))
+				return ResourceType.Hydrogen;
+			else
+				return ResourceType.Oxygen;
+		}
+	}
+	
+	public GasContainer(IMyGasTank tank){
+		Tank=tank;
+		On();
+	}
+	
+	public override void On(){
+		Tank.Stockpile=false;
+		Tank.Enabled=true;
+		Status=ContainerStatus.On;
+	}
+	
+	public override void Off(){
+		Tank.Stockpile=false;
+		Tank.Enabled=false;
+		Status=ContainerStatus.Off;
+	}
+	
+	public override void In(){
+		Tank.Stockpile=true;
+		Tank.Enabled=true;
+		Status=ContainerStatus.In;
+	}
+	
+	public override void Out(){
+		Tank.Stockpile=false;
+		Tank.Enabled=true;
+	}
+}
 
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
@@ -1131,9 +1283,14 @@ Random Rnd;
 
 List<Watch> Watches;
 List<IMyTerminalBlock> Inventories;
+List<ResourceContainer> FuelContainers;
+IMyProgrammableBlock Core;
 
 bool InventoryFunction(IMyTerminalBlock Block){
 	return Block.HasInventory&&Me.IsSameConstructAs(Block);
+}
+bool CoreFunction(IMyProgrammableBlock Block){
+	return Block.CustomName.Contains("Core")&&Block.CustomName.Contains("Programmable block")&&Me.IsSameConstructAs(Block);
 }
 
 UpdateFrequency GetUpdateFrequency(){
@@ -1149,6 +1306,8 @@ void Reset(){
 	Notifications=new List<Notification>();
 	Watches=new List<Watch>();
 	Inventories=new List<IMyTerminalBlock>();
+	FuelContainers=new List<ResourceContainer>();
+	Core=null;
 }
 
 double MySize=0;
@@ -1193,6 +1352,31 @@ bool Setup(){
 		}
 	}
 	
+	List<IMyBatteryBlock> batteries=GenericMethods<IMyBatteryBlock>.GetAllConstruct("");
+	List<IMyGasTank> tanks=GenericMethods<IMyGasTank>.GetAllConstruct("");
+	List<ResourceContainer> Containers=new List<ResourceContainer>();
+	foreach(IMyBatteryBlock battery in batteries)
+		Containers.Add(new PowerContainer(battery));
+	foreach(IMyGasTank tank in tanks)
+		Containers.Add(new GasContainer(tank));
+	for(int i=0;i<Containers.Count;i++){
+		ResourceContainer Container=Containers[i];
+		if(HasBlockData(Container.Block,"Job")){
+			string job=GetBlockData(Container.Block,"Job");
+			if(job.Equals("Fuel"))
+				FuelContainers.Add(Container);
+		}
+		else{
+			if(Container.Block.CustomName.ToLower().Contains("fuel")||!Container.Block.CustomName.ToLower().Contains("cargo")){
+				SetBlockData(Container.Block,"Job","Fuel");
+				FuelContainers.Add(Container);
+			}
+			else
+				SetBlockData(Container.Block,"Job","Cargo");
+		}
+	}
+	
+	Core=GenericMethods<IMyProgrammableBlock>.GetClosestFunc(CoreFunction);
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
@@ -1493,7 +1677,7 @@ class Task{
 			
 			output.Add(new TaskFormat(
 			"Watch",
-			new List<Quantifier>(new Quantifier[] {Quantifier.Until}),
+			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
 			new Vector2(2,2)
 			)); //Params: WatchType, Quantity
 			
@@ -1517,9 +1701,23 @@ bool Task_Send(Task task){
 	return target.TryRun(arguments);
 }
 
-//Sets a new watch on a particular tem
+//Sets a new watch on a particular item or resource
 bool Task_Watch(Task task){
-	
+	TypedCargo type;
+	double quantity;
+	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&double.TryParse(task.Qualifiers[1],out quantity))
+		return false;
+	for(int i=0;i<Watches.Count;i++){
+		if(Watches[i].Type.Equals(type)){
+			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Quantity,1).ToString()+"->"+Math.Round(quantity,1).ToString()+")",10));
+			Watches[i].Quantity=quantity;
+			return true;
+		}
+	}
+	Watch newWatch=new Watch(type,quantity);
+	Watches.Add(newWatch);
+	Notifications.Add(new Notification("Added new Watch: "+newWatch.ToString(),10));
+	return true;
 }
 
 bool PerformTask(Task task){
@@ -1588,7 +1786,7 @@ void ProcessTasks(){
 }
 
 void Task_Resetter(){
-	//
+	Watches.Clear();
 }
 
 void Task_Pruner(Task task){
@@ -1640,6 +1838,22 @@ void Main_Program(string argument){
 	UpdateSystemData();
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
+	}
+	if(Core!=null){
+		string s="s";
+		if(Watches.Count==1)
+			s="";
+		Display(1,"Watching for "+Watches.Count.ToString()+" resource"+s);
+		foreach(Watch watch in Watches){
+			if(watch.Type.Item){
+				MyItemType Type=(watch.Type as ItemCargo).Type;
+				
+			}
+			else if(watch.Type.Resource){
+				ResourceType Type=(watch.Type as ResourceCargo).Type;
+				foreach()
+			}
+		}
 	}
 	
 	
