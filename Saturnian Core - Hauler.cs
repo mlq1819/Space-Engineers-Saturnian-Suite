@@ -1659,6 +1659,7 @@ Queue<CargoDock> CargoDocks;
 List<IMyShipConnector> DockingConnectors;
 Gen_Task MyTask;
 IMyProgrammableBlock Navigation;
+IMyProgrammableBlock Resource;
 List<ResourceContainer> FuelContainers;
 List<ResourceContainer> CargoContainers;
 
@@ -1722,6 +1723,7 @@ void Reset(){
 	Queue<CargoDock> CargoDocks=new Queue<CargoDock>();
 	MyTask=new Task_None();
 	Navigation=null;
+	Resource=null;
 	FuelContainers=new List<ResourceContainer>();
 	CargoContainers=new List<ResourceContainer>();
 }
@@ -1822,8 +1824,18 @@ bool Setup(){
 		}
 	}
 	Navigation=GenericMethods<IMyProgrammableBlock>.GetConstruct("Navigation Programmable block");
-	if(Navigation==null)
+	Resource=GenericMethods<IMyProgrammableBlock>.GetConstruct("Resource Programmable block");
+	if(Navigation==null||Resource==null){
+		Write("Missing Auxiliary Programs:");
+		if(Navigation==null)
+			Write("\t-Navigation");
+		if(Resource==null)
+			Write("\t-Resource");
 		return false;
+	}
+	TaskQueue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Power",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
+	TaskQueue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Hydrogen",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
+	TaskQueue.Enqueue(PrepareSend(Resource,10,"Watch",Quantifier.Once,new List<string>(new string[]{"Oxygen",(new Quantity(0.1f,QuantityType.Percent)).ToString()})));
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -2126,14 +2138,31 @@ class Task{
 }
 Queue<Task> Task_Queue; //When a task is added, it is added to the Task Queue to be performed
 
+Task PrepareSend(IMyProgrammableBlock Prog,int Num,string Name,Quantifier Duration,List<string> Args){
+	string name="Send";
+	Quantifier duration=Quantifier.Numbered;
+	List<string> args=new List<string>();
+	args.Add(Num.ToString());
+	args.Add(Prog.CustomName);
+	args.Add(Name);
+	args.Add(Duration);
+	foreach(string Arg in Args)
+		args.Add(Arg);
+	return new Task(name,duration,args);
+}
+
 //Sends an argument to a programmable block
 bool Task_Send(Task task){
+	string progName=task.Qualifiers[0];
+	int baseIndex=1;
+	if(task.Quantifier==Quantifier.Numbered)
+		progName=task.Qualifiers[baseIndex++];
 	IMyProgrammableBlock target=GenericMethods<IMyProgrammableBlock>.GetFull(task.Qualifiers[0]);
 	if(target==null)
 		return false;
 	string arguments="";
-	for(int i=1;i<task.Qualifiers.Count;i++){
-		if(i!=1)
+	for(int i=baseIndex;i<task.Qualifiers.Count;i++){
+		if(i!=baseIndex)
 			arguments+='\n';
 		arguments+=task.Qualifiers[i];
 	}
