@@ -2,18 +2,14 @@
 * Saturnian Ressource OS
 * Built by mlq1616
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
-* This suite handles power, hydrogen, oxygen, raw and processed materials, component, etc. 
-* It does not manage them, only get and display information to them, and send information to relevant suits.
+* This suite watches power, hydrogen, oxygen, raw and processed materials, component, etc. levels and reports them to the Core. 
 * Include "Power" in LCD name to add to power group.
-* Include "Gas" in LCD name to add to gas group.
-* Include "Ore" in LCD name to add to Raw Material group.
-* Include "Ingot" in LCD name to add to Processed Material group.
-* Include "Component" in LCD name to add to Component group.
+* Include "Hydrogen" in LCD name to add to gas group.
+* Include "Oxygen" in LCD name to add to gas group.
 
 
 TODO: 
-- Core Integration
-- Manage Resources
+- Add Fuel Displays
 */
 string Program_Name="Saturnian Resource";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
