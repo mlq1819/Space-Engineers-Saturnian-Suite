@@ -546,9 +546,18 @@ public static class Item{
 			output.Add(Credit);
 		return output;
 	}
+	public static string Unit(MyItemType Type){
+		switch(Type.TypeId){
+			case Raw.B_O:
+			case Ingot.B_I:
+				return "Kg";
+			default:
+				return "Items";
+		}
+	}
 	
 	public static class Raw{
-		static string B_O="MyObjectBuilder_Ore";
+		public static string B_O="MyObjectBuilder_Ore";
 		public static List<MyItemType> All{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -599,7 +608,7 @@ public static class Item{
 		public static MyItemType Organic=new MyItemType(B_O,"Organic");
 	}
 	public static class Ingot{
-		static string B_I="MyObjectBuilder_Ingot";
+		public static string B_I="MyObjectBuilder_Ingot";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -646,7 +655,7 @@ public static class Item{
 		public static MyItemType Scrap=new MyItemType(B_I,"Scrap");
 	}
 	public static class Comp{
-		static string B_C="MyObjectBuilder_Component";
+		public static string B_C="MyObjectBuilder_Component";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -716,7 +725,7 @@ public static class Item{
 		public static MyItemType Canvas=new MyItemType(B_C,"Canvas");
 	}
 	public static class Ammo{
-		static string B_A="MyObjectBuilder_AmmoMagazine";
+		public static string B_A="MyObjectBuilder_AmmoMagazine";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -761,7 +770,7 @@ public static class Item{
 		public static MyItemType PistolE=new MyItemType(B_A,"ElitePistolMagazine");
 	}
 	public static class Tool{
-		static string B_T="MyObjectBuilder_PhysicalGunObject";
+		public static string B_T="MyObjectBuilder_PhysicalGunObject";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -832,7 +841,7 @@ public static class Item{
 		public static MyItemType RocketP=new MyItemType(B_T,"AdvancedHandHeldLauncherItem");
 	}
 	public static class Cons{
-		static string B_C="MyObjectBuilder_ConsumableItem";
+		public static string B_C="MyObjectBuilder_ConsumableItem";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -1337,6 +1346,8 @@ double seconds_since_last_update=0;
 Random Rnd;
 
 List<Watch> Watches;
+List<Watch> I_Watches;
+List<Watch> R_Watches;
 List<IMyTerminalBlock> Inventories;
 List<ResourceContainer> FuelContainers;
 IMyProgrammableBlock Core;
@@ -1360,6 +1371,8 @@ void Reset(){
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
 	Watches=new List<Watch>();
+	I_Watches=new List<Watch>();
+	R_Watches=new List<Watch>();
 	Inventories=new List<IMyTerminalBlock>();
 	FuelContainers=new List<ResourceContainer>();
 	Core=null;
@@ -1399,8 +1412,13 @@ bool Setup(){
 				switch(mode){
 					case "Watch":
 						Watch watch;
-						if(Watch.TryParse(arg,out watch))
+						if(Watch.TryParse(arg,out watch)){
 							Watches.Add(watch);
+							if(watch.Type.Item)
+								I_Watches.Add(watch);
+							else if(watch.Type.Resource)
+								R_Watches.Add(watch);
+						}
 						break;
 				}
 				break;
@@ -1760,7 +1778,9 @@ bool Task_Send(Task task){
 bool Task_Watch(Task task){
 	TypedCargo type;
 	Quantity value;
-	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&Quantity.TryParse(task.Qualifiers[1],out value))
+	if(!(TypedCargo.TryParse(task.Qualifiers[0],out type)&&Quantity.TryParse(task.Qualifiers[1],out value)))
+		return false;
+	if(type.Item&&value.Type==QuantityType.Percent)
 		return false;
 	for(int i=0;i<Watches.Count;i++){
 		if(Watches[i].Type.Equals(type)){
@@ -1771,6 +1791,10 @@ bool Task_Watch(Task task){
 	}
 	Watch newWatch=new Watch(type,value);
 	Watches.Add(newWatch);
+	if(newWatch.Type.Item)
+		I_Watches.Add(newWatch);
+	else if(newWatch.Type.Resource)
+		R_Watches.Add(newWatch);
 	Notifications.Add(new Notification("Added new Watch: "+newWatch.ToString(),10));
 	return true;
 }
@@ -1888,62 +1912,104 @@ void TaskParser(string argument){
 	}
 }
 
+void CheckWatches(){
+	string s="s";
+	if(Watches.Count==1)
+		s="";
+	Display(1,"Watching for "+Watches.Count.ToString()+" resource"+s);
+	if(I_Watches.Count>0){
+		Dictionary<MyItemType,float> ItemValues=new Dictionary<MyItemType,float>();
+		foreach(Watch watch in I_Watches){
+			if(watch.Type.Item){
+				MyItemType Type=(watch.Type as ItemCargo).Type;
+				if(!ItemValues.ContainsKey(Type))
+					ItemValues.Add(Type,0);
+			}
+		}
+		
+		foreach(IMyTerminalBlock Block in Inventories){
+			for(int i=0;i<Block.InventoryCount;i++){
+				IMyInventory Inventory=Block.GetInventory(i);
+				foreach(Watch watch in I_Watches){
+					MyItemType Type=(watch.Type as ItemCargo).Type;
+					ItemValues[Type]+=Inventory.GetItemAmount(Type);
+				}
+			}
+		}
+		
+		foreach(Watch watch in I_Watches){
+			MyItemType Type=(watch.Type as ItemCargo).Type;
+			double stored=ItemValues[Type];
+			if(watch.Value.Type==QuantityType.Percent)
+				continue;
+			string unit=" "+Item.Unit(Type);
+			string watchStr=Math.Round(stored*100,0).ToString()+unit+" | "+Math.Round(watch.Value.Value,0).ToString()+unit;
+			if(stored<watch.Value.Value||stored==0){
+				Core.TryRun("Alert\nOnce\n"+Type.ToString()+'\n'+(new Quantity(stored,QuantityType.Value)).ToString());
+				watchStr="Alerted "+watchStr;
+			}
+			else
+				watchStr="Watching "+watchStr;
+			Display(1,watchStr);
+		}
+	}
+	
+	if(R_Watches.Count>0){
+		foreach(Watch watch in R_Watches){
+			ResourceType Type=(watch.Type as ResourceCargo).Type;
+			double stored=0;
+			double max=0;
+			foreach(ResourceContainer Container in FuelContainers){
+				if(Container.Type==Type.Type){
+					stored+=Container.Current;
+					max+=Container.Max;
+				}
+			}
+			double percent;
+			if(max==0)
+				percent=1;
+			else
+				stored/max;
+			bool Alert=false;
+			string watchStr=Type.ToString()+": ";
+			if(watch.Value.Type==QuantityType.Percent){
+				Alert=percent<watch.Value.Value||stored==0;
+				watchStr+=Math.Round(percent*100,1).ToString()+"% | "+Math.Round(watch.Value.Value*100,1).ToString()+"%";
+			}
+			else{
+				Alert=stored<watch.Value.Value||stored==0;
+				string typeStr=" L";
+				if(Type==ResourceType.Power)
+					typeStr=" kWh";
+				watchStr+=Math.Round(stored*100,0).ToString()+typeStr+" | "+Math.Round(watch.Value.Value,0).ToString()+typeStr;
+			}
+			
+			if(Alert){
+				Quantity output;
+				if(watch.Value.Type==QuantityType.Percent)
+					output=new Quantity(percent,QuantityType.Percent);
+				else
+					output=new Quantity(stored,QuantityType.Value);
+				Core.TryRun("Alert\nOnce\n"+Type.ToString()+'\n'+output.ToString());
+				watchStr="Alerted "+watchStr;
+			}
+			else
+				watchStr="Watching "+watchStr;
+			Display(1,watchStr);
+		}
+	}
+}
+
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
-	if(Core!=null){
-		string s="s";
-		if(Watches.Count==1)
-			s="";
-		Display(1,"Watching for "+Watches.Count.ToString()+" resource"+s);
-		foreach(Watch watch in Watches){
-			if(watch.Type.Item){
-				MyItemType Type=(watch.Type as ItemCargo).Type;
-				
-			}
-			else if(watch.Type.Resource){
-				ResourceType Type=(watch.Type as ResourceCargo).Type;
-				double stored=0;
-				double max=0;
-				foreach(ResourceContainer Container in FuelContainers){
-					if(Container.Type==Type.Type){
-						stored+=Container.Current;
-						max+=Container.Max;
-					}
-				}
-				double percent=stored/max;
-				bool Alert=false;
-				string watchStr=Type.ToString()+": ";
-				if(watch.Value.Type==QuantityType.Percent){
-					Alert=percent<watch.Value.Value||stored==0;
-					watchStr+=Math.Round(percent*100,1).ToString()+"% | "+Math.Round(watch.Value.Value*100,1).ToString()+"%";
-				}
-				else{
-					Alert=stored<watch.Value.Value||stored==0;
-					string typeStr=" L";
-					if(Type==ResourceType.Power)
-						typeStr=" kWh";
-					watchStr+=Math.Round(stored*100,0).ToString()+typeStr+" | "+Math.Round(watch.Value.Value,0).ToString()+typeStr;
-				}
-				
-				if(Alert){
-					Quantity output;
-					if(watch.Value.Type==QuantityType.Percent)
-						output=new Quantity(percent,QuantityType.Percent);
-					else
-						output=new Quantity(stored,QuantityType.Value);
-					Core.TryRun("Alert\nOnce\n"+Type.ToString()+'\n'+output.ToString()));
-					watchStr="Alerted "+watchStr;
-				}
-				else
-					watchStr="Watching "+watchStr;
-				Display(1,watchStr);
-			}
-		}
-	}
+	if(Core!=null)
+		CheckWatches();
+	else if(Watches.Count>0)
+		Display(1,"Cannot check watches; no Core detected");
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
