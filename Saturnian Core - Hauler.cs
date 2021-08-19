@@ -2181,7 +2181,7 @@ bool Task_Alert(Task task){
 		return false;
 	ResourceType Type=(type as ResourceCargo).Type;
 	if(value.Value<=0.25f){
-		Notifications.Add(new Notification(Type.ToString()+" at "+Math.Round(value.Value*100,1)+"%",1.6);
+		Notifications.Add(new Notification(Type.ToString()+" at "+Math.Round(value.Value*100,1)+"%",1.6));
 		if(!MyTask.Name.Equals("Refuel")){
 			if(AtRefuelStation())
 				MyTask=new Task_Refuel(TaskType.Transfer,GetFuelingDock());
