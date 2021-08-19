@@ -963,6 +963,11 @@ struct Quantity{
 	}
 }
 
+enum ResourceType{
+	Power,
+	Hydrogen,
+	Oxygen
+}
 abstract class TypedCargo{
 	public virtual bool Item{
 		get{
@@ -971,6 +976,27 @@ abstract class TypedCargo{
 	}
 	public virtual bool Resource{
 		get{
+			return false;
+		}
+	}
+	
+	public static TypedCargo Parse(string input){
+		ResourceCargo cargo_r;
+		ItemCargo cargo_i;
+		if(ResourceCargo.TryParse(input,out cargo_r))
+			return cargo_r;
+		else if(ItemCargo.TryParse(input,out cargo_i))
+			return cargo_i;
+		throw new ArgumentException("Bad format");
+	}
+	
+	public static bool TryParse(string input,out TypedCargo output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
 			return false;
 		}
 	}
@@ -991,24 +1017,20 @@ class ItemCargo:TypedCargo{
 		return Type.ToString();
 	}
 	
+	public static ItemCargo Parse(string input){
+		return new ItemCargo(MyItemType.Parse(input));
+	}
+	
 	public static bool TryParse(string input,out ItemCargo output){
 		output=null;
 		try{
-			MyItemType type=MyItemType.Parse(input);
-			if(type==null)
-				return false;
-			output=new ItemCargo(type);
+			output=Parse(input);
+			return output!=null;
 		}
-		catch(Exception){
-			;
+		catch{
+			return false;
 		}
-		return false;
 	}
-}
-enum ResourceType{
-	Power,
-	Hydrogen,
-	Oxygen
 }
 class ResourceCargo:TypedCargo{
 	public ResourceType Type;
@@ -1026,16 +1048,22 @@ class ResourceCargo:TypedCargo{
 		return Type.ToString();
 	}
 	
+	public static ResourceCargo Parse(string input){
+		return new ResourceCargo(Enum.Parse<ResourceType>(input));
+	}
+	
 	public static bool TryParse(string input,out ResourceCargo output){
 		output=null;
-		ResourceType type;
-		if(Enum.TryParse(input,out type)){
-			output=new ResourceCargo(type);
-			return true;
+		try{
+			output=Parse(input);
+			return output!=null;
 		}
-		return false;
+		catch{
+			return false;
+		}
 	}
 }
+
 enum CargoDirection{
 	Deposit,
 	Collect
@@ -1335,6 +1363,7 @@ abstract class ResourceContainer{
 	public abstract float Capacity{get;}
 	public abstract float Max{get;}
 	public abstract float Current{get;}
+	public abstract ResourceType Type{get;}
 	public ContainerStatus Status;
 	
 	public abstract void On();
@@ -1365,6 +1394,11 @@ class PowerContainer:ResourceContainer{
 	public override float Current{
 		get{
 			return Battery.CurrentStoredPower;
+		}
+	}
+	public override ResourceType Type{
+		get{
+			return ResourceType.Power;
 		}
 	}
 	
@@ -1420,6 +1454,14 @@ class GasContainer:ResourceContainer{
 	public override float Current{
 		get{
 			return Max*Capacity;
+		}
+	}
+	public override ResourceType Type{
+		get{
+			if(Tank.DefinitionDisplayNameText.ToLower().Contains("hydrogen"))
+				return ResourceType.Hydrogen;
+			else
+				return ResourceType.Oxygen;
 		}
 	}
 	

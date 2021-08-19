@@ -1098,6 +1098,7 @@ class ResourceCargo:TypedCargo{
 		}
 	}
 }
+
 class Watch{
 	public TypedCargo Type;
 	public double Quantity;
