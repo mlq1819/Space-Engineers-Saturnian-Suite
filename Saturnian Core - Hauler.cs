@@ -2162,7 +2162,7 @@ bool Task_Send(Task task){
 	int baseIndex=1;
 	if(task.Duration==Quantifier.Numbered)
 		progName=task.Qualifiers[baseIndex++];
-	IMyProgrammableBlock target=GenericMethods<IMyProgrammableBlock>.GetFull(task.Qualifiers[0]);
+	IMyProgrammableBlock target=GenericMethods<IMyProgrammableBlock>.GetFull(task.Qualifiers[baseIndex-1]);
 	if(target==null)
 		return false;
 	string arguments="";
@@ -2171,6 +2171,7 @@ bool Task_Send(Task task){
 			arguments+='\n';
 		arguments+=task.Qualifiers[i];
 	}
+	Write("Send:\n"+arguments);
 	return target.TryRun(arguments);
 }
 
