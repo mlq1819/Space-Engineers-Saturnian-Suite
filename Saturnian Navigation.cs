@@ -1069,7 +1069,6 @@ void MarkAltitude(bool do_new=true){
 	
 }
 
-bool Safety=true;
 void UpdateSystemData(){
 	Vector3D base_vector=new Vector3D(0,0,-1);
 	Forward_Vector=LocalToGlobal(base_vector,Controller);
@@ -1507,10 +1506,7 @@ void Main_Program(string argument){
 		Display(2,"Maximum Power (Hovering): "+Math.Round(Up_Gs,2)+"Gs");
 		Display(2,"Maximum Power (Launching): "+Math.Round(Math.Max(Up_Gs,Forward_Gs),2)+"Gs");
 	}
-	if(argument.ToLower().Equals("autoland")){
-		Autoland();
-	}
-	else if(argument.ToLower().Equals("factory reset")){
+	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
 	if(Altitude_Timer<=0)
