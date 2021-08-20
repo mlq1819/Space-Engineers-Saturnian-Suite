@@ -426,6 +426,10 @@ int Current_Display{
 		return _Current_Display;
 	}
 	set{
+		if(!Running_Thrusters){
+			if(value==3||value==4)
+				value=5;
+		}
 		if(value!=_Current_Display){
 			_Current_Display=value;
 			UpdateMyDisplay();
