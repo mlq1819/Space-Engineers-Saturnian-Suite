@@ -553,7 +553,7 @@ public static class Item{
 	}
 	
 	public static class Raw{
-		public static string B_O="MyObjectBuilder_Ore";
+		public const string B_O="MyObjectBuilder_Ore";
 		public static List<MyItemType> All{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -604,7 +604,7 @@ public static class Item{
 		public static MyItemType Organic=new MyItemType(B_O,"Organic");
 	}
 	public static class Ingot{
-		public static string B_I="MyObjectBuilder_Ingot";
+		public const string B_I="MyObjectBuilder_Ingot";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -651,7 +651,7 @@ public static class Item{
 		public static MyItemType Scrap=new MyItemType(B_I,"Scrap");
 	}
 	public static class Comp{
-		public static string B_C="MyObjectBuilder_Component";
+		public const string B_C="MyObjectBuilder_Component";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -721,7 +721,7 @@ public static class Item{
 		public static MyItemType Canvas=new MyItemType(B_C,"Canvas");
 	}
 	public static class Ammo{
-		public static string B_A="MyObjectBuilder_AmmoMagazine";
+		public const string B_A="MyObjectBuilder_AmmoMagazine";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -766,7 +766,7 @@ public static class Item{
 		public static MyItemType PistolE=new MyItemType(B_A,"ElitePistolMagazine");
 	}
 	public static class Tool{
-		public static string B_T="MyObjectBuilder_PhysicalGunObject";
+		public const string B_T="MyObjectBuilder_PhysicalGunObject";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -837,7 +837,7 @@ public static class Item{
 		public static MyItemType RocketP=new MyItemType(B_T,"AdvancedHandHeldLauncherItem");
 	}
 	public static class Cons{
-		public static string B_C="MyObjectBuilder_ConsumableItem";
+		public const string B_C="MyObjectBuilder_ConsumableItem";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -873,134 +873,6 @@ public static class Item{
 	public static MyItemType Datapad=new MyItemType("MyObjectBuilder_Datapad","Datapad");
 	public static MyItemType Package=new MyItemType("MyObjectBuilder_Package","Package");
 	public static MyItemType Credit=new MyItemType("MyObjectBuilder_PhysicalObject","SpaceCredit");
-}
-
-enum ContainerStatus{
-	On,
-	Off,
-	In,
-	Out
-}
-abstract class ResourceContainer{
-	public abstract IMyTerminalBlock Block{get;set;}
-	public abstract float Capacity{get;}
-	public abstract float Max{get;}
-	public abstract float Current{get;}
-	public ContainerStatus Status;
-	
-	public abstract void On();
-	public abstract void Off();
-	public abstract void In();
-	public abstract void Out();
-}
-class PowerContainer:ResourceContainer{
-	public IMyBatteryBlock Battery;
-	public override IMyTerminalBlock Block{
-		get{
-			return Battery;
-		}
-		set{
-			Battery=value as IMyBatteryBlock;
-		}
-	}
-	public override float Capacity{
-		get{
-			return Battery.CurrentStoredPower/Battery.MaxStoredPower;
-		}
-	}
-	public override float Max{
-		get{
-			return Battery.MaxStoredPower;
-		}
-	}
-	public override float Current{
-		get{
-			return Battery.CurrentStoredPower;
-		}
-	}
-	
-	public PowerContainer(IMyBatteryBlock battery){
-		Battery=battery;
-		On();
-	}
-	
-	public override void On(){
-		Battery.ChargeMode=ChargeMode.Auto;
-		Battery.Enabled=true;
-		Status=ContainerStatus.On;
-	}
-	
-	public override void Off(){
-		Battery.ChargeMode=ChargeMode.Auto;
-		Battery.Enabled=false;
-		Status=ContainerStatus.Off;
-	}
-	
-	public override void In(){
-		Battery.ChargeMode=ChargeMode.Recharge;
-		Battery.Enabled=true;
-		Status=ContainerStatus.In;
-	}
-	
-	public override void Out(){
-		Battery.ChargeMode=ChargeMode.Discharge;
-		Battery.Enabled=true;
-		Status=ContainerStatus.Out;
-	}
-}
-class GasContainer:ResourceContainer{
-	public IMyGasTank Tank;
-	public override IMyTerminalBlock Block{
-		get{
-			return Tank;
-		}
-		set{
-			Tank=value as IMyGasTank;
-		}
-	}
-	public override float Capacity{
-		get{
-			return (float)Tank.FilledRatio;
-		}
-	}
-	public override float Max{
-		get{
-			return Tank.Capacity;
-		}
-	}
-	public override float Current{
-		get{
-			return Max*Capacity;
-		}
-	}
-	
-	public GasContainer(IMyGasTank tank){
-		Tank=tank;
-		On();
-	}
-	
-	public override void On(){
-		Tank.Stockpile=false;
-		Tank.Enabled=true;
-		Status=ContainerStatus.On;
-	}
-	
-	public override void Off(){
-		Tank.Stockpile=false;
-		Tank.Enabled=false;
-		Status=ContainerStatus.Off;
-	}
-	
-	public override void In(){
-		Tank.Stockpile=true;
-		Tank.Enabled=true;
-		Status=ContainerStatus.In;
-	}
-	
-	public override void Out(){
-		Tank.Stockpile=false;
-		Tank.Enabled=true;
-	}
 }
 
 enum ResourceType{
@@ -1057,7 +929,7 @@ class ItemCargo:TypedCargo{
 		return Type.ToString();
 	}
 	
-	public static ItemCargo Parse(string input){
+	new public static ItemCargo Parse(string input){
 		return new ItemCargo(MyItemType.Parse(input));
 	}
 	
@@ -1088,8 +960,8 @@ class ResourceCargo:TypedCargo{
 		return Type.ToString();
 	}
 	
-	public static ResourceCargo Parse(string input){
-		return new ResourceCargo(Enum.Parse<ResourceType>(input));
+	new public static ResourceCargo Parse(string input){
+		return new ResourceCargo((ResourceType)Enum.Parse(typeof(ResourceType),input));
 	}
 	
 	public static bool TryParse(string input,out ResourceCargo output){
@@ -1144,14 +1016,14 @@ struct Quantity{
 		string[] args=input.Substring(1,input.Length-2).Split(',');
 		if(args.Length!=2)
 			throw new ArgumentException("Bad format");
-		return new Quantity(float.Parse(args[0],Enum.Parse<QuantityType>(args[1])));
+		return new Quantity(float.Parse(args[0]),(QuantityType)Enum.Parse(typeof(QuantityType),args[1]));
 	}
 	
 	public static bool TryParse(string input,out Quantity output){
 		output=Invalid;
 		try{
 			output=Parse(input);
-			return output!=Invalid;
+			return !output.Equals(Invalid);
 		}
 		catch{
 			return false;
@@ -1362,8 +1234,6 @@ UpdateFrequency GetUpdateFrequency(){
 void Reset(){
 	Operational=false;
 	Runtime.UpdateFrequency=UpdateFrequency.None;
-	Controller=null;
-	Controllers=new List<IMyShipController>();
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
 	Watches=new List<Watch>();
@@ -1374,7 +1244,6 @@ void Reset(){
 	Core=null;
 }
 
-double MySize=0;
 bool Setup(){
 	Reset();
 	/*List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude");
@@ -1559,15 +1428,6 @@ void UpdateProgramInfo(){
 }
 
 void UpdateSystemData(){
-	Vector3D base_vector=new Vector3D(0,0,-1);
-	Forward_Vector=LocalToGlobal(base_vector,Controller);
-	Forward_Vector.Normalize();
-	base_vector=new Vector3D(0,1,0);
-	Up_Vector=LocalToGlobal(base_vector,Controller);
-	Up_Vector.Normalize();
-	base_vector=new Vector3D(-1,0,0);
-	Left_Vector=LocalToGlobal(base_vector,Controller);
-	Left_Vector.Normalize();
 	
 }
 
@@ -1780,7 +1640,7 @@ bool Task_Watch(Task task){
 		return false;
 	for(int i=0;i<Watches.Count;i++){
 		if(Watches[i].Type.Equals(type)){
-			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Value,1).ToString()+"->"+Math.Round(value,1).ToString()+")",10));
+			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Value.Value,1).ToString()+"->"+Math.Round(value.Value,1).ToString()+")",10));
 			Watches[i].Value=value;
 			return true;
 		}
@@ -1914,12 +1774,12 @@ void CheckWatches(){
 		s="";
 	Display(1,"Watching for "+Watches.Count.ToString()+" resource"+s);
 	if(I_Watches.Count>0){
-		Dictionary<MyItemType,float> ItemValues=new Dictionary<MyItemType,float>();
+		Dictionary<MyItemType,MyFixedPoint> ItemValues=new Dictionary<MyItemType,MyFixedPoint>();
 		foreach(Watch watch in I_Watches){
 			if(watch.Type.Item){
 				MyItemType Type=(watch.Type as ItemCargo).Type;
 				if(!ItemValues.ContainsKey(Type))
-					ItemValues.Add(Type,0);
+					ItemValues.Add(Type,(MyFixedPoint)0);
 			}
 		}
 		
@@ -1935,7 +1795,7 @@ void CheckWatches(){
 		
 		foreach(Watch watch in I_Watches){
 			MyItemType Type=(watch.Type as ItemCargo).Type;
-			double stored=ItemValues[Type];
+			float stored=(float)ItemValues[Type].RawValue;
 			if(watch.Value.Type==QuantityType.Percent)
 				continue;
 			string unit=" "+Item.Unit(Type);
@@ -1953,19 +1813,19 @@ void CheckWatches(){
 	if(R_Watches.Count>0){
 		foreach(Watch watch in R_Watches){
 			ResourceType Type=(watch.Type as ResourceCargo).Type;
-			double stored=0;
-			double max=0;
+			float stored=0;
+			float max=0;
 			foreach(ResourceContainer Container in FuelContainers){
-				if(Container.Type==Type.Type){
+				if(Container.Type==Type){
 					stored+=Container.Current;
 					max+=Container.Max;
 				}
 			}
-			double percent;
+			float percent;
 			if(max==0)
 				percent=1;
 			else
-				stored/max;
+				percent=stored/max;
 			bool Alert=false;
 			string watchStr=Type.ToString()+": ";
 			if(watch.Value.Type==QuantityType.Percent){
