@@ -461,13 +461,18 @@ void Write(string text,bool new_line=true,bool append=true){
 		Surface.WriteText(text,append);
 }
 
-int Display_Count=1;
+int Display_Count=3;
 int _Current_Display=1;
 int Current_Display{
 	get{
 		return _Current_Display;
 	}
 	set{
+		if(value==2&&FuelingDocks.Count==0)
+			value++;
+		if(value==3&&CargoDocks.Count==0)
+			value++;
+		value=(value-1)%Display_Count+1;
 		if(value!=_Current_Display){
 			_Current_Display=value;
 			UpdateMyDisplay();
@@ -1174,6 +1179,15 @@ class Dock{
 			return (DockingConnector.GetPosition()-DockPosition).Length();
 		}
 	}
+	public string PrettyDistance{
+		get{
+			if(DockDistance/1000>29979.246)
+				return Math.Round(DockDistance/299792.46,3).ToString()+"ls";
+			else if(DockDistance>1000)
+				return Math.Round(DockDistance/1000,1).ToString()+"kM";
+			return Math.Round(DockDistance,0).ToString()+"M";
+		}
+	}
 	public Vector3D DockDirection;
 	public Vector3D DockForward;
 	public Vector3D DockUp;
@@ -1206,6 +1220,10 @@ class Dock{
 		DockDirection=dockDirection;
 		DockForward=dockForward;
 		DockUp=dockUp;
+	}
+	
+	public virtual string PrettyString(){
+		return DockName+": "+PrettyDistance;
 	}
 	
 	public override string ToString(){
@@ -1279,6 +1297,23 @@ class CargoDock:Dock{
 		}
 		Orders.Add(Order);
 		return true;
+	}
+	
+	public override string PrettyString(){
+		int Deposits=0,Collections=0;
+		foreach(CargoOrder order in Orders){
+			if(order.Direction==CargoDirection.Deposit)
+				Deposits++;
+			else
+				Collections++;
+		}
+		string str_d="";
+		string str_c="";
+		if(Deposits>0)
+			str_d=" ("+Deposits.ToString()+" Deposits)";
+		if(Collections>0)
+			str_d=" ("+Collections.ToString()+" Collections)";	
+		return base.PrettyString()+str_d+str_c;
 	}
 	
 	public override string ToString(){
@@ -3020,6 +3055,12 @@ void Main_Program(string argument){
 	RunTask();
 	foreach(Watch watch in WatchList){
 		Write("Requesting Watch: "+watch.ToString());
+	}
+	foreach(Dock dock in FuelingDocks){
+		Display(2,dock.PrettyString());
+	}
+	foreach(Dock dock in CargoDocks){
+		Display(3,dock.PrettyString());
 	}
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
