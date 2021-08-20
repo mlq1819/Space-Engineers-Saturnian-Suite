@@ -1497,14 +1497,14 @@ public void Main(string argument,UpdateType updateSource){
 			return;
 		}
 		else if(updateSource==UpdateType.Script){
-			Notifications.Add(new Notification("New Task:\n"+argument,10));
+			Notifications.Add(new Notification("New Task:\n"+argument,2));
 			TaskParser(argument);
 		}
 		else if(updateSource!=UpdateType.Terminal)
 			Main_Program(argument);
 		else{
 			if(argument.ToLower().IndexOf("task:")==0){
-				Notifications.Add(new Notification("New Task:\n"+argument.Substring(5),10));
+				Notifications.Add(new Notification("New Task:\n"+argument.Substring(5),2));
 				TaskParser(argument.Substring(5));
 			}
 			else

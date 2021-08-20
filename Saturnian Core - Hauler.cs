@@ -1017,6 +1017,17 @@ abstract class TypedCargo{
 			return false;
 		}
 	}
+	
+	public bool Equals(TypedCargo O){
+		if(Item&&O.Item){
+			return (this as ItemCargo).Type.Equals((O as ItemCargo).Type);
+		}
+		else if(Resource&&O.Resource){
+			return (this as ResourceCargo).Type.Equals((O as ResourceCargo).Type);
+		}
+		else
+			return false;
+	}
 }
 class ItemCargo:TypedCargo{
 	public MyItemType Type;
@@ -2274,7 +2285,7 @@ bool Task_Cease(Task task){
 			return true;
 		}
 	}
-	return false;
+	return WatchList.Count==0;
 }
 
 bool PerformTask(Task task){
@@ -2297,6 +2308,8 @@ bool PerformTask(Task task){
 			return Task_Send(task);
 		case "Alert":
 			return Task_Alert(task);
+		case "Cease":
+			return Task_Cease(task);
 	}
 	return false;
 }
@@ -2318,7 +2331,7 @@ void ProcessTasks(){
 	foreach(Watch watch in WatchList){
 		Task_Queue.Enqueue(PrepareSend("Watch",new List<string>(new string[]{watch.Type.ToString(),watch.Value.ToString()})));
 	}
-	if(Task_Queue.Count==0)
+	if(Task_Queue.Count==0&&WatchList.Count==0)
 		return;
 	Queue<Task> Recycling=new Queue<Task>();
 	while(Task_Queue.Count>0){
@@ -2355,6 +2368,17 @@ void ProcessTasks(){
 	}
 	while(Recycling.Count>0)
 		Task_Queue.Enqueue(Recycling.Dequeue());
+	foreach(Watch watch in WatchList){
+		Task task=PrepareSend("Watch",new List<string>(new string[]{watch.Type.ToString(),watch.Value.ToString()}));
+		if(!task.Valid){
+			Notifications.Add(new Notification("Discarded invalid Task: \""+task.ToString()+"\"",5));
+			continue;
+		}
+		if(!PerformTask(task))
+			Write("Failed to run task "+task.Type.ToUpper());
+		else
+			Notifications.Add(new Notification("Ran task "+task.Type.ToUpper(),10));
+	}
 }
 
 void Task_Resetter(){
