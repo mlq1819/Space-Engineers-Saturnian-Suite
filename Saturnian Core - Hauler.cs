@@ -2249,6 +2249,20 @@ bool Task_Send(Task task){
 	return target.TryRun(arguments);
 }
 
+bool StartRefuelingSequence(){
+	if(FuelingDocks.Count==0){
+		Notifications.Add(new Notification("Cannot Set Refueling Course; no FuelingDocks known",30));
+		return false;
+	}
+	if(AtRefuelStation())
+		MyTask=new Task_Refuel(TaskType.Transfer,GetFuelingDock());
+	else
+		MyTask=new Task_Refuel(TaskType.Travel,NearestDock());
+	Dock dock=(MyTask as Task_Refuel).Data;
+	Notifications.Add(new Notification("Set Refueling Course to "+dock.DockName,Math.Min(60,dock.DockDistance/50)));
+	return true;
+}
+
 //Considers an alert from Resources
 bool Task_Alert(Task task){
 	TypedCargo type;
@@ -2263,12 +2277,7 @@ bool Task_Alert(Task task){
 	if(value.Value<=0.25f){
 		Notifications.Add(new Notification(Type.ToString()+" at "+Math.Round(value.Value*100,1)+"%",1.6));
 		if(!MyTask.Name.Equals("Refuel")){
-			if(AtRefuelStation())
-				MyTask=new Task_Refuel(TaskType.Transfer,GetFuelingDock());
-			else
-				MyTask=new Task_Refuel(TaskType.Travel,NearestDock());
-			Dock dock=(MyTask as Task_Refuel).Data;
-			Notifications.Add(new Notification("Set Refueling Course to "+dock.DockName,Math.Min(60,dock.DockDistance/50)));
+			StartRefuelingSequence();
 		}
 	}
 	return true;
@@ -3006,6 +3015,8 @@ void Main_Program(string argument){
 		AddCollect(argument.Substring(18).ToLower());
 	else if(argument.ToLower().IndexOf("add cargo deposit:")==0)
 		AddDeposit(argument.Substring(18).ToLower());
+	else if(argument.ToLower().Equals("refuel"))
+		StartRefuelingSequence();
 	RunTask();
 	foreach(Watch watch in WatchList){
 		Write("Requesting Watch: "+watch.ToString());
