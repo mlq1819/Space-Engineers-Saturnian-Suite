@@ -461,7 +461,7 @@ void Write(string text,bool new_line=true,bool append=true){
 		Surface.WriteText(text,append);
 }
 
-int Display_Count=5;
+int Display_Count=2;
 int _Current_Display=1;
 int Current_Display{
 	get{
@@ -968,6 +968,15 @@ struct Quantity{
 		catch{
 			return false;
 		}
+	}
+
+	public bool Equals(Quantity O){
+		float d=Math.Abs(Value-O.Value);
+		if(Type!=O.Type)
+			return false;
+		if(Type==QuantityType.Percent)
+			return d<0.0000001;
+		return d<0.1;
 	}
 }
 
@@ -1688,6 +1697,10 @@ class Watch{
 			return false;
 		}
 	}
+	
+	public bool Equals(Watch O){
+		return Type.Equals(O.Type)&&Value.Equals(O.Value);
+	}
 }
 
 TimeSpan Time_Since_Start=new TimeSpan(0);
@@ -2006,13 +2019,28 @@ void PrintNotifications(){
 		Me.GetSurface(0).WriteText("",false);
 		try{
 			Write("--Notifications--");
+			Dictionary<string,int> N_Counter=new Dictionary<string,int>();
+			List<string> Messages=new List<string>();
 			for(int i=0;i<Notifications.Count;i++){
 				Notifications[i].Time=Math.Max(0,Notifications[i].Time-seconds_since_last_update);
-				Write("\""+Notifications[i].Text+"\"");
+				string text=Notifications[i].Text;
+				if(N_Counter.ContainsKey(text))
+					N_Counter[text]++;
+				else{
+					N_Counter.Add(text,1);
+					Messages.Add(text);
+				}
 				if(Notifications[i].Time<=0){
 					Notifications.RemoveAt(i--);
 					continue;
 				}
+			}
+			foreach(string Text in Messages){
+				string str="";
+				int count=N_Counter[Text];
+				if(count>1)
+					str="("+count.ToString()+") ";
+				Write("\""+str+Text+"\"");
 			}
 			Write("--Program--");
 		}
@@ -2176,8 +2204,14 @@ class Task{
 			output.Add(new TaskFormat(
 			"Alert",
 			new List<Quantifier>(new Quantifier[] {Quantifier.Once}),
-			new Vector2(1,-1)
+			new Vector2(2,2)
 			)); //Params: Type, Quantity
+			
+			output.Add(new TaskFormat(
+			"Cease",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Once}),
+			new Vector2(1,1)
+			)); //Params: Watch
 			
 			return output;
 		}
@@ -2281,12 +2315,12 @@ Task PrepareSend(string Name,List<string> Args){
 
 void ProcessTasks(){
 	Task_Resetter();
-	if(Task_Queue.Count==0)
-		return;
-	Queue<Task> Recycling=new Queue<Task>();
 	foreach(Watch watch in WatchList){
 		Task_Queue.Enqueue(PrepareSend("Watch",new List<string>(new string[]{watch.Type.ToString(),watch.Value.ToString()})));
 	}
+	if(Task_Queue.Count==0)
+		return;
+	Queue<Task> Recycling=new Queue<Task>();
 	while(Task_Queue.Count>0){
 		Task task=Task_Queue.Dequeue();
 		if(!task.Valid){
@@ -2949,7 +2983,9 @@ void Main_Program(string argument){
 	else if(argument.ToLower().IndexOf("add cargo deposit:")==0)
 		AddDeposit(argument.Substring(18).ToLower());
 	RunTask();
-	
+	foreach(Watch watch in WatchList){
+		Write("Requesting Watch: "+watch.ToString());
+	}
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
