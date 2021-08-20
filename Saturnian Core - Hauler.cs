@@ -950,21 +950,24 @@ struct Quantity{
 		return "("+Value.ToString()+","+Type.ToString()+")";
 	}
 	
-	public static bool TryParse(string input,out Quantity output){
-		output=Invalid;
+	public static Quantity Parse(string input){
 		if(input.IndexOf('(')!=0||input.IndexOf(')')!=input.Length-1)
-			return false;
+			throw new ArgumentException("Bad format");
 		string[] args=input.Substring(1,input.Length-2).Split(',');
 		if(args.Length!=2)
+			throw new ArgumentException("Bad format");
+		return new Quantity(float.Parse(args[0]),(QuantityType)Enum.Parse(typeof(QuantityType),args[1]));
+	}
+	
+	public static bool TryParse(string input,out Quantity output){
+		output=Invalid;
+		try{
+			output=Parse(input);
+			return !output.Equals(Invalid);
+		}
+		catch{
 			return false;
-		float value;
-		if(!float.TryParse(args[0],out value))
-			return false;
-		QuantityType type;
-		if(!Enum.TryParse(args[1],out type))
-			return false;
-		output=new Quantity(value,type);
-		return true;
+		}
 	}
 }
 
@@ -1652,6 +1655,41 @@ Gen_Task ParseTask(string input){
 	return null;
 }
 
+class Watch{
+	public TypedCargo Type;
+	public Quantity Value;
+	
+	public Watch(TypedCargo type, Quantity value){
+		Type=type;
+		Value=value;
+	}
+	
+	public override string ToString(){
+		return '('+Type.ToString()+','+Value.ToString()+')';
+	}
+	
+	public static Watch Parse(string input){
+		if(input[0]!='('||input[input.Length-1]!=')'||input.IndexOf(',')<0||input.Substring(input.IndexOf(',')).IndexOf(',')<0)
+			throw new ArgumentException("Bad format");
+		int index=input.IndexOf(',');
+		string p1,p2;
+		p1=input.Substring(1,index-1);
+		p2=input.Substring(index+1,input.Length-index-2);
+		return new Watch(TypedCargo.Parse(p1),Quantity.Parse(p2));
+	}
+	
+	public static bool TryParse(string input,out Watch output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+
 TimeSpan Time_Since_Start=new TimeSpan(0);
 long cycle=0;
 char loading_char='|';
@@ -1667,6 +1705,7 @@ IMyProgrammableBlock Navigation;
 IMyProgrammableBlock Resource;
 List<ResourceContainer> FuelContainers;
 List<ResourceContainer> CargoContainers;
+List<Watch> WatchList;
 
 Base6Directions.Direction Forward;
 Base6Directions.Direction Backward{
@@ -1731,6 +1770,7 @@ void Reset(){
 	Resource=null;
 	FuelContainers=new List<ResourceContainer>();
 	CargoContainers=new List<ResourceContainer>();
+	WatchList=new List<Watch>();
 }
 
 double MySize=0;
@@ -1838,9 +1878,11 @@ bool Setup(){
 			Write("\t-Resource");
 		return false;
 	}
-	Task_Queue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Power",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
-	Task_Queue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Hydrogen",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
-	Task_Queue.Enqueue(PrepareSend(Resource,10,"Watch",Quantifier.Once,new List<string>(new string[]{"Oxygen",(new Quantity(0.1f,QuantityType.Percent)).ToString()})));
+	
+	WatchList.Add(new Watch(new ResourceCargo(ResourceType.Power),new Quantity(0.5f,QuantityType.Percent)));
+	WatchList.Add(new Watch(new ResourceCargo(ResourceType.Hydrogen),new Quantity(0.5f,QuantityType.Percent)));
+	WatchList.Add(new Watch(new ResourceCargo(ResourceType.Oxygen),new Quantity(0.2f,QuantityType.Percent)));
+	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -2143,19 +2185,6 @@ class Task{
 }
 Queue<Task> Task_Queue; //When a task is added, it is added to the Task Queue to be performed
 
-Task PrepareSend(IMyProgrammableBlock Prog,int Num,string Name,Quantifier Duration,List<string> Args){
-	string name="Send";
-	Quantifier duration=Quantifier.Numbered;
-	List<string> args=new List<string>();
-	args.Add(Num.ToString());
-	args.Add(Prog.CustomName);
-	args.Add(Name);
-	args.Add(Duration.ToString());
-	foreach(string Arg in Args)
-		args.Add(Arg);
-	return new Task(name,duration,args);
-}
-
 //Sends an argument to a programmable block
 bool Task_Send(Task task){
 	string progName=task.Qualifiers[0];
@@ -2200,6 +2229,20 @@ bool Task_Alert(Task task){
 	return true;
 }
 
+//Stops sending for a particular input
+bool Task_Cease(Task task){
+	Watch watch;
+	if(!Watch.TryParse(task.Qualifiers[0],out watch))
+		return false;
+	for(int i=0;i<WatchList.Count;i++){
+		if(WatchList[i].Equals(watch)){
+			WatchList.RemoveAt(i);
+			return true;
+		}
+	}
+	return false;
+}
+
 bool PerformTask(Task task){
 	if(task.Duration==Quantifier.Stop){
 		Queue<Task> Recycling=new Queue<Task>();
@@ -2224,11 +2267,26 @@ bool PerformTask(Task task){
 	return false;
 }
 
+Task PrepareSend(string Name,List<string> Args){
+	string name="Send";
+	Quantifier duration=Quantifier.Once;
+	List<string> args=new List<string>();
+	args.Add(Resource.CustomName);
+	args.Add(Name);
+	args.Add(duration.ToString());
+	foreach(string Arg in Args)
+		args.Add(Arg);
+	return new Task(name,duration,args);
+}
+
 void ProcessTasks(){
 	Task_Resetter();
 	if(Task_Queue.Count==0)
 		return;
 	Queue<Task> Recycling=new Queue<Task>();
+	foreach(Watch watch in WatchList){
+		Task_Queue.Enqueue(PrepareSend("Watch",new List<string>(new string[]{watch.Type.ToString(),watch.Value.ToString()})));
+	}
 	while(Task_Queue.Count>0){
 		Task task=Task_Queue.Dequeue();
 		if(!task.Valid){

@@ -1,5 +1,5 @@
 /*
-* Saturnian Ressource OS
+* Saturnian Resource OS
 * Built by mlq1616
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite watches power, hydrogen, oxygen, raw and processed materials, component, etc. levels and reports them to the Core. 
@@ -420,7 +420,7 @@ void Write(string text,bool new_line=true,bool append=true){
 		Surface.WriteText(text,append);
 }
 
-int Display_Count=3;
+int Display_Count=1;
 int _Current_Display=1;
 int Current_Display{
 	get{
@@ -912,6 +912,8 @@ abstract class TypedCargo{
 			return false;
 		}
 	}
+	
+	public abstract bool Same(TypedCargo O);
 }
 class ItemCargo:TypedCargo{
 	public MyItemType Type;
@@ -943,6 +945,12 @@ class ItemCargo:TypedCargo{
 			return false;
 		}
 	}
+	
+	public override bool Same(TypedCargo O){
+		if(O as ItemCargo==null)
+			return false;
+		return Type.Equals((O as ItemCargo).Type);
+	}
 }
 class ResourceCargo:TypedCargo{
 	public ResourceType Type;
@@ -973,6 +981,12 @@ class ResourceCargo:TypedCargo{
 		catch{
 			return false;
 		}
+	}
+	
+	public override bool Same(TypedCargo O){
+		if(O as ResourceCargo==null)
+			return false;
+		return Type.Equals((O as ResourceCargo).Type);
 	}
 }
 
@@ -1353,7 +1367,10 @@ public Program(){
 	Setup();
 }
 
+bool DoSave=true;
 public void Save(){
+	if(!DoSave)
+		return;
 	this.Storage="Watch";
 	foreach(Watch watch in Watches)
 		this.Storage+='\n'+watch.ToString();
@@ -1380,6 +1397,8 @@ bool FactoryReset(){
 	Me.CustomData="";
 	this.Storage="";
 	Me.Enabled=false;
+	Write(this.Storage+Me.CustomData);
+	DoSave=false;
 	return true;
 }
 
@@ -1458,13 +1477,21 @@ void PrintNotifications(){
 public void Main(string argument,UpdateType updateSource){
 	try{
 		UpdateProgramInfo();
-		if(updateSource==UpdateType.Script)
+		if(argument.ToLower().Equals("factory reset")){
+			FactoryReset();
+			return;
+		}
+		else if(updateSource==UpdateType.Script){
+			Notifications.Add(new Notification("New Task:\n"+argument,10));
 			TaskParser(argument);
+		}
 		else if(updateSource!=UpdateType.Terminal)
 			Main_Program(argument);
 		else{
-			if(argument.ToLower().IndexOf("task:")==0)
+			if(argument.ToLower().IndexOf("task:")==0){
+				Notifications.Add(new Notification("New Task:\n"+argument.Substring(5),10));
 				TaskParser(argument.Substring(5));
+			}
 			else
 				Main_Program(argument);
 		}
@@ -1606,9 +1633,15 @@ class Task{
 			
 			output.Add(new TaskFormat(
 			"Watch",
-			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
+			new List<Quantifier>(new Quantifier[] {Quantifier.Once}),
 			new Vector2(2,2)
 			)); //Params: Type, Quantity
+			
+			output.Add(new TaskFormat(
+			"Clear",
+			new List<Quantifier>(new Quantifier[] {Quantifier.Until,Quantifier.Stop}),
+			new Vector2(0,0)
+			)); //Params: none
 			
 			return output;
 		}
@@ -1630,6 +1663,12 @@ bool Task_Send(Task task){
 	return target.TryRun(arguments);
 }
 
+bool Tell_Cease(Watch watch){
+	if(Core==null)
+		return false;
+	return Core.TryRun("Cease\nOnce\n"+watch.ToString());
+}
+
 //Sets a new watch on a particular item or resource
 bool Task_Watch(Task task){
 	TypedCargo type;
@@ -1639,9 +1678,10 @@ bool Task_Watch(Task task){
 	if(type.Item&&value.Type==QuantityType.Percent)
 		return false;
 	for(int i=0;i<Watches.Count;i++){
-		if(Watches[i].Type.Equals(type)){
-			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Value.Value,1).ToString()+"->"+Math.Round(value.Value,1).ToString()+")",10));
+		if(Watches[i].Type.Same(type)){
 			Watches[i].Value=value;
+			Notifications.Add(new Notification("Modified Watch for "+type.ToString()+" ("+Math.Round(Watches[i].Value.Value,1).ToString()+"->"+Math.Round(value.Value,1).ToString()+")",10));
+			Tell_Cease(Watches[i]);
 			return true;
 		}
 	}
@@ -1652,6 +1692,15 @@ bool Task_Watch(Task task){
 	else if(newWatch.Type.Resource)
 		R_Watches.Add(newWatch);
 	Notifications.Add(new Notification("Added new Watch: "+newWatch.ToString(),10));
+	Tell_Cease(newWatch);
+	return true;
+}
+
+//Clears all watches
+bool Task_Clear(Task task){
+	Watches.Clear();
+	I_Watches.Clear();
+	R_Watches.Clear();
 	return true;
 }
 
@@ -1675,6 +1724,8 @@ bool PerformTask(Task task){
 			return Task_Send(task);
 		case "Watch":
 			return Task_Watch(task);
+		case "Clear":
+			return Task_Clear(task);
 	}
 	return false;
 }
@@ -1721,7 +1772,7 @@ void ProcessTasks(){
 }
 
 void Task_Resetter(){
-	Watches.Clear();
+	
 }
 
 void Task_Pruner(Task task){
@@ -1815,21 +1866,27 @@ void CheckWatches(){
 			ResourceType Type=(watch.Type as ResourceCargo).Type;
 			float stored=0;
 			float max=0;
+			int containerCount=0;
 			foreach(ResourceContainer Container in FuelContainers){
 				if(Container.Type==Type){
 					stored+=Container.Current;
 					max+=Container.Max;
+					containerCount++;
 				}
+			}
+			if(containerCount==0){
+				Display(1,"Ignoring "+Type.ToString()+": No Containers");
+				continue;
 			}
 			float percent;
 			if(max==0)
-				percent=1;
+				percent=0;
 			else
 				percent=stored/max;
 			bool Alert=false;
 			string watchStr=Type.ToString()+": ";
 			if(watch.Value.Type==QuantityType.Percent){
-				Alert=percent<watch.Value.Value||stored==0;
+				Alert=percent<watch.Value.Value||percent==0;
 				watchStr+=Math.Round(percent*100,1).ToString()+"% | "+Math.Round(watch.Value.Value*100,1).ToString()+"%";
 			}
 			else{
@@ -1859,9 +1916,6 @@ void CheckWatches(){
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
-	if(argument.ToLower().Equals("factory reset")){
-		FactoryReset();
-	}
 	if(Core!=null)
 		CheckWatches();
 	else if(Watches.Count>0)
