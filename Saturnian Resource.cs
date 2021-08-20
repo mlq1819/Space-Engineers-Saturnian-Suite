@@ -443,16 +443,16 @@ void Display(int display_number,string text,bool new_line=true,bool append=true)
 void UpdateMyDisplay(){
 	IMyTextSurface Display=Me.GetSurface(0);
 	switch(Current_Display){
+		// default:
+			// Display.FontColor=DEFAULT_TEXT_COLOR;
+			// Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+			// Display.Alignment=TextAlignment.LEFT;
+			// Display.ContentType=ContentType.TEXT_AND_IMAGE;
+			// Display.Font="Monospace";
+			// Display.TextPadding=0;
+			// Display.FontSize=0.5f;
+			// break;
 		default:
-			Display.FontColor=DEFAULT_TEXT_COLOR;
-			Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
-			Display.Alignment=TextAlignment.LEFT;
-			Display.ContentType=ContentType.TEXT_AND_IMAGE;
-			Display.Font="Monospace";
-			Display.TextPadding=0;
-			Display.FontSize=0.5f;
-			break;
-		/*default:
 			Display.FontColor=DEFAULT_TEXT_COLOR;
 			Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
 			Display.Alignment=TextAlignment.CENTER;
@@ -460,7 +460,7 @@ void UpdateMyDisplay(){
 			Display.Font="Debug";
 			Display.TextPadding=2;
 			Display.FontSize=1;
-			break;*/
+			break;
 	}
 }
 

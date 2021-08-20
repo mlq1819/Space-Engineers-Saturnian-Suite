@@ -583,9 +583,18 @@ public static class Item{
 			output.Add(Credit);
 		return output;
 	}
+	public static string Unit(MyItemType Type){
+		switch(Type.TypeId){
+			case Raw.B_O:
+			case Ingot.B_I:
+				return "Kg";
+			default:
+				return "Items";
+		}
+	}
 	
 	public static class Raw{
-		static string B_O="MyObjectBuilder_Ore";
+		public const string B_O="MyObjectBuilder_Ore";
 		public static List<MyItemType> All{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -636,7 +645,7 @@ public static class Item{
 		public static MyItemType Organic=new MyItemType(B_O,"Organic");
 	}
 	public static class Ingot{
-		static string B_I="MyObjectBuilder_Ingot";
+		public const string B_I="MyObjectBuilder_Ingot";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -683,7 +692,7 @@ public static class Item{
 		public static MyItemType Scrap=new MyItemType(B_I,"Scrap");
 	}
 	public static class Comp{
-		static string B_C="MyObjectBuilder_Component";
+		public const string B_C="MyObjectBuilder_Component";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -753,7 +762,7 @@ public static class Item{
 		public static MyItemType Canvas=new MyItemType(B_C,"Canvas");
 	}
 	public static class Ammo{
-		static string B_A="MyObjectBuilder_AmmoMagazine";
+		public const string B_A="MyObjectBuilder_AmmoMagazine";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -798,7 +807,7 @@ public static class Item{
 		public static MyItemType PistolE=new MyItemType(B_A,"ElitePistolMagazine");
 	}
 	public static class Tool{
-		static string B_T="MyObjectBuilder_PhysicalGunObject";
+		public const string B_T="MyObjectBuilder_PhysicalGunObject";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -869,7 +878,7 @@ public static class Item{
 		public static MyItemType RocketP=new MyItemType(B_T,"AdvancedHandHeldLauncherItem");
 	}
 	public static class Cons{
-		static string B_C="MyObjectBuilder_ConsumableItem";
+		public const string B_C="MyObjectBuilder_ConsumableItem";
 		public static List<MyItemType> All{		
 			get{
 				List<MyItemType> output=new List<MyItemType>();
@@ -1013,7 +1022,7 @@ class ItemCargo:TypedCargo{
 		return Type.ToString();
 	}
 	
-	public static ItemCargo Parse(string input){
+	new public static ItemCargo Parse(string input){
 		return new ItemCargo(MyItemType.Parse(input));
 	}
 	
@@ -1044,8 +1053,8 @@ class ResourceCargo:TypedCargo{
 		return Type.ToString();
 	}
 	
-	public static ResourceCargo Parse(string input){
-		return new ResourceCargo(Enum.Parse<ResourceType>(input));
+	new public static ResourceCargo Parse(string input){
+		return new ResourceCargo((ResourceType)Enum.Parse(typeof(ResourceType),input));
 	}
 	
 	public static bool TryParse(string input,out ResourceCargo output){
@@ -1715,8 +1724,8 @@ void Reset(){
 	//Reset LCD Lists
 	Notifications=new List<Notification>();
 	DockingConnectors=new List<IMyShipConnector>();
-	List<Dock> FuelingDocks=new List<Dock>();
-	Queue<CargoDock> CargoDocks=new Queue<CargoDock>();
+	FuelingDocks=new List<Dock>();
+	CargoDocks=new Queue<CargoDock>();
 	MyTask=new Task_None();
 	Navigation=null;
 	Resource=null;
@@ -1829,9 +1838,9 @@ bool Setup(){
 			Write("\t-Resource");
 		return false;
 	}
-	TaskQueue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Power",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
-	TaskQueue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Hydrogen",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
-	TaskQueue.Enqueue(PrepareSend(Resource,10,"Watch",Quantifier.Once,new List<string>(new string[]{"Oxygen",(new Quantity(0.1f,QuantityType.Percent)).ToString()})));
+	Task_Queue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Power",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
+	Task_Queue.Enqueue(PrepareSend(Resource,50,"Watch",Quantifier.Once,new List<string>(new string[]{"Hydrogen",(new Quantity(0.5f,QuantityType.Percent)).ToString()})));
+	Task_Queue.Enqueue(PrepareSend(Resource,10,"Watch",Quantifier.Once,new List<string>(new string[]{"Oxygen",(new Quantity(0.1f,QuantityType.Percent)).ToString()})));
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 	return true;
@@ -2141,7 +2150,7 @@ Task PrepareSend(IMyProgrammableBlock Prog,int Num,string Name,Quantifier Durati
 	args.Add(Num.ToString());
 	args.Add(Prog.CustomName);
 	args.Add(Name);
-	args.Add(Duration);
+	args.Add(Duration.ToString());
 	foreach(string Arg in Args)
 		args.Add(Arg);
 	return new Task(name,duration,args);
@@ -2151,7 +2160,7 @@ Task PrepareSend(IMyProgrammableBlock Prog,int Num,string Name,Quantifier Durati
 bool Task_Send(Task task){
 	string progName=task.Qualifiers[0];
 	int baseIndex=1;
-	if(task.Quantifier==Quantifier.Numbered)
+	if(task.Duration==Quantifier.Numbered)
 		progName=task.Qualifiers[baseIndex++];
 	IMyProgrammableBlock target=GenericMethods<IMyProgrammableBlock>.GetFull(task.Qualifiers[0]);
 	if(target==null)
@@ -2184,7 +2193,7 @@ bool Task_Alert(Task task){
 			else
 				MyTask=new Task_Refuel(TaskType.Travel,NearestDock());
 			Dock dock=(MyTask as Task_Refuel).Data;
-			Notifications.Add(new Notification("Set Refueling Course to "+dock.Data.DockName,Math.Min(60,dock.DockDistance/50)));
+			Notifications.Add(new Notification("Set Refueling Course to "+dock.DockName,Math.Min(60,dock.DockDistance/50)));
 		}
 	}
 	return true;
