@@ -919,23 +919,6 @@ double MySize=0;
 bool Setup(){
 	Reset();
 	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Thruster");
-	foreach(IMyTextPanel Panel in LCDs)
-		AltitudeLCDs.Add(new CustomPanel(Panel));
-	foreach(CustomPanel Panel in AltitudeLCDs){
-		if(Panel.Trans){
-			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
-			Panel.Display.BackgroundColor=new Color(0,0,0,0);
-		}
-		else{
-			Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
-			Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
-		}
-		Panel.Display.Font="Monospace";
-		Panel.Display.Alignment=TextAlignment.LEFT;
-		Panel.Display.ContentType=ContentType.TEXT_AND_IMAGE;
-		Panel.Display.TextPadding=0;
-		Panel.Display.FontSize=0.5f;
-	}
 	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
 	if(Controller==null)
 		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
@@ -1530,7 +1513,7 @@ void SetThrusters(){
 
 Vector2 GetSize(IMyTextSurface Display){
 	Vector2 Size=Display.SurfaceSize;
-	Vector2 CharSize=Display.MeasureStringInPixels(new Stringbuilder("|"),Display.Font,Display.FontSize);
+	Vector2 CharSize=Display.MeasureStringInPixels(new StringBuilder("|"),Display.Font,Display.FontSize);
 	return new Vector2(Size.X/CharSize.X,Size.Y/CharSize.Y);
 }
 
@@ -1538,8 +1521,8 @@ void Thruster_Graph(CustomPanel Panel){
 	if(Panel.Display.Font!="Monospace")
 		Panel.Display.Font="Monospace";
 	Vector2 Size=GetSize(Panel.Display);
-	while(Panel.FontSize>0.1&&Size.X<10&&Size.Y<10){
-		Panel.FontSize/=2;
+	while(Panel.Display.FontSize>0.1&&Size.X<10&&Size.Y<10){
+		Panel.Display.FontSize/=2;
 		Size=GetSize(Panel.Display);
 	}
 	float output_forward=0,output_backward=0,output_up=0,output_down=0,output_left=0,output_right=0;
@@ -1556,12 +1539,12 @@ void Thruster_Graph(CustomPanel Panel){
 	if(Right_Thrusters.Count>0)
 		output_right=Right_Thrusters[0].ThrustOverridePercentage*Right_Thrust;
 	
-	int Width=Size.X-4;
+	int Width=(int)Size.X-4;
 	string output="Thruster Output";
 	output+="\nFB|";
 	for(int i=3;i-3<Width/2;i++){
 		int val=Width/2-(i-3);
-		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
 		if(thrust>Forward_Thrust)
 			output+=' ';
 		else if(thrust>output_forward)
@@ -1572,10 +1555,10 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
 		int val=(i-3)-Width/2;
-		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
 		if(thrust>Backward_Thrust)
 			output+=' ';
-		else if(thrust>output_back)
+		else if(thrust>output_backward)
 			output+='☐';
 		else
 			output+='■';
@@ -1584,7 +1567,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="\nUD:";
 	for(int i=3;i-3<Width/2;i++){
 		int val=Width/2-(i-3);
-		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
 		if(thrust>Up_Thrust)
 			output+=' ';
 		else if(thrust>output_up)
@@ -1595,7 +1578,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
 		int val=(i-3)-Width/2;
-		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
 		if(thrust>Down_Thrust)
 			output+=' ';
 		else if(thrust>output_down)
@@ -1607,7 +1590,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="\nLR:";
 	for(int i=3;i-3<Width/2;i++){
 		int val=Width/2-(i-3);
-		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
 		if(thrust>Left_Thrust)
 			output+=' ';
 		else if(thrust>output_left)
@@ -1618,7 +1601,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
 		int val=(i-3)-Width/2;
-		float thrust=Max_Thrust*((float)val-0.5)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
 		if(thrust>Right_Thrust)
 			output+=' ';
 		else if(thrust>output_right)
@@ -1627,11 +1610,11 @@ void Thruster_Graph(CustomPanel Panel){
 			output+='■';
 	}
 	
-	Width=Size.X-3;
+	Width=(int)Size.X-3;
 	
 	output+="\nFw:";
 	for(int val=0;val<Width;val++){
-		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width;
 		if(thrust>Forward_Thrust)
 			output+=' ';
 		else if(thrust>output_forward)
@@ -1641,7 +1624,7 @@ void Thruster_Graph(CustomPanel Panel){
 	}
 	output+="\nBw:";
 	for(int val=0;val<Width;val++){
-		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width;
 		if(thrust>Backward_Thrust)
 			output+=' ';
 		else if(thrust>output_backward)
@@ -1651,7 +1634,7 @@ void Thruster_Graph(CustomPanel Panel){
 	}
 	output+="\nUp:";
 	for(int val=0;val<Width;val++){
-		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width;
 		if(thrust>Up_Thrust)
 			output+=' ';
 		else if(thrust>output_up)
@@ -1661,7 +1644,7 @@ void Thruster_Graph(CustomPanel Panel){
 	}
 	output+="\nDo:";
 	for(int val=0;val<Width;val++){
-		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width;
 		if(thrust>Down_Thrust)
 			output+=' ';
 		else if(thrust>output_down)
@@ -1671,7 +1654,7 @@ void Thruster_Graph(CustomPanel Panel){
 	}
 	output+="\nLt:";
 	for(int val=0;val<Width;val++){
-		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width;
 		if(thrust>Left_Thrust)
 			output+=' ';
 		else if(thrust>output_left)
@@ -1681,7 +1664,7 @@ void Thruster_Graph(CustomPanel Panel){
 	}
 	output+="\nRt:";
 	for(int val=0;val<Width;val++){
-		float thrust=Max_Thrust*((float)val-0.5)/Width;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width;
 		if(thrust>Right_Thrust)
 			output+=' ';
 		else if(thrust>output_right)
@@ -1871,7 +1854,7 @@ public void Main(string argument,UpdateType updateSource){
 		}
 		PrintNotifications();
 		if(Current_Display==5)
-			Thruster_Graph(new CustomPanel(Me.GetTextSurface(0)));
+			Thruster_Graph(new CustomPanel(Me.GetSurface(0)));
 	}
 	catch(Exception E){
 		Write(E.ToString());

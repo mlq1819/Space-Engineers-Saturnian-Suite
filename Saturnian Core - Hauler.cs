@@ -51,10 +51,6 @@
 TODO: 
 - Complete Cargo Transfer
 	Add inventory management
-- Resource Integration
-	Check if fuel is low
-	
-- Determine what functions all ship cores need
 */
 string Program_Name="Saturnian Hauler Ship Core";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
