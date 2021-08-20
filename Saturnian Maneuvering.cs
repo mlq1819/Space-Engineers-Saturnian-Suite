@@ -1543,7 +1543,7 @@ void Thruster_Graph(CustomPanel Panel){
 	if(Panel.Display.Font!="Monospace")
 		Panel.Display.Font="Monospace";
 	Vector2 Size=GetSize(Panel.Display);
-	while(Panel.Display.FontSize>0.1&&Size.X<12&&Size.Y<12){
+	while(Panel.Display.FontSize>0.1&&Size.X<9&&Size.Y<9){
 		Panel.Display.FontSize*=9.0f/10.0f;
 		Size=GetSize(Panel.Display);
 	}
