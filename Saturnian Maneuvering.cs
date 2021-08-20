@@ -4,6 +4,7 @@
 * https://github.com/mlq1819/Space-Engineers-Saturnian-Suite
 * This suite handles thruster and gyroscope controls. 
 * Includes Autoland, basic Autopiloting
+* Include "Thruster" in LCD name to add to group.
 */
 string Program_Name="Saturnian Maneuvering";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
@@ -448,7 +449,7 @@ void UpdateMyDisplay(){
 			Display.ContentType=ContentType.TEXT_AND_IMAGE;
 			Display.Font="Monospace";
 			Display.TextPadding=0;
-			Display.FontSize=0.5f;
+			Display.FontSize=1.25f;
 			break;
 		default:
 			Display.FontColor=DEFAULT_TEXT_COLOR;
@@ -919,6 +920,23 @@ double MySize=0;
 bool Setup(){
 	Reset();
 	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Thruster");
+	foreach(IMyTextPanel Panel in LCDs)
+		ThrusterLCDs.Add(new CustomPanel(Panel));
+	foreach(CustomPanel Panel in ThrusterLCDs){
+		if(Panel.Trans){
+			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
+			Panel.Display.BackgroundColor=new Color(0,0,0,0);
+		}
+		else{
+			Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
+			Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+		}
+		Panel.Display.Font="Monospace";
+		Panel.Display.Alignment=TextAlignment.LEFT;
+		Panel.Display.ContentType=ContentType.TEXT_AND_IMAGE;
+		Panel.Display.TextPadding=0;
+		Panel.Display.FontSize=1.25f;
+	}
 	Controller=GenericMethods<IMyShipController>.GetClosestFunc(MainControllerFunction);
 	if(Controller==null)
 		Controller=GenericMethods<IMyShipController>.GetClosestFunc(ControllerFunction);
@@ -1522,7 +1540,7 @@ void Thruster_Graph(CustomPanel Panel){
 		Panel.Display.Font="Monospace";
 	Vector2 Size=GetSize(Panel.Display);
 	while(Panel.Display.FontSize>0.1&&Size.X<10&&Size.Y<10){
-		Panel.Display.FontSize/=2;
+		Panel.Display.FontSize*=9.0f/10.0f;
 		Size=GetSize(Panel.Display);
 	}
 	float output_forward=0,output_backward=0,output_up=0,output_down=0,output_left=0,output_right=0;
