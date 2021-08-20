@@ -1423,13 +1423,28 @@ void PrintNotifications(){
 		Me.GetSurface(0).WriteText("",false);
 		try{
 			Write("--Notifications--");
+			Dictionary<string,int> N_Counter=new Dictionary<string,int>();
+			List<string> Messages=new List<string>();
 			for(int i=0;i<Notifications.Count;i++){
 				Notifications[i].Time=Math.Max(0,Notifications[i].Time-seconds_since_last_update);
-				Write("\""+Notifications[i].Text+"\"");
+				string text=Notifications[i].Text;
+				if(N_Counter.ContainsKey(text))
+					N_Counter[text]++;
+				else{
+					N_Counter.Add(text,1);
+					Messages.Add(text);
+				}
 				if(Notifications[i].Time<=0){
 					Notifications.RemoveAt(i--);
 					continue;
 				}
+			}
+			foreach(string Text in Messages){
+				string str="";
+				int count=N_Counter[Text];
+				if(count>1)
+					str="("+count.ToString()+") ";
+				Write("\""+str+Text+"\"");
 			}
 			Write("--Program--");
 		}
