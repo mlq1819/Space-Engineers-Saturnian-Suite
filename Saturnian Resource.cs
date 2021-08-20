@@ -1838,7 +1838,7 @@ void CheckWatches(){
 	string s="s";
 	if(Watches.Count==1)
 		s="";
-	Display(1,"Watching for "+Watches.Count.ToString()+" resource"+s);
+	Display(1,"Watching for "+Watches.Count.ToString()+" Resource"+s);
 	if(I_Watches.Count>0){
 		Dictionary<MyItemType,MyFixedPoint> ItemValues=new Dictionary<MyItemType,MyFixedPoint>();
 		foreach(Watch watch in I_Watches){
@@ -1889,8 +1889,14 @@ void CheckWatches(){
 					containerCount++;
 				}
 			}
+			string watchStr="";
 			if(containerCount==0){
-				Display(1,"Ignoring "+Type.ToString()+": No Containers");
+				watchStr="Ignoring "+Type.ToString()+":\nN/A | ";
+				if(watch.Value.Type==QuantityType.Percent)
+					watchStr+=Math.Round(watch.Value.Value*100,1)+"%";
+				else
+					watchStr+=Math.Round(watch.Value.Value,0);
+				Display(1,watchStr);
 				continue;
 			}
 			float percent;
@@ -1899,7 +1905,7 @@ void CheckWatches(){
 			else
 				percent=stored/max;
 			bool Alert=false;
-			string watchStr=Type.ToString()+": ";
+			watchStr=Type.ToString()+":\n";
 			if(watch.Value.Type==QuantityType.Percent){
 				Alert=percent<watch.Value.Value||percent==0;
 				watchStr+=Math.Round(percent*100,1).ToString()+"% | "+Math.Round(watch.Value.Value*100,1).ToString()+"%";
