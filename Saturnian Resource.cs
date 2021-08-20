@@ -420,7 +420,7 @@ void Write(string text,bool new_line=true,bool append=true){
 		Surface.WriteText(text,append);
 }
 
-int Display_Count=6;
+int Display_Count=3;
 int _Current_Display=1;
 int Current_Display{
 	get{
