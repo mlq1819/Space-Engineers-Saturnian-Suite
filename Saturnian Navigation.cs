@@ -14,7 +14,7 @@ string Program_Name="Saturnian Navigation";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
 Color DEFAULT_BACKGROUND_COLOR=new Color(44,0,88,255);
 double Acceptable_Angle=5;
-int Graph_Length_Seconds=180;
+int Graph_Length_Seconds=90;
 
 class Prog{
 	public static MyGridProgram P;
@@ -456,6 +456,11 @@ struct Altitude_Data{
 	public TimeSpan Timestamp;
 	public double Sealevel;
 	public double Elevation;
+	public double Terrain{
+		get{
+			return Sealevel-Elevation;
+		}
+	}
 	
 	public Altitude_Data(double S,double E,TimeSpan start){
 		Sealevel=S;
@@ -965,36 +970,50 @@ void UpdateMyDisplay(){
 	}
 }
 
-string Graph_Text="";
-
 void MarkAltitude(bool do_new=true){
-	const int XLEN=48;
-	const int XFULL=51;
 	if(Gravity.Length()==0)
 		return;
 	if(do_new)
-		Altitude_Timer=((double)Graph_Length_Seconds)/XFULL;
+		Altitude_Timer=((double)Graph_Length_Seconds)/60;
 	while(Altitude_Graph.Count>0&&Time_Since_Start.TotalSeconds-Altitude_Graph.Peek().Timestamp.TotalSeconds>Graph_Length_Seconds)
 		Altitude_Graph.Dequeue();
-	if(do_new&&Altitude_Graph.Count<XLEN&&Gravity.Length()>0)
+	if(do_new&&Gravity.Length()>0)
 		Altitude_Graph.Enqueue(new Altitude_Data(Sealevel,Elevation,Time_Since_Start));
-	if(Altitude_Graph.Count==0)
-		return;
-	double max=500;
+}
+
+Vector2I GetSize(IMyTextSurface Display){
+	if(Display.Font!="Monospace")
+		Display.Font="Monospace";
+	Vector2 Size=Display.SurfaceSize;
+	Vector2 CharSize=Display.MeasureStringInPixels(new StringBuilder("|"),Display.Font,Display.FontSize);
+	float Padding=(100-Display.TextPadding)/100f;
+	return new Vector2I((int)(Padding*Size.X/CharSize.X-2),(int)(Padding*Size.Y/CharSize.Y));
+}
+
+void PrintAltitude(CustomPanel Panel){
+	Vector2I Size=GetSize(Panel.Display);
+	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<40){
+		float FontSize=Panel.Display.FontSize;
+		FontSize=Math.Max(FontSize-0.1f,FontSize*.9f);
+		Panel.Display.FontSize=FontSize;
+		Size=GetSize(Panel.Display);
+	}
+	int XLEN=Size.X-3;
+	double max=double.MinValue;
 	double min=double.MaxValue;
 	foreach(Altitude_Data Data in Altitude_Graph){
-		max=Math.Max(max,Data.Sealevel-Data.Elevation);
-		min=Math.Min(min,Data.Sealevel-Data.Elevation);
+		max=Math.Max(max,Math.Max(Data.Terrain,Data.Sealevel));
+		min=Math.Min(min,Math.Min(Data.Terrain,Data.Sealevel));
 	}
-	max+=100;
-	min=Math.Max(min-100,-1100);
+	max=Math.Max(min+500,max+50);
+	min=min-50;
 	max=Math.Ceiling(max/100)*100;
 	min=Math.Floor(min/100)*100;
-	double interval=(max-min)/34.0;
-	//50 wide, 30 tall
-	char[][] Graph=new char[35][];
-	for(int y=0;y<35;y++){
-		Graph[y]=new char[XFULL];
+	
+	double interval=(max-min)/(Size.Y-1);
+	char[][] Graph=new char[Size.Y][];
+	for(int y=0;y<Size.Y;y++){
+		Graph[y]=new char[Size.X];
 		double altitude=(min+y*interval);
 		int alt_num=(int)Math.Floor(altitude/1000);
 		int low_alt=(int)Math.Floor((altitude-interval)/1000);
@@ -1002,7 +1021,7 @@ void MarkAltitude(bool do_new=true){
 		if(alt_num<0)
 			alt_10s='-';
 		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
-		for(int x=0;x<XFULL;x++){
+		for(int x=0;x<Size.X;x++){
 			Graph[y][x]=' ';
 			if(x<2){
 				if(alt_num!=low_alt||(min==0&&y==0)){
@@ -1022,51 +1041,38 @@ void MarkAltitude(bool do_new=true){
 		}
 	}
 	
-	// if(Orbiting){
-		// double Orbital_Altitude=0;
-		
-		// int Y=(int)Math.Round((Orbital_Altitude-min)/interval,0);
-		// if(Y>=0&&Y<35){
-			// for(int X=3;X<XFULL;X++){
-				// if(X%2==0)
-					// Graph[Y][X]='=';
-			// }
-		// }
-	// }
-	
 	double time_interval=Graph_Length_Seconds/((double)XLEN);
 	double End=Time_Since_Start.TotalSeconds;
 	double Start=End-Graph_Length_Seconds;
 	
 	foreach(Altitude_Data Point in Altitude_Graph){
 		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
-		int Y_E=(int)Math.Round((Point.Sealevel-Point.Elevation)/interval,0);
-		int Y_S=(int)Math.Round((Point.Sealevel-min)/interval,0);
+		int Y_Terrain=(int)Math.Round((Point.Terrain-min)/interval,0);
+		int Y_Ship=(int)Math.Round((Point.Sealevel-min)/interval,0);
+		
 		if(X>=0&&X<XLEN){
-			if(Y_S>=0&&Y_S<35)
-				Graph[Y_S][X+3]='○';
-			if(Y_E>=0&&Y_E<35)
-				Graph[Y_E][X+3]='_';
+			for(int i=0;i<Size.Y;i++)
+				Graph[i][X+3]=' ';
+			if(Y_Ship>=0&&Y_Ship<Size.Y)
+				Graph[Y_Ship][X+3]='○';
+			if(Y_Terrain>=0&&Y_Terrain<Size.Y)
+				Graph[Y_Terrain][X+3]='_';
 		}
 	}
-	if(do_new){
-		string time=Math.Round(Altitude_Timer,3).ToString();
-		for(int i=1;i<=time.Length;i++)
-			Graph[34][XFULL-i]=time[time.Length-i];
-	}
+	
+	string time=Math.Round(Altitude_Timer,3).ToString();
+	for(int i=1;i<=time.Length;i++)
+		Graph[Size.Y-1][Size.X-i]=time[time.Length-i];
+	
 	string text="";
-	for(int y=34;y>=0;y--){
-		if(y<34)
+	for(int y=Size.Y-1;y>=0;y--){
+		if(y<Size.Y-1)
 			text+='\n';
-		for(int x=0;x<XFULL;x++){
+		for(int x=0;x<Size.X;x++){
 			text+=Graph[y][x];
 		}
 	}
-	Graph_Text=text;
-	foreach(CustomPanel Panel in AltitudeLCDs){
-		Panel.Display.WriteText(text,false);
-	}
-	
+	Panel.Display.WriteText(text,false);
 }
 
 void UpdateSystemData(){
@@ -1164,7 +1170,7 @@ public void Main(string argument,UpdateType updateSource){
 				Main_Program(argument);
 		}
 		if(Current_Display==3)
-			Me.GetSurface(0).WriteText(Graph_Text,false);
+			PrintAltitude(new CustomPanel(Me.GetSurface(0)));
 		else
 			PrintNotifications();
 	}
@@ -1526,6 +1532,10 @@ void Main_Program(string argument){
 	}
 	if(Altitude_Timer<=0)
 		MarkAltitude();
+	
+	foreach(CustomPanel Panel in AltitudeLCDs){
+		PrintAltitude(Panel);
+	}
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
 }
