@@ -9,6 +9,9 @@
 TODO: 
 - EntityDatabase Integration
 - Collision Prediction
+- AutoPilot mapping:
+	Distance vs Altitude
+	Distance vs Time
 */
 string Program_Name="Saturnian Navigation";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
