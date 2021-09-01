@@ -914,7 +914,7 @@ void Main_Program(string argument){
 	} else if(argument.ToLower().Equals("right")){
 		Send("Direction\nUntil\n"+Right_Vector.ToString());
 	} else if(argument.ToLower().Equals("up")){
-		Vector3D target=Controller.GetPosition()+2500*Up_Vector;
+		Vector3D target=Controller.GetPosition()+3000*Up_Vector+1000*Forward_Vector;
 		Send("Go\nUntil\n"+target.ToString());
 		Send("Match\nUntil");
 	} else if(argument.ToLower().Equals("back")){

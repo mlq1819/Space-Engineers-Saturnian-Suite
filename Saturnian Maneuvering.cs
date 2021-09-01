@@ -1110,7 +1110,7 @@ void SetGyroscopes(){
 	}
 	float gyro_multx=(float)Math.Max(0.1f, Math.Min(1, 1.5f/(Controller.CalculateShipMass().PhysicalMass/gyro_count/1000000)));
 	
-	if(Match_Direction&&Do_Position&&Target_Distance>20){
+	if(Match_Direction&&Do_Position&&Target_Distance>20&&!_Autoland){
 		bool do_Match=true;
 		Vector3D target_direction=Target_Position-Controller.GetPosition();
 		target_direction.Normalize();
@@ -1409,7 +1409,7 @@ void SetThrusters(){
 		}
 	}
 	
-	if(Do_Position){
+	if(Do_Position&&(!_Autoland||CurrentSpeed<10)){
 		if(Target_Distance>1500)
 			Write("Target Position: "+Math.Round(True_Target_Distance/1000,1)+"kM");
 		else
@@ -2212,7 +2212,7 @@ bool Task_Go(Task task){
 						return true;
 					}
 				}
-				else{
+				else if(my_radius<sealevel_radius+400){
 					Target_Position=PlanetCenter-((sealevel_radius+500)*Gravity_Direction);
 					return true;
 				}
@@ -2251,6 +2251,10 @@ bool Task_Go(Task task){
 				if(GetAngle(Goal_Direction,My_Direction)>GetAngle(-1*Goal_Direction,My_Direction))
 					Goal_Direction*=-1;
 				Target_Position=Goal_Direction*2500+MyPosition;
+			}
+			else if(Elevation>500&&my_radius-1000>target_radius){
+				if(!_Autoland)
+					Autoland();
 			}
 		}
 		return true;
