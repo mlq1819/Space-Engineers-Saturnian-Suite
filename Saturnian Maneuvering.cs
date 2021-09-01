@@ -1376,6 +1376,11 @@ void SetThrusters(){
 		}
 	}
 	
+	double ExpectedForwardMovement=CurrentSpeed/60;
+	double UpwardMovementLimit=ExpectedForwardMovement*2;
+	if((cycle>10&&Runtime.UpdateFrequency==UpdateFrequency.Update1)?LastElevation-Elevation>UpwardMovementLimit:false)
+		effective_speed_limit/=2;
+	
 	effective_speed_limit=Math.Max(effective_speed_limit,5);
 	if(!Safety)
 		effective_speed_limit=300000000;
@@ -1777,6 +1782,7 @@ void Crash_And_Autolanding(){
 	if(need_print)
 		Write("No crash likely at current velocity");
 }
+double LastElevation=double.MaxValue;
 void UpdateSystemData(){
 	Thrust_Check=false;
 	Vector3D base_vector=new Vector3D(0,0,-1);
@@ -1812,6 +1818,7 @@ void UpdateSystemData(){
 	Time_To_Stop=Math.Max(Math.Max(Time.X,Time.Y),Time.Z);
 	
 	Time_To_Crash=-1;
+	LastElevation=Elevation;
 	Elevation=double.MaxValue;
 	if(Controller.TryGetPlanetElevation(MyPlanetElevation.Sealevel,out Sealevel)){
 		if(Controller.TryGetPlanetPosition(out PlanetCenter)){
@@ -2202,9 +2209,14 @@ bool Task_Go(Task task){
 					target_direction.Normalize();
 					planet_angle=GetAngle(me_direction,target_direction);
 				}
-				if(Elevation<250+MySize){
+				double ExpectedForwardMovement=CurrentSpeed/60;
+				double UpwardMovementLimit=ExpectedForwardMovement*2;
+				bool WorryElevation=(cycle>10&&Runtime.UpdateFrequency==UpdateFrequency.Update1)?LastElevation-Elevation>UpwardMovementLimit:false;
+				double TargetElevation=WorryElevation?500:300;
+				
+				if(Elevation<(WorryElevation?400:250)+MySize){
 					//This increases the cruising altitude if the elevation is too low, for collision avoidance
-					my_radius+=Math.Max(Math.Min(9.375*(300-(Elevation-MySize)),2500),250);
+					my_radius+=Math.Max(Math.Min(9.375*(TargetElevation-(Elevation-MySize)),2500),250);
 					MyPosition=(my_radius)*me_direction+PlanetCenter;
 				}
 				Target_Position=(my_radius)*target_direction+PlanetCenter;
