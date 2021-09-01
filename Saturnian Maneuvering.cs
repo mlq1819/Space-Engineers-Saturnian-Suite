@@ -1058,6 +1058,8 @@ bool Autoland(){
 		return false;
 	if(!Safety)
 		return false;
+	if(_Autoland)
+		Controller.DampenersOverride=true;
 	_Autoland=!_Autoland;
 	return true;
 }
