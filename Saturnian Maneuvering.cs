@@ -430,6 +430,8 @@ int Current_Display{
 			if(value==3||value==4)
 				value=5;
 		}
+		if(value==5&&ThrusterLCDs.Count>0)
+			value=1;
 		if(value!=_Current_Display){
 			_Current_Display=value;
 			UpdateMyDisplay();
