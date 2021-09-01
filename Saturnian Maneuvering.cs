@@ -1118,6 +1118,8 @@ void SetGyroscopes(){
 			double Grav_Angle=GetAngle(target_direction,Gravity_Direction);
 			if(Grav_Angle<60)
 				do_Match=false;
+			if(Grav_Angle>120&&Forward_Acc<Gravity.Length())
+				do_Match=false;
 		}
 		if(do_Match){
 			Do_Direction=true;
