@@ -1003,6 +1003,8 @@ struct Altitude_Point{
 	}
 }
 void PrintAltitude(CustomPanel Panel){
+	if(Runtime.UpdateFrequency==UpdateFrequency.Update1&&cycle%10!=0)
+		return;
 	Vector2I Size=GetSize(Panel.Display);
 	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<40){
 		float FontSize=Panel.Display.FontSize;
@@ -1097,9 +1099,11 @@ void PrintAltitude(CustomPanel Panel){
 			for(int j=min_ship+1;j<Y_Ship;j++)
 				Graph[j][X+3]='•';
 		}
-		if(Y_Terrain-min_terrain>1){
-			for(int j=min_terrain+1;j<Y_Terrain;j++)
+		for(int j=0;j<Y_Terrain;j++){
+			if(j>min_terrain)
 				Graph[j][X+3]='|';
+			else
+				Graph[j][X+3]='■';
 		}
 		
 		
@@ -1107,7 +1111,7 @@ void PrintAltitude(CustomPanel Panel){
 			Graph[Y_Ship][X+3]='○';
 		
 		if(Y_Terrain>=0&&Y_Terrain<Size.Y){
-			int difference=terrain_to+terrain_from;
+			int difference=Math.Abs(terrain_to)-Math.Abs(terrain_from);
 			if(difference>0&&terrain_to>0)
 				Graph[Y_Terrain][X+3]='/';
 			else if(difference>0&&terrain_from>0)
