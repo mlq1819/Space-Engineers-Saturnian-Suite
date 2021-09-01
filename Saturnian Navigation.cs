@@ -1002,6 +1002,8 @@ struct Altitude_Point{
 		Y_Terrain=y_terrain;
 	}
 }
+
+double Target_Altitude=double.MinValue;
 void PrintAltitude(CustomPanel Panel){
 	if(Runtime.UpdateFrequency==UpdateFrequency.Update1&&cycle%10!=0)
 		return;
@@ -1013,11 +1015,16 @@ void PrintAltitude(CustomPanel Panel){
 		Size=GetSize(Panel.Display);
 	}
 	int XLEN=Size.X-3;
+	
 	double max=double.MinValue;
 	double min=double.MaxValue;
 	foreach(Altitude_Data Data in Altitude_Graph){
 		max=Math.Max(max,Math.Max(Data.Terrain,Data.Sealevel));
 		min=Math.Min(min,Math.Min(Data.Terrain,Data.Sealevel));
+	}
+	if(Target_Altitude!=double.MinValue){
+		max=Math.Max(max,Target_Altitude);
+		min=Math.Min(min,Target_Altitude);
 	}
 	max=Math.Max(min+500,max+50);
 	min=min-50;
@@ -1025,6 +1032,7 @@ void PrintAltitude(CustomPanel Panel){
 	min=Math.Floor(min/100)*100;
 	
 	double interval=(max-min)/(Size.Y-1);
+	
 	char[][] Graph=new char[Size.Y][];
 	for(int y=0;y<Size.Y;y++){
 		Graph[y]=new char[Size.X];
@@ -1059,7 +1067,6 @@ void PrintAltitude(CustomPanel Panel){
 	double End=Time_Since_Start.TotalSeconds;
 	double Start=End-Graph_Length_Seconds;
 	
-	
 	List<Altitude_Point> Points=new List<Altitude_Point>();
 	foreach(Altitude_Data Point in Altitude_Graph){
 		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
@@ -1067,7 +1074,15 @@ void PrintAltitude(CustomPanel Panel){
 		int Y_Terrain=(int)Math.Round((Point.Terrain-min)/interval,0);
 		if(X>=0&&X<XLEN)
 			Points.Add(new Altitude_Point(X,Y_Ship,Y_Terrain));
-		
+	}
+	
+	int Y_Target=(Target_Altitude==double.MinValue?-1:(int)Math.Round((Target_Altitude-min)/interval,0));
+	if(Y_Target>=0&&Y_Target<Size.Y){
+		for(int i=0;i<XLEN;i+=2)
+			Graph[Y_Target][i+3]='=';
+	}
+	else{
+		Y_Target=-1;
 	}
 	
 	for(int i=0;i<Points.Count;i++){
@@ -1076,8 +1091,10 @@ void PrintAltitude(CustomPanel Panel){
 		int Y_Ship=Point.Y_Ship;
 		int Y_Terrain=Point.Y_Terrain;
 		
-		for(int j=0;j<Size.Y;j++)
-			Graph[j][X+3]=' ';
+		for(int j=0;j<Size.Y;j++){
+			if(j!=Y_Target||X%2!=0)
+				Graph[j][X+3]=' ';
+		}
 		int min_ship=Y_Ship;
 		int min_terrain=Y_Terrain;
 		int terrain_from=0,terrain_to=0;
@@ -1437,7 +1454,17 @@ bool Task_Up(Task task){
 bool Task_Go(Task task){
 	if(MovementProgram==null)
 		return false;
-	return MovementProgram.TryRun(task.ToString());
+	Vector3D position=new Vector3D(0,0,0);
+	if(Vector3D.TryParse(task.Qualifiers.Last(),out position)){
+		Vector3D Target_Position=position;
+		if(Gravity.Length()>0){
+			double sealevel_radius=(Controller.GetPosition()-PlanetCenter).Length()-Sealevel;
+			double target_radius=(Target_Position-PlanetCenter).Length();
+			Target_Altitude=target_radius-sealevel_radius;
+		}
+		return MovementProgram.TryRun(task.ToString());
+	}
+	return false;
 }
 
 //Tells the ship to match position
@@ -1528,7 +1555,7 @@ void ProcessTasks(){
 }
 
 void Task_Resetter(){
-	//
+	Target_Altitude=double.MinValue;
 }
 
 void Task_Pruner(Task task){
