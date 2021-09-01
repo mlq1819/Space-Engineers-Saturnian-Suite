@@ -891,7 +891,7 @@ bool Send(string argument, bool do_thing=true){
 	foreach(IMyProgrammableBlock prog in ProgBlocks){
 		if(prog==Me)
 			continue;
-		if(prog.TryRun(argument))
+		if((argument.ToLower().Contains("stop")||!prog.CustomName.Contains("Maneuvering"))&&prog.TryRun(argument))
 			i++;
 	}
 	Write("Ran\n\""+argument+"\"\non "+i.ToString()+"/"+(ProgBlocks.Count-1).ToString()+" machines");

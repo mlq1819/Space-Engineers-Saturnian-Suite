@@ -555,7 +555,7 @@ bool Thrust_Check=false;
 float _Max_Thrust;
 float Max_Thrust{
 	get{
-		if(Thrust_Check){
+		if(!Thrust_Check){
 			_Max_Thrust=Forward_Thrust;
 			_Max_Thrust=Math.Max(_Max_Thrust,Backward_Thrust);
 			_Max_Thrust=Math.Max(_Max_Thrust,Up_Thrust);
@@ -1533,18 +1533,21 @@ void SetThrusters(){
 		Display(4,"Thrust Right:"+Math.Round(output_right,1)+"%");
 }
 
-Vector2 GetSize(IMyTextSurface Display){
+Vector2I GetSize(IMyTextSurface Display){
+	if(Display.Font!="Monospace")
+		Display.Font="Monospace";
 	Vector2 Size=Display.SurfaceSize;
 	Vector2 CharSize=Display.MeasureStringInPixels(new StringBuilder("|"),Display.Font,Display.FontSize);
-	return new Vector2(Size.X/CharSize.X,Size.Y/CharSize.Y);
+	float Padding=(100-Display.TextPadding)/100f;
+	return new Vector2I((int)(Padding*Size.X/CharSize.X-2),(int)(Padding*Size.Y/CharSize.Y));
 }
 
 void Thruster_Graph(CustomPanel Panel){
-	if(Panel.Display.Font!="Monospace")
-		Panel.Display.Font="Monospace";
-	Vector2 Size=GetSize(Panel.Display);
-	while(Panel.Display.FontSize>0.1&&Size.X<9&&Size.Y<9){
-		Panel.Display.FontSize*=9.0f/10.0f;
+	Vector2I Size=GetSize(Panel.Display);
+	while(Panel.Display.FontSize>0.1&&Size.X<19&&Size.Y<19){
+		float FontSize=Panel.Display.FontSize;
+		FontSize=Math.Max(FontSize-0.1f,FontSize*.9f);
+		Panel.Display.FontSize=FontSize;
 		Size=GetSize(Panel.Display);
 	}
 	float output_forward=0,output_backward=0,output_up=0,output_down=0,output_left=0,output_right=0;
@@ -1570,9 +1573,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Forward_Thrust)
 			output+=' ';
 		else if(thrust>output_forward)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
@@ -1581,9 +1584,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Backward_Thrust)
 			output+=' ';
 		else if(thrust>output_backward)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	
 	output+="\nUD:";
@@ -1593,9 +1596,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Up_Thrust)
 			output+=' ';
 		else if(thrust>output_up)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
@@ -1604,9 +1607,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Down_Thrust)
 			output+=' ';
 		else if(thrust>output_down)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	
 	output+="\nLR:";
@@ -1616,9 +1619,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Left_Thrust)
 			output+=' ';
 		else if(thrust>output_left)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
@@ -1627,9 +1630,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Right_Thrust)
 			output+=' ';
 		else if(thrust>output_right)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	
 	Width=(int)Size.X-3;
@@ -1640,9 +1643,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Forward_Thrust)
 			output+=' ';
 		else if(thrust>output_forward)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="\nBw:";
 	for(int val=0;val<Width;val++){
@@ -1650,9 +1653,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Backward_Thrust)
 			output+=' ';
 		else if(thrust>output_backward)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="\nUp:";
 	for(int val=0;val<Width;val++){
@@ -1660,9 +1663,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Up_Thrust)
 			output+=' ';
 		else if(thrust>output_up)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="\nDo:";
 	for(int val=0;val<Width;val++){
@@ -1670,9 +1673,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Down_Thrust)
 			output+=' ';
 		else if(thrust>output_down)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="\nLt:";
 	for(int val=0;val<Width;val++){
@@ -1680,9 +1683,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Left_Thrust)
 			output+=' ';
 		else if(thrust>output_left)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	output+="\nRt:";
 	for(int val=0;val<Width;val++){
@@ -1690,9 +1693,9 @@ void Thruster_Graph(CustomPanel Panel){
 		if(thrust>Right_Thrust)
 			output+=' ';
 		else if(thrust>output_right)
-			output+='☐';
+			output+='○';
 		else
-			output+='■';
+			output+='•';
 	}
 	
 	Panel.Display.WriteText(output,false);
