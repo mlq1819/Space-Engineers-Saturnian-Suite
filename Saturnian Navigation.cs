@@ -990,6 +990,18 @@ Vector2I GetSize(IMyTextSurface Display){
 	return new Vector2I((int)(Padding*Size.X/CharSize.X-2),(int)(Padding*Size.Y/CharSize.Y));
 }
 
+
+struct Altitude_Point{
+	public int X;
+	public int Y_Ship;
+	public int Y_Terrain;
+	
+	public Altitude_Point(int x,int y_ship,int y_terrain){
+		X=x;
+		Y_Ship=y_ship;
+		Y_Terrain=y_terrain;
+	}
+}
 void PrintAltitude(CustomPanel Panel){
 	Vector2I Size=GetSize(Panel.Display);
 	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<40){
@@ -1045,17 +1057,62 @@ void PrintAltitude(CustomPanel Panel){
 	double End=Time_Since_Start.TotalSeconds;
 	double Start=End-Graph_Length_Seconds;
 	
+	
+	List<Altitude_Point> Points=new List<Altitude_Point>();
 	foreach(Altitude_Data Point in Altitude_Graph){
 		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
-		int Y_Terrain=(int)Math.Round((Point.Terrain-min)/interval,0);
 		int Y_Ship=(int)Math.Round((Point.Sealevel-min)/interval,0);
+		int Y_Terrain=(int)Math.Round((Point.Terrain-min)/interval,0);
+		if(X>=0&&X<XLEN)
+			Points.Add(new Altitude_Point(X,Y_Ship,Y_Terrain));
 		
-		if(X>=0&&X<XLEN){
-			for(int i=0;i<Size.Y;i++)
-				Graph[i][X+3]=' ';
-			if(Y_Ship>=0&&Y_Ship<Size.Y)
-				Graph[Y_Ship][X+3]='○';
-			if(Y_Terrain>=0&&Y_Terrain<Size.Y)
+	}
+	
+	for(int i=0;i<Points.Count;i++){
+		Altitude_Point Point=Points[i];
+		int X=Point.X;
+		int Y_Ship=Point.Y_Ship;
+		int Y_Terrain=Point.Y_Terrain;
+		
+		for(int j=0;j<Size.Y;j++)
+			Graph[j][X+3]=' ';
+		int min_ship=Y_Ship;
+		int min_terrain=Y_Terrain;
+		int terrain_from=0,terrain_to=0;
+		if(i>0){
+			Altitude_Point Target=Points[i-1];
+			min_ship=Math.Min(min_ship,Target.Y_Ship);
+			min_terrain=Math.Min(min_terrain,Target.Y_Terrain);
+			terrain_from=Y_Terrain-Target.Y_Terrain;
+		}
+		if(i+1<Points.Count){
+			Altitude_Point Target=Points[i+1];
+			min_ship=Math.Min(min_ship,Target.Y_Ship);
+			min_terrain=Math.Min(min_terrain,Target.Y_Terrain);
+			terrain_to=Target.Y_Terrain-Y_Terrain;
+		}
+		
+		
+		if(Y_Ship-min_ship>1){
+			for(int j=min_ship+1;j<Y_Ship;j++)
+				Graph[j][X+3]='•';
+		}
+		if(Y_Terrain-min_terrain>1){
+			for(int j=min_terrain+1;j<Y_Terrain;j++)
+				Graph[j][X+3]='|';
+		}
+		
+		
+		if(Y_Ship>=0&&Y_Ship<Size.Y)
+			Graph[Y_Ship][X+3]='○';
+		
+		if(Y_Terrain>=0&&Y_Terrain<Size.Y){
+			int difference=terrain_to+terrain_from;
+			if(difference>0&&terrain_to>0)
+				Graph[Y_Terrain][X+3]='/';
+			else if(difference>0&&terrain_from>0)
+				Graph[Y_Terrain][X+3]='\\';
+			else
 				Graph[Y_Terrain][X+3]='_';
 		}
 	}
