@@ -1774,14 +1774,15 @@ void Crash_And_Autolanding(){
 			Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nEnabling Dampeners...",2));
 			need_print=false;
 		}
-		else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&CurrentSpeed>1.0f){
-			Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
-			if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
+		else{
+			if(_Autoland&&CurrentSpeed<5&&Elevation>800)
 				Controller.DampenersOverride=false;
-			need_print=false;
-		}
-		else if(_Autoland&&CurrentSpeed<5&&Elevation>800){
-			Controller.DampenersOverride=false;
+			if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&CurrentSpeed>1.0f){
+				Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
+				if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
+					Controller.DampenersOverride=false;
+				need_print=false;
+			}
 		}
 		if(Elevation-MySize<5&&_Autoland)
 			_Autoland=false;
