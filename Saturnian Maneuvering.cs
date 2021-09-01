@@ -2192,16 +2192,32 @@ bool Task_Go(Task task){
 		Target_Position=position;
 		True_Target_Position=position;
 		Do_Position=true;
-		if(Sealevel<2000){
+		if(Gravity.Length()>0){
 			Vector3D MyPosition=Controller.GetPosition();
 			double my_radius=(MyPosition-PlanetCenter).Length();
 			Vector3D target_direction=Target_Position-PlanetCenter;
+			double target_radius=target_direction.Length();
 			target_direction.Normalize();
+			double planet_radius=my_radius-Elevation;
+			double sealevel_radius=my_radius-Sealevel;
 			Vector3D me_direction=MyPosition-PlanetCenter;
 			me_direction.Normalize();
 			double planet_angle=GetAngle(me_direction,target_direction);
 			Write("Planetary Angle: "+Math.Round(planet_angle,1).ToString()+"°");
-			if(planet_angle>2.5||Elevation-MySize/2<Math.Max(30,Target_Distance/10)){
+			if(target_radius>sealevel_radius+100){
+				if(target_radius>planet_radius/3){
+					if(planet_angle>30){
+						if(target_radius>my_radius+2000)
+							Target_Position=PlanetCenter-(planet_radius*4/3*Gravity_Direction);
+						return true;
+					}
+				}
+				else{
+					Target_Position=PlanetCenter-((sealevel_radius+500)*Gravity_Direction);
+					return true;
+				}
+			}
+			if((planet_angle>2.5||(planet_angle>5&&target_radius-my_radius>2000))||Elevation-MySize/2<Math.Max(30,Target_Distance/10)){
 				while(planet_angle==180){
 					//This offsets the angle so we can create a full Plane from the 3 points: Center,Here,Target
 					Vector3D offset=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
@@ -2214,11 +2230,11 @@ bool Task_Go(Task task){
 				double ExpectedForwardMovement=CurrentSpeed/60;
 				double UpwardMovementLimit=ExpectedForwardMovement*2;
 				bool WorryElevation=(cycle>10&&Runtime.UpdateFrequency==UpdateFrequency.Update1)?LastElevation-Elevation>UpwardMovementLimit:false;
-				double TargetElevation=WorryElevation?500:300;
+				double GoalElevation=WorryElevation?500:300;
 				
 				if(Elevation<(WorryElevation?400:250)+MySize){
 					//This increases the cruising altitude if the elevation is too low, for collision avoidance
-					my_radius+=Math.Max(Math.Min(9.375*(TargetElevation-(Elevation-MySize)),2500),250);
+					my_radius+=Math.Max(Math.Min(9.375*(GoalElevation-(Elevation-MySize)),2500),250);
 					MyPosition=(my_radius)*me_direction+PlanetCenter;
 				}
 				Target_Position=(my_radius)*target_direction+PlanetCenter;
