@@ -1400,7 +1400,7 @@ void SetThrusters(){
 	}
 	
 	if(Gravity.Length()>0&&Mass_Accomodation>0&&(Controller.GetShipSpeed()<100||GetAngle(CurrentVelocity,Gravity)>Acceptable_Angle)){
-		if(!(_Autoland&&Time_To_Crash>15&&CurrentSpeed>5)){
+		if(!(_Autoland&&Time_To_Crash>15&&(Elevation>200||CurrentSpeed>5))){
 			if(!((!Controller.DampenersOverride)&&Elevation<Ev_Df&&CurrentSpeed<1)){
 				input_right-=(float)Adjusted_Gravity.X;
 				input_up-=(float)Adjusted_Gravity.Y;
@@ -1409,7 +1409,7 @@ void SetThrusters(){
 		}
 	}
 	
-	if(Do_Position&&(!_Autoland||CurrentSpeed<10)){
+	if(!_Autoland&&Do_Position){
 		if(Target_Distance>1500)
 			Write("Target Position: "+Math.Round(True_Target_Distance/1000,1)+"kM");
 		else
@@ -1772,11 +1772,14 @@ void Crash_And_Autolanding(){
 			Notifications.Add(new Notification("Crash predicted within "+Math.Round(5+CurrentSpeed/5,1)+" seconds:\nEnabling Dampeners...",2));
 			need_print=false;
 		}
-		else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&Controller.GetShipSpeed()>1.0f){
+		else if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&CurrentSpeed>1.0f){
 			Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
 			if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
 				Controller.DampenersOverride=false;
 			need_print=false;
+		}
+		else if(_Autoland&&CurrentSpeed<5&&Elevation>800){
+			Controller.DampenersOverride=false;
 		}
 		if(Elevation-MySize<5&&_Autoland)
 			_Autoland=false;
