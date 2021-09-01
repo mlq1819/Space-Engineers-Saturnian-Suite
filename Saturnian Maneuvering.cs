@@ -1569,7 +1569,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="\nFB|";
 	for(int i=3;i-3<Width/2;i++){
 		int val=Width/2-(i-3);
-		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Forward_Thrust)
 			output+=' ';
 		else if(thrust>output_forward)
@@ -1580,7 +1580,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
 		int val=(i-3)-Width/2;
-		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Backward_Thrust)
 			output+=' ';
 		else if(thrust>output_backward)
@@ -1592,7 +1592,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="\nUD:";
 	for(int i=3;i-3<Width/2;i++){
 		int val=Width/2-(i-3);
-		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Up_Thrust)
 			output+=' ';
 		else if(thrust>output_up)
@@ -1603,7 +1603,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
 		int val=(i-3)-Width/2;
-		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Down_Thrust)
 			output+=' ';
 		else if(thrust>output_down)
@@ -1615,7 +1615,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="\nLR:";
 	for(int i=3;i-3<Width/2;i++){
 		int val=Width/2-(i-3);
-		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Left_Thrust)
 			output+=' ';
 		else if(thrust>output_left)
@@ -1626,7 +1626,7 @@ void Thruster_Graph(CustomPanel Panel){
 	output+="|";
 	for(int i=Width/2+4;i<Width;i++){
 		int val=(i-3)-Width/2;
-		float thrust=Max_Thrust*((float)val-0.5f)/Width/2;
+		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Right_Thrust)
 			output+=' ';
 		else if(thrust>output_right)
