@@ -1058,8 +1058,6 @@ bool Autoland(){
 		return false;
 	if(!Safety)
 		return false;
-	if(_Autoland)
-		Controller.DampenersOverride=true;
 	_Autoland=!_Autoland;
 	return true;
 }
@@ -2261,6 +2259,8 @@ bool Task_Go(Task task){
 				if(!_Autoland)
 					Autoland();
 			}
+			if(!_Autoland)
+				Controller.DampenersOverride=true;
 		}
 		return true;
 	}
