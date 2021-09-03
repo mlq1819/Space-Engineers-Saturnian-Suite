@@ -9,9 +9,6 @@
 TODO: 
 - EntityDatabase Integration
 - Collision Prediction
-- AutoPilot mapping:
-	Distance vs Altitude
-	Distance vs Time
 */
 string Program_Name="Saturnian Navigation";
 Color DEFAULT_TEXT_COLOR=new Color(197,137,255,255);
@@ -1288,8 +1285,6 @@ void PrintAltitudeDistance(CustomPanel Panel){
 				}
 				else if(((int)Math.Floor(altitude/500))!=((int)Math.Floor((altitude-sealevel_interval)/500)))
 					Graph[y][x]='-';
-				else if(x==1&&((int)Math.Floor(altitude/250))!=((int)Math.Floor((altitude-sealevel_interval)/250)))
-					Graph[y][x]='-';
 			}
 			else if(x==2){
 				Graph[y][x]='|';
@@ -1361,47 +1356,41 @@ void PrintDistanceTime(CustomPanel Panel){
 	max=Math.Ceiling(max/100)*100;
 	min=Math.Floor(min/100)*100;
 	
-	double interval=(max-min)/(Size.Y-1);
+	double interval=(max-min)/(Size.X-1);
 	
 	char[][] Graph=new char[Size.Y][];
 	for(int y=0;y<Size.Y;y++){
 		Graph[y]=new char[Size.X];
-		double distance=(min+y*interval);
+		for(int x=0;x<Size.X;x++)
+			Graph[y][x]=' ';
+	}
+	for(int x=0;x<Size.X;x++){
+		double distance=(min+x*interval);
 		int alt_num=(int)Math.Floor(distance/1000);
 		int low_alt=(int)Math.Floor((distance-interval)/1000);
 		char alt_10s=((Math.Abs(alt_num)/10)%10).ToString()[0];
-		if(alt_num<0)
-			alt_10s='-';
 		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
-		for(int x=0;x<Size.X;x++){
-			Graph[y][x]=' ';
-			if(x<2){
-				if(alt_num!=low_alt||(min==0&&y==0)){
-					if(x==0)
-						Graph[y][x]=alt_10s;
-					else
-						Graph[y][x]=alt_1s;
-				}
-				else if(((int)Math.Floor(distance/500))!=((int)Math.Floor((distance-interval)/500)))
-					Graph[y][x]='-';
-				else if(x==1&&((int)Math.Floor(distance/250))!=((int)Math.Floor((distance-interval)/250)))
-					Graph[y][x]='-';
-			}
-			else if(x==2){
-				Graph[y][x]='|';
-			}
+		Graph[1][x]='-';
+		if(alt_num!=low_alt||(min==0&&x==0)){
+			if(x>0&&alt_10s!='0')
+				Graph[0][x-1]=alt_10s;
+			else
+				Graph[0][x]=alt_1s;
+			Graph[1][x]='+';
 		}
+		else if(((int)Math.Floor(distance/500))!=((int)Math.Floor((distance-interval)/500)))
+			Graph[0][x]='|';
 	}
 	
-	double time_interval=Graph_Length_Seconds/((double)XLEN);
+	double time_interval=Graph_Length_Seconds/((double)Size.Y);
 	double End=Time_Since_Start.TotalSeconds;
 	double Start=End-Graph_Length_Seconds;
 	
 	List<Vector2I> Points=new List<Vector2I>();
 	foreach(Distance_Time Point in Distance_Time_Graph){
-		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
-		int Y=(int)Math.Round((Point.Distance-min)/interval,0);
-		if(X>=0&&X<XLEN)
+		int X=(int)Math.Round((Point.Distance-min)/interval,0);
+		int Y=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval)+2;
+		if(X>=0&&X<XLEN&&Y>=2&&Y<Size.Y)
 			Points.Add(new Vector2I(X,Y));
 	}
 	
@@ -1409,25 +1398,21 @@ void PrintDistanceTime(CustomPanel Panel){
 		Vector2I Point=Points[i];
 		int X=Point.X;
 		int Y=Point.Y;
-		
-		for(int j=0;j<Size.Y;j++){
-			Graph[j][X+3]=' ';
-		}
-		int min_ship=Y;
+		int min_ship=X;
 		if(i>0)
-			min_ship=Math.Min(min_ship,Points[i-1].Y);
+			min_ship=Math.Min(min_ship,Points[i-1].X);
 		if(i+1<Points.Count)
-			min_ship=Math.Min(min_ship,Points[i+1].Y);
+			min_ship=Math.Min(min_ship,Points[i+1].X);
 		
 		
-		if(Y-min_ship>1){
-			for(int j=min_ship+1;j<Y;j++)
-				Graph[j][X+3]='•';
+		if(X-min_ship>1){
+			for(int j=min_ship+1;j<X;j++)
+				Graph[Y][j]='•';
 		}
 		
 		
-		if(Y>=0&&Y<Size.Y)
-			Graph[Y][X+3]='○';
+		if(X>=0&&X<Size.X)
+			Graph[Y][X]='○';
 	}
 	
 	string time=Math.Round(Graph_Timer,3).ToString();
