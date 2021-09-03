@@ -1125,7 +1125,11 @@ void SetGyroscopes(){
 			double Grav_Angle=GetAngle(target_direction,Gravity_Direction);
 			if(Grav_Angle<60)
 				do_Match=false;
-			if(Forward_Acc<Up_Acc||(Grav_Angle>120&&Forward_Acc<Gravity.Length()))
+			bool Target_Basically_Up=Grav_Angle>135;
+			bool Up_Stronger=Up_Acc>Forward_Acc;
+			bool Up_Not_Much_Weaker=Up_Acc>Gravity.Length()&&(Up_Acc-Gravity.Length())/2>(Forward_Acc-Gravity.Length())/3;
+			bool Forward_Not_Strong=Forward_Acc<Gravity.Length();
+			if(Target_Basically_Up&&(Forward_Not_Strong||Up_Stronger||Up_Not_Much_Weaker))
 				do_Match=false;
 			if(!(do_Match||do_Up)){
 				target_Up=-1*Gravity_Direction;
