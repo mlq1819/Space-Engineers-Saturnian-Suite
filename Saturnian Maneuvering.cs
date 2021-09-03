@@ -1222,7 +1222,7 @@ void SetGyroscopes(){
 		input_roll+=Ctrl.RollIndicator;
 	if(Math.Abs(input_roll)<0.05f){
 		input_roll=current_roll*0.99f;
-		if(do_Up){
+		if(Do_Up){
 			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<90){
 				double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
 				if(GetAngle(Up_Vector,Target_Up)>90){
@@ -1800,11 +1800,24 @@ void UpdateProgramInfo(){
 	Me.GetSurface(1).WriteText("\n"+ToString(Time_Since_Start)+" since last reboot",true);
 }
 
+double Target_Elevation=double.MaxValue;
 void Crash_And_Autolanding(){
 	double from_center=(Controller.GetPosition()-PlanetCenter).Length();
 	Vector3D next_position=Controller.GetPosition()+1*CurrentVelocity;
 	double Elevation_per_second=(from_center-(next_position-PlanetCenter).Length());
-	Time_To_Crash=(Elevation-MySize/2)/Elevation_per_second;
+	Target_Elevation=Elevation;
+	if(Do_Position){
+		Vector3D target_direction=Target_Position-PlanetCenter;
+		target_direction.Normalize();
+		Vector3D me_direction=Controller.GetPosition()-PlanetCenter;
+		me_direction.Normalize();
+		double planet_angle=GetAngle(me_direction,target_direction);
+		if(planet_angle<2.5){
+			double target_from_center=(Target_Position-PlanetCenter).Length();
+			double Target_Elevation=Math.Min(Elevation,target_from_center-(from_center-Elevation));
+		}
+	}
+	Time_To_Crash=(Target_Elevation-MySize/2)/Elevation_per_second;
 	bool need_print=true;
 	if(_Autoland)
 		Write("Autoland Enabled");
@@ -1822,16 +1835,16 @@ void Crash_And_Autolanding(){
 			need_print=false;
 		}
 		else{
-			if(_Autoland&&CurrentSpeed<10&&Elevation>800)
+			if(_Autoland&&CurrentSpeed<10&&Math.Abs(Relative_CurrentVelocity.Y)>CurrentSpeed/2&&Target_Elevation>800)
 				Controller.DampenersOverride=false;
-			if(Time_To_Crash*Math.Max(Elevation,1000)<1800000&&CurrentSpeed>1.0f){
+			if(Time_To_Crash*Math.Max(Target_Elevation,1000)<1800000&&CurrentSpeed>1.0f){
 				Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
 				if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
 					Controller.DampenersOverride=false;
 				need_print=false;
 			}
 		}
-		if(Elevation-MySize<5&&_Autoland)
+		if(Target_Elevation-MySize<5&&_Autoland)
 			_Autoland=false;
 	}
 	if(need_print)
@@ -2251,7 +2264,7 @@ bool Task_Go(Task task){
 			Vector3D target_direction=Target_Position-PlanetCenter;
 			double target_radius=target_direction.Length();
 			target_direction.Normalize();
-			double planet_radius=my_radius-Elevation;
+			double planet_radius=my_radius-Target_Elevation;
 			double sealevel_radius=my_radius-Sealevel;
 			Vector3D me_direction=MyPosition-PlanetCenter;
 			me_direction.Normalize();
@@ -2270,7 +2283,7 @@ bool Task_Go(Task task){
 					return true;
 				}
 			}
-			if((planet_angle>2.5||(planet_angle>5&&target_radius-my_radius>2000))||Elevation-MySize/2<Math.Max(30,Target_Distance/10)){
+			if((planet_angle>2.5||(planet_angle>5&&target_radius-my_radius>2000))||Target_Elevation-MySize/2<Math.Max(30,Target_Distance/10)){
 				while(planet_angle==180){
 					//This offsets the angle so we can create a full Plane from the 3 points: Center,Here,Target
 					Vector3D offset=new Vector3D(Rnd.Next(0,10)-5,Rnd.Next(0,10)-5,Rnd.Next(0,10)-5);
@@ -2282,9 +2295,9 @@ bool Task_Go(Task task){
 				}
 				double GoalElevation=500;
 				
-				if(Elevation<500+MySize){
+				if(Target_Elevation<500+MySize){
 					//This increases the cruising altitude if the elevation is too low, for collision avoidance
-					my_radius+=Math.Max(Math.Min(9.375*2*(GoalElevation-(Elevation-MySize)),5000),400);
+					my_radius+=Math.Max(Math.Min(9.375*2*(GoalElevation-(Target_Elevation-MySize)),5000),400);
 					MyPosition=(my_radius)*me_direction+PlanetCenter;
 				}
 				Target_Position=(my_radius)*target_direction+PlanetCenter;
@@ -2302,7 +2315,7 @@ bool Task_Go(Task task){
 					Goal_Direction*=-1;
 				Target_Position=Goal_Direction*2500+MyPosition;
 			}
-			else if(Elevation>500&&my_radius-1000>target_radius){
+			else if(Target_Elevation>500&&my_radius-1000>target_radius){
 				if(!_Autoland)
 					Autoland();
 			}
