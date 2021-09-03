@@ -1302,9 +1302,9 @@ void PrintAltitudeDistance(CustomPanel Panel){
 		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
 		if(alt_num!=low_alt||(min_distance==0&&x==3)){
 			Graph[1][x]='+';
-			Graph[0][x]=alt_10s;
-			if(++x<Size.X)
-				Graph[0][x]=alt_1s;
+			if(x>3&&alt_10s!='0')
+				Graph[0][x-1]=alt_10s;
+			Graph[0][x]=alt_1s;
 			continue;
 		}
 		else if(((int)Math.Floor(distance/500))!=((int)Math.Floor((distance-distance_interval)/500)))
