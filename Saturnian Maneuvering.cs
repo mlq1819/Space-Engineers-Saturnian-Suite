@@ -926,8 +926,10 @@ double MySize=0;
 bool Setup(){
 	Reset();
 	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Thruster");
-	foreach(IMyTextPanel Panel in LCDs)
+	foreach(IMyTextPanel Panel in LCDs){
 		ThrusterLCDs.Add(new CustomPanel(Panel));
+		Panel.WritePublicTitle("Thruster Graph",false);
+	}
 	foreach(CustomPanel Panel in ThrusterLCDs){
 		if(Panel.Trans){
 			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
@@ -1112,6 +1114,9 @@ void SetGyroscopes(){
 	}
 	float gyro_multx=(float)Math.Max(0.1f, Math.Min(1, 1.5f/(Controller.CalculateShipMass().PhysicalMass/gyro_count/1000000)));
 	
+	bool do_Up=Do_Up;
+	Vector3D target_Up=Target_Up;
+	
 	if(Match_Direction&&Do_Position&&Target_Distance>20&&!_Autoland){
 		bool do_Match=true;
 		Vector3D target_direction=Target_Position-Controller.GetPosition();
@@ -1120,8 +1125,12 @@ void SetGyroscopes(){
 			double Grav_Angle=GetAngle(target_direction,Gravity_Direction);
 			if(Grav_Angle<60)
 				do_Match=false;
-			if(Grav_Angle>120&&Forward_Acc<Gravity.Length())
+			if(Forward_Acc<Up_Acc||(Grav_Angle>120&&Forward_Acc<Gravity.Length()))
 				do_Match=false;
+			if(!(do_Match||do_Up)){
+				target_Up=-1*Gravity_Direction;
+				do_Up=true;
+			}
 		}
 		if(do_Match){
 			Do_Direction=true;
@@ -1216,10 +1225,10 @@ void SetGyroscopes(){
 		input_roll+=Ctrl.RollIndicator;
 	if(Math.Abs(input_roll)<0.05f){
 		input_roll=current_roll*0.99f;
-		if(Do_Up){
+		if(do_Up){
 			if((!Do_Direction)||GetAngle(Forward_Vector,Target_Direction)<90){
-				double difference=(GetAngle(Left_Vector,Target_Up)-GetAngle(Right_Vector,Target_Up))/2;
-				if(GetAngle(Up_Vector,Target_Up)>90){
+				double difference=(GetAngle(Left_Vector,target_Up)-GetAngle(Right_Vector,target_Up))/2;
+				if(GetAngle(Up_Vector,target_Up)>90){
 					if(difference<0)
 						difference=-180-difference;
 					else if(difference>0)
