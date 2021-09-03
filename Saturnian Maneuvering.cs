@@ -1897,6 +1897,11 @@ void UpdateSystemData(){
 	if(Controller.TryGetPlanetElevation(MyPlanetElevation.Sealevel,out Sealevel)){
 		if(Controller.TryGetPlanetPosition(out PlanetCenter)){
 			if(Sealevel<6000&&Controller.TryGetPlanetElevation(MyPlanetElevation.Surface,out Elevation)){
+				double elevation=Elevation;
+				foreach(IMyShipController ctrl in Controllers){
+					if(ctrl.TryGetPlanetElevation(MyPlanetElevation.Surface,out Elevation))
+						Elevation=Math.Min(Elevation,elevation);
+				}
 				if(Sealevel>5000){
 					double difference=Sealevel-5000;
 					Elevation=((Elevation*(1000-difference))+(Sealevel*difference))/1000;
