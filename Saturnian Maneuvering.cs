@@ -1594,7 +1594,7 @@ void Thruster_Graph(CustomPanel Panel){
 		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Forward_Thrust)
 			output+=' ';
-		else if(thrust>output_forward)
+		else if(thrust>output_forward||output_forward<=1)
 			output+='○';
 		else
 			output+='•';
@@ -1605,7 +1605,7 @@ void Thruster_Graph(CustomPanel Panel){
 		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Backward_Thrust)
 			output+=' ';
-		else if(thrust>output_backward)
+		else if(thrust>output_backward||output_backward<=1)
 			output+='○';
 		else
 			output+='•';
@@ -1617,7 +1617,7 @@ void Thruster_Graph(CustomPanel Panel){
 		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Up_Thrust)
 			output+=' ';
-		else if(thrust>output_up)
+		else if(thrust>output_up||output_up<=1)
 			output+='○';
 		else
 			output+='•';
@@ -1628,7 +1628,7 @@ void Thruster_Graph(CustomPanel Panel){
 		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Down_Thrust)
 			output+=' ';
-		else if(thrust>output_down)
+		else if(thrust>output_down||output_down<=1)
 			output+='○';
 		else
 			output+='•';
@@ -1640,7 +1640,7 @@ void Thruster_Graph(CustomPanel Panel){
 		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Left_Thrust)
 			output+=' ';
-		else if(thrust>output_left)
+		else if(thrust>output_left||output_left<=1)
 			output+='○';
 		else
 			output+='•';
@@ -1651,7 +1651,7 @@ void Thruster_Graph(CustomPanel Panel){
 		float thrust=Max_Thrust*((float)val-0.5f)/Width*2;
 		if(thrust>Right_Thrust)
 			output+=' ';
-		else if(thrust>output_right)
+		else if(thrust>output_right||output_right<=1)
 			output+='○';
 		else
 			output+='•';
