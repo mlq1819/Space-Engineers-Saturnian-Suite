@@ -1534,8 +1534,30 @@ public void Main(string argument,UpdateType updateSource){
 			PrintNotifications();
 	}
 	catch(Exception E){
-		Write(E.ToString());
-		FactoryReset();
+		try{
+			if(AltitudeTerrainLCDs!=null){
+				foreach(CustomPanel Panel in AltitudeTerrainLCDs){
+					Panel.Display.BackgroundColor=new Color(255,0,0);
+					Panel.Display.FontColor=new Color(0,0,0);
+				}
+			}
+			if(AltitudeDistanceLCDs!=null){
+				foreach(CustomPanel Panel in AltitudeDistanceLCDs){
+					Panel.Display.BackgroundColor=new Color(255,0,0);
+					Panel.Display.FontColor=new Color(0,0,0);
+				}
+			}
+			if(DistanceTimeLCDs!=null){
+				foreach(CustomPanel Panel in DistanceTimeLCDs){
+					Panel.Display.BackgroundColor=new Color(255,0,0);
+					Panel.Display.FontColor=new Color(0,0,0);
+				}
+			}
+		}
+		finally{
+			Write(E.ToString());
+			FactoryReset();
+		}
 	}
 }
 
@@ -1910,14 +1932,26 @@ void Main_Program(string argument){
 	if(Graph_Timer<=0)
 		MarkGraphs();
 	
-	foreach(CustomPanel Panel in AltitudeTerrainLCDs){
-		PrintAltitudeTerrain(Panel);
+	try{
+		foreach(CustomPanel Panel in AltitudeTerrainLCDs){
+			PrintAltitudeTerrain(Panel);
+		}
+	} catch(Exception e){
+		Notifications.Add(new Notification("Exception in AltitudeTerrainLCDs:\n"+e.Message,10));
 	}
-	foreach(CustomPanel Panel in AltitudeDistanceLCDs){
-		PrintAltitudeDistance(Panel);
+	try{
+		foreach(CustomPanel Panel in AltitudeDistanceLCDs){
+			PrintAltitudeDistance(Panel);
+		}
+	} catch(Exception e){
+		Notifications.Add(new Notification("Exception in AltitudeDistanceLCDs:\n"+e.Message,10));
 	}
-	foreach(CustomPanel Panel in DistanceTimeLCDs){
-		PrintDistanceTime(Panel);
+	try{
+		foreach(CustomPanel Panel in DistanceTimeLCDs){
+			PrintDistanceTime(Panel);
+		}
+	} catch(Exception e){
+		Notifications.Add(new Notification("Exception in DistanceTimeLCDs:\n"+e.Message,10));
 	}
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
