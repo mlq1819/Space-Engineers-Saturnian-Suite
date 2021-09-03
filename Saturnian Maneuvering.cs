@@ -1326,6 +1326,30 @@ float Match_Thrust(double esl,double Relative_Speed,double Relative_Target_Speed
 	return 0;
 }
 
+float SmoothSpeed(IMyThrust Thruster,float input,double effective_speed_limit){
+	double timer=0;
+	if(HasBlockData(Thruster,"OutputTimer")){
+		if(!double.TryParse(GetBlockData(Thruster,"OutputTimer"),out timer))
+			timer=0;
+	}
+	timer=Math.Max(0,timer-seconds_since_last_update);
+	float output=input;
+	if(HasBlockData(Thruster,"SmoothOverride")){
+		if(!float.TryParse(GetBlockData(Thruster,"SmoothOverride"),out output)||output.ToString().Equals("NaN"))
+			output=input;
+	}
+	if(timer<=0){
+		output=(2*output+input)/3;
+		timer=0.2;
+	}
+	SetBlockData(Thruster,"OutputTimer",Math.Round(timer,3).ToString());
+	SetBlockData(Thruster,"SmoothOverride",output.ToString());
+	if(Speed_Deviation>0.5&&input>0&&effective_speed_limit-Speed_Deviation<2.5){
+		return (output*99+input)/100;
+	}
+	return input;
+}
+
 bool Safety=true;
 bool Do_Position=false;
 Vector3D Target_Position=new Vector3D(0,0,0);
@@ -1403,6 +1427,9 @@ void SetThrusters(){
 		effective_speed_limit=300000000;
 	
 	Display(3,"Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
+	float deviation_multx=1;
+	if(effective_speed_limit>5&&Math.Abs(effective_speed_limit-Speed_Deviation)<5)
+		deviation_multx=(float)Math.Sqrt(1-Math.Max(Math.Abs(effective_speed_limit-Speed_Deviation),0.1)/5);
 	
 	
 	if(RestingSpeed==0&&Controller.DampenersOverride&&(Speed_Deviation+5)<effective_speed_limit&&!Do_Position){
@@ -1431,27 +1458,27 @@ void SetThrusters(){
 			Write("Target Position: "+Math.Round(True_Target_Distance,0)+"M");
 		float thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.X,RestingVelocity.X,Relative_Target_Position.X,Left_Thrust,Right_Thrust,Left_Vector,Right_Vector,-1*(float)Adjusted_Gravity.X);
 		if(Math.Abs(thrust_value)>=1)
-			input_right=thrust_value-(float)Adjusted_Gravity.X;
+			input_right=thrust_value*deviation_multx-(float)Adjusted_Gravity.X;
 		thrust_value=Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Y,RestingVelocity.Y,Relative_Target_Position.Y,Down_Thrust,Up_Thrust,Down_Vector,Up_Vector,-1*(float)Adjusted_Gravity.Y);
 		if(Math.Abs(thrust_value)>=1)
-			input_up=thrust_value-(float)Adjusted_Gravity.Y;
+			input_up=thrust_value*deviation_multx-(float)Adjusted_Gravity.Y;
 		thrust_value=-1*Match_Thrust(effective_speed_limit,Relative_CurrentVelocity.Z,RestingVelocity.Z,Relative_Target_Position.Z,Forward_Thrust,Backward_Thrust,Forward_Vector,Backward_Vector,(float)Adjusted_Gravity.Z);
 		if(Math.Abs(thrust_value)>=1)
-			input_forward=thrust_value+(float)Adjusted_Gravity.Z;
+			input_forward=thrust_value*deviation_multx+(float)Adjusted_Gravity.Z;
 	}
 	else{
 		foreach(IMyShipController Ctrl in Controllers){
 			if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.X)>0.5f){
 				if(Ctrl.MoveIndicator.X>0){
 					if((!Safety)||(CurrentVelocity+Right_Vector-RestingVelocity).Length()<=effective_speed_limit)
-						input_right=0.95f*Right_Thrust;
+						input_right=0.95f*Right_Thrust*deviation_multx;
 					else
-						input_right=Math.Min(input_right,0);
+						input_right=Math.Min(input_right,0)*deviation_multx;
 				} else {
 					if((!Safety)||(CurrentVelocity+Left_Vector-RestingVelocity).Length()<=effective_speed_limit)
-						input_right=-0.95f*Left_Thrust;
+						input_right=-0.95f*Left_Thrust*deviation_multx;
 					else
-						input_right=Math.Max(input_right,0);
+						input_right=Math.Max(input_right,0)*deviation_multx;
 				}
 			}
 		}
@@ -1461,14 +1488,14 @@ void SetThrusters(){
 				if(Ctrl.MoveIndicator.Y>0){
 					bool grav=GetAngle(Up_Vector,Gravity_Direction)>150;
 					if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit||(grav&&(Elevation<100+Ev_Df)))
-						input_up=0.95f*Up_Thrust;
+						input_up=0.95f*Up_Thrust*deviation_multx;
 					else
-						input_up=Math.Min(input_up,0);
+						input_up=Math.Min(input_up,0)*deviation_multx;
 				} else {
 					if((!Safety)||(CurrentVelocity+Down_Vector-RestingVelocity).Length()<=effective_speed_limit)
-						input_up=-0.95f*Down_Thrust;
+						input_up=-0.95f*Down_Thrust*deviation_multx;
 					else
-						input_up=Math.Max(input_up,0);
+						input_up=Math.Max(input_up,0)*deviation_multx;
 				}
 			}
 		}
@@ -1477,19 +1504,33 @@ void SetThrusters(){
 			if(Ctrl.IsUnderControl&&Math.Abs(Ctrl.MoveIndicator.Z)>0.5f){
 				if(Ctrl.MoveIndicator.Z<0){
 					if((!Safety)||(CurrentVelocity+Up_Vector-RestingVelocity).Length()<=effective_speed_limit)
-						input_forward=0.95f*Forward_Thrust;
+						input_forward=0.95f*Forward_Thrust*deviation_multx;
 					else
-						input_forward=Math.Min(input_forward,0);
+						input_forward=Math.Min(input_forward,0)*deviation_multx;
 				} 
 				else{
 					if((!Safety)||(CurrentVelocity+Down_Vector-RestingVelocity).Length()<=effective_speed_limit)
-						input_forward=-0.95f*Backward_Thrust;
+						input_forward=-0.95f*Backward_Thrust*deviation_multx;
 					else
-						input_forward=Math.Max(input_forward,0);
+						input_forward=Math.Max(input_forward,0)*deviation_multx;
 				}
 			}
 		}
 	}
+	
+	
+	if(Forward_Thrusters.Count>0)
+		input_forward=SmoothSpeed(Forward_Thrusters[0],input_forward,effective_speed_limit);
+	else if(Backward_Thrusters.Count>0)
+		input_forward=SmoothSpeed(Backward_Thrusters[0],input_forward,effective_speed_limit);
+	if(Up_Thrusters.Count>0)
+		input_up=SmoothSpeed(Up_Thrusters[0],input_up,effective_speed_limit);
+	else if(Down_Thrusters.Count>0)
+		input_up=SmoothSpeed(Down_Thrusters[0],input_up,effective_speed_limit);
+	if(Right_Thrusters.Count>0)
+		input_right=SmoothSpeed(Right_Thrusters[0],input_right,effective_speed_limit);
+	else if(Left_Thrusters.Count>0)
+		input_right=SmoothSpeed(Left_Thrusters[0],input_right,effective_speed_limit);
 	
 	float output_forward=0.0f;
 	float output_backward=0.0f;
