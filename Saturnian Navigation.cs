@@ -455,7 +455,7 @@ struct CustomPanel{
 	}
 }
 
-struct Altitude_Data{
+struct Altitude_Terrain{
 	public TimeSpan Timestamp;
 	public double Sealevel;
 	public double Elevation;
@@ -465,10 +465,32 @@ struct Altitude_Data{
 		}
 	}
 	
-	public Altitude_Data(double S,double E,TimeSpan start){
+	public Altitude_Terrain(double S,double E,TimeSpan start){
 		Sealevel=S;
 		Elevation=E;
 		Timestamp=start;
+	}
+}
+
+struct Altitude_Distance{
+	public TimeSpan Timestamp;
+	public double Sealevel;
+	public double Distance;
+	
+	public Altitude_Distance(double S,double D,TimeSpan start){
+		Sealevel=S;
+		Distance=D;
+		Timstamp=start;
+	}
+}
+
+struct Distance_Time{
+	public TimeSpan Timestamp;
+	public double Distance;
+	
+	public Altitude_Distance(double D,TimeSpan start){
+		Distance=D;
+		Timstamp=start;
 	}
 }
 
@@ -482,10 +504,14 @@ IMyShipController Controller;
 List<IMyShipController> Controllers;
 IMyProgrammableBlock MovementProgram;
 
-List<CustomPanel> AltitudeLCDs;
+List<CustomPanel> AltitudeTerrainLCDs;
+List<CustomPanel> AltitudeDistanceLCDs;
+List<CustomPanel> DistanceTimeLCDs;
 
-Queue<Altitude_Data> Altitude_Graph;
-double Altitude_Timer=0;
+Queue<Altitude_Terrain> Altitude_Terrain_Graph;
+Queue<Altitude_Distance> Altitude_Distance_Graph;
+Queue<Distance_Time> Distance_Time_Graph;
+double Graph_Timer=0;
 
 List<IMyThrust>[] All_Thrusters=new List<IMyThrust>[6];
 List<IMyThrust> Forward_Thrusters{
@@ -770,8 +796,10 @@ void Reset(){
 	Controllers=new List<IMyShipController>();
 	for(int i=0;i<All_Thrusters.Length;i++)
 		All_Thrusters[i]=new List<IMyThrust>();
-	AltitudeLCDs=new List<CustomPanel>();
-	Altitude_Graph=new Queue<Altitude_Data>();
+	AltitudeTerrainLCDs=new List<CustomPanel>();
+	Altitude_Terrain_Graph=new Queue<Altitude_Terrain>();
+	Altitude_Distance_Graph=new Queue<Altitude_Distance>();
+	Distance_Time_Graph=new Queue<Distance_Time>();
 	Notifications=new List<Notification>();
 	MovementProgram=null;
 }
@@ -779,10 +807,23 @@ void Reset(){
 double MySize=0;
 bool Setup(){
 	Reset();
-	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude");
-	foreach(IMyTextPanel Panel in LCDs)
-		AltitudeLCDs.Add(new CustomPanel(Panel));
-	foreach(CustomPanel Panel in AltitudeLCDs){
+	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude-Terrain");
+	List<CustomPanel> MyLCDs=new List<CustomPanel>();
+	foreach(IMyTextPanel Panel in LCDs){
+		AltitudeTerrainLCDs.Add(new CustomPanel(Panel));
+		MyLCDs.Add(new CustomPanel(Panel));
+	}
+	LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude-Distance");
+	foreach(IMyTextPanel Panel in LCDs){
+		AltitudeDistanceLCDs.Add(new CustomPanel(Panel));
+		MyLCDs.Add(new CustomPanel(Panel));
+	}
+	LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Distance-Time");
+	foreach(IMyTextPanel Panel in LCDs){
+		DistanceTimeLCDs.Add(new CustomPanel(Panel));
+		MyLCDs.Add(new CustomPanel(Panel));
+	}
+	foreach(CustomPanel Panel in MyLCDs){
 		if(Panel.Trans){
 			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
 			Panel.Display.BackgroundColor=new Color(0,0,0,0);
@@ -941,8 +982,8 @@ void UpdateProgramInfo(){
 		Current_Display=(Current_Display%Display_Count)+1;
 		Display_Timer=5;
 	}
-	if(Altitude_Timer>0)
-		Altitude_Timer-=seconds_since_last_update;
+	if(Graph_Timer>0)
+		Graph_Timer-=seconds_since_last_update;
 	Write("Display "+Current_Display.ToString()+"/"+Display_Count.ToString());
 	UpdateMyDisplay();
 	Echo(ToString(FromSeconds(seconds_since_last_update))+" since last cycle");
@@ -973,15 +1014,26 @@ void UpdateMyDisplay(){
 	}
 }
 
-void MarkAltitude(bool do_new=true){
+void MarkGraphs(bool do_new=true){
 	if(Gravity.Length()==0)
 		return;
 	if(do_new)
-		Altitude_Timer=((double)Graph_Length_Seconds)/60;
-	while(Altitude_Graph.Count>0&&Time_Since_Start.TotalSeconds-Altitude_Graph.Peek().Timestamp.TotalSeconds>Graph_Length_Seconds)
-		Altitude_Graph.Dequeue();
-	if(do_new&&Gravity.Length()>0)
-		Altitude_Graph.Enqueue(new Altitude_Data(Sealevel,Elevation,Time_Since_Start));
+		Graph_Timer=((double)Graph_Length_Seconds)/60;
+	while(Altitude_Terrain_Graph.Count>0&&Time_Since_Start.TotalSeconds-Altitude_Terrain_Graph.Peek().Timestamp.TotalSeconds>Graph_Length_Seconds)
+		Altitude_Terrain_Graph.Dequeue();
+	while(Altitude_Distance_Graph.Count>(Target_Altitude==double.MinValue?0:1024))
+		Altitude_Distance_Graph.Dequeue();
+	while(Distance_Time_Graph.Count>(Target_Distance==double.MinValue?0:1024))
+		Distance_Time_Graph.Dequeue();
+	if(do_new){
+		if(Gravity.Length()>0){
+			Altitude_Terrain_Graph.Enqueue(new Altitude_Terrain(Sealevel,Elevation,Time_Since_Start));
+			if(Target_Distance!=double.MinValue)
+				Altitude_Distance_Graph.Enqueue(new Altitude_Distance(Sealevel,Target_Distance,Time_Since_Start));
+		}
+		if(Target_Distance!=double.MinValue)
+			Distance_Time_Graph.Enqueue(new Distance_Time(Target_Distance,Time_Since_Start));
+	}
 }
 
 Vector2I GetSize(IMyTextSurface Display){
@@ -994,12 +1046,12 @@ Vector2I GetSize(IMyTextSurface Display){
 }
 
 
-struct Altitude_Point{
+struct AltitudeTerrain_Point{
 	public int X;
 	public int Y_Ship;
 	public int Y_Terrain;
 	
-	public Altitude_Point(int x,int y_ship,int y_terrain){
+	public AltitudeTerrain_Point(int x,int y_ship,int y_terrain){
 		X=x;
 		Y_Ship=y_ship;
 		Y_Terrain=y_terrain;
@@ -1007,7 +1059,8 @@ struct Altitude_Point{
 }
 
 double Target_Altitude=double.MinValue;
-void PrintAltitude(CustomPanel Panel){
+double Target_Distance=double.MinValue;
+void PrintAltitudeTerrain(CustomPanel Panel){
 	if(Runtime.UpdateFrequency==UpdateFrequency.Update1&&cycle%10!=0)
 		return;
 	Vector2I Size=GetSize(Panel.Display);
@@ -1021,7 +1074,7 @@ void PrintAltitude(CustomPanel Panel){
 	
 	double max=double.MinValue;
 	double min=double.MaxValue;
-	foreach(Altitude_Data Data in Altitude_Graph){
+	foreach(Altitude_Terrain Data in Altitude_Terrain_Graph){
 		max=Math.Max(max,Math.Max(Data.Terrain,Data.Sealevel));
 		min=Math.Min(min,Math.Min(Data.Terrain,Data.Sealevel));
 	}
@@ -1070,13 +1123,13 @@ void PrintAltitude(CustomPanel Panel){
 	double End=Time_Since_Start.TotalSeconds;
 	double Start=End-Graph_Length_Seconds;
 	
-	List<Altitude_Point> Points=new List<Altitude_Point>();
-	foreach(Altitude_Data Point in Altitude_Graph){
+	List<AltitudeTerrain_Point> Points=new List<AltitudeTerrain_Point>();
+	foreach(Altitude_Terrain Point in Altitude_Terrain_Graph){
 		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
 		int Y_Ship=(int)Math.Round((Point.Sealevel-min)/interval,0);
 		int Y_Terrain=(int)Math.Round((Point.Terrain-min)/interval,0);
 		if(X>=0&&X<XLEN)
-			Points.Add(new Altitude_Point(X,Y_Ship,Y_Terrain));
+			Points.Add(new AltitudeTerrain_Point(X,Y_Ship,Y_Terrain));
 	}
 	
 	int Y_Target=(Target_Altitude==double.MinValue?-1:(int)Math.Round((Target_Altitude-min)/interval,0));
@@ -1089,7 +1142,7 @@ void PrintAltitude(CustomPanel Panel){
 	}
 	
 	for(int i=0;i<Points.Count;i++){
-		Altitude_Point Point=Points[i];
+		AltitudeTerrain_Point Point=Points[i];
 		int X=Point.X;
 		int Y_Ship=Point.Y_Ship;
 		int Y_Terrain=Point.Y_Terrain;
@@ -1102,13 +1155,13 @@ void PrintAltitude(CustomPanel Panel){
 		int min_terrain=Y_Terrain;
 		int terrain_from=0,terrain_to=0;
 		if(i>0){
-			Altitude_Point Target=Points[i-1];
+			AltitudeTerrain_Point Target=Points[i-1];
 			min_ship=Math.Min(min_ship,Target.Y_Ship);
 			min_terrain=Math.Min(min_terrain,Target.Y_Terrain);
 			terrain_from=Y_Terrain-Target.Y_Terrain;
 		}
 		if(i+1<Points.Count){
-			Altitude_Point Target=Points[i+1];
+			AltitudeTerrain_Point Target=Points[i+1];
 			min_ship=Math.Min(min_ship,Target.Y_Ship);
 			min_terrain=Math.Min(min_terrain,Target.Y_Terrain);
 			terrain_to=Target.Y_Terrain-Y_Terrain;
@@ -1141,7 +1194,261 @@ void PrintAltitude(CustomPanel Panel){
 		}
 	}
 	
-	string time=Math.Round(Altitude_Timer,3).ToString();
+	string time=Math.Round(Graph_Timer,3).ToString();
+	for(int i=1;i<=time.Length;i++)
+		Graph[Size.Y-1][Size.X-i]=time[time.Length-i];
+	
+	string text="";
+	for(int y=Size.Y-1;y>=0;y--){
+		if(y<Size.Y-1)
+			text+='\n';
+		for(int x=0;x<Size.X;x++){
+			text+=Graph[y][x];
+		}
+	}
+	Panel.Display.WriteText(text,false);
+}
+
+void PrintAltitudeDistance(CustomPanel Panel){
+	if(Runtime.UpdateFrequency==UpdateFrequency.Update1&&cycle%10!=0)
+		return;
+	Vector2I Size=GetSize(Panel.Display);
+	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<40){
+		float FontSize=Panel.Display.FontSize;
+		FontSize=Math.Max(FontSize-0.1f,FontSize*.9f);
+		Panel.Display.FontSize=FontSize;
+		Size=GetSize(Panel.Display);
+	}
+	int XLEN=Size.X-3;
+	int YLEN=Size.Y-2;
+	
+	double max_sealevel=double.MinValue;
+	double min_sealevel=double.MaxValue;
+	double max_distance=100;
+	double min_distance=0;
+	foreach(Altitude_Distance Data in Altitude_Distance){
+		max_sealevel=Math.Max(max_sealevel,Data.Sealevel);
+		min_sealevel=Math.Min(min_sealevel,Data.Sealevel);
+		max_distance=Math.Max(max_distance,Data.Distance);
+	}
+	
+	max_sealevel=Math.Max(min+500,max_sealevel+50);
+	min_sealevel=min_sealevel-50;
+	max_sealevel=Math.Ceiling(max_sealevel/100)*100;
+	min_sealevel=Math.Floor(min_sealevel/100)*100;
+	
+	
+	double sealevel_interval=(max_sealevel-min_sealevel)/(YLEN-1);
+	double distance_interval=(max_distance-min_distance)/(XLEN-1);
+	
+	char[][] Graph=new char[YLEN][];
+	for(int y=2;y<Size.Y;y++){
+		Graph[y]=new char[Size.X];
+		double altitude=(min_sealevel+y*sealevel_interval);
+		int alt_num=(int)Math.Floor(altitude/1000);
+		int low_alt=(int)Math.Floor((altitude-interval)/1000);
+		char alt_10s=((Math.Abs(alt_num)/10)%10).ToString()[0];
+		if(alt_num<0)
+			alt_10s='-';
+		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
+		for(int x=0;x<Size.X;x++){
+			Graph[y][x]=' ';
+			if(x<2){
+				if(alt_num!=low_alt||(min_sealevel==0&&y==0)){
+					if(x==0)
+						Graph[y][x]=alt_10s;
+					else
+						Graph[y][x]=alt_1s;
+				}
+				else if(((int)Math.Floor(altitude/500))!=((int)Math.Floor((altitude-sealevel_interval)/500)))
+					Graph[y][x]='-';
+				else if(x==1&&((int)Math.Floor(altitude/250))!=((int)Math.Floor((altitude-sealevel_interval)/250)))
+					Graph[y][x]='-';
+			}
+			else if(x==2){
+				Graph[y][x]='|';
+			}
+		}
+	}
+	for(int x=3;x<Size.X;x++)
+		Graph[1][x]='-';
+	for(int x=3;x<Size.X;x++){
+		double distance=(min_distance+x*distance_interval);
+		int alt_num=(int)Math.Floor(distance/1000);
+		int low_alt=(int)Math.Floor((distance-interval)/1000);
+		char alt_10s=((Math.Abs(alt_num)/10)%10).ToString()[0];
+		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
+		if(alt_num!=low_alt||(min_distance==0&&x==3)){
+			Graph[0][x]=alt_10s;
+			Graph[0][++x]=alt_1s;
+			continue;
+		}
+		else if(((int)Math.Floor(distance/500))!=((int)Math.Floor((distance-distance_interval)/500)))
+			Graph[0][x]='|';
+		else if(x==1&&((int)Math.Floor(distance/250))!=((int)Math.Floor((distance-distance_interval)/250)))
+			Graph[0][x]='|';
+	}
+	
+	foreach(Altitude_Distance Point in Altitude_Distance_Graph){
+		int X=(int)Math.Round(Point.Distance-min_distance)/distance_interval,0);
+		int Y=(int)Math.Round((Point.Sealevel-min_sealevel)/sealevel_interval,0);
+		if(X>=0&&X<XLEN&&Y>=2&&Y<Size.Y)
+			Graph[Y][X]='○';
+	}
+	
+	string time=Math.Round(Graph_Timer,3).ToString();
+	for(int i=1;i<=time.Length;i++)
+		Graph[Size.Y-1][Size.X-i]=time[time.Length-i];
+	
+	string text="";
+	for(int y=Size.Y-1;y>=0;y--){
+		if(y<Size.Y-1)
+			text+='\n';
+		for(int x=0;x<Size.X;x++){
+			text+=Graph[y][x];
+		}
+	}
+	Panel.Display.WriteText(text,false);
+}
+
+void PrintDistanceTime(CustomPanel Panel){
+	if(Runtime.UpdateFrequency==UpdateFrequency.Update1&&cycle%10!=0)
+		return;
+	Vector2I Size=GetSize(Panel.Display);
+	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<40){
+		float FontSize=Panel.Display.FontSize;
+		FontSize=Math.Max(FontSize-0.1f,FontSize*.9f);
+		Panel.Display.FontSize=FontSize;
+		Size=GetSize(Panel.Display);
+	}
+	int XLEN=Size.X-3;
+	int YLEN=Size.Y-2;
+	
+	double max_sealevel=double.MinValue;
+	double min_sealevel=double.MaxValue;
+	double max_distance=100;
+	double min_distance=0;
+	foreach(Altitude_Distance Data in Altitude_Distance){
+		max_sealevel=Math.Max(max_sealevel,Data.Sealevel);
+		min_sealevel=Math.Min(min_sealevel,Data.Sealevel);
+		max_distance=Math.Max(max_distance,Data.Distance);
+	}
+	
+	max_sealevel=Math.Max(min+500,max_sealevel+50);
+	min_sealevel=min_sealevel-50;
+	max_sealevel=Math.Ceiling(max_sealevel/100)*100;
+	min_sealevel=Math.Floor(min_sealevel/100)*100;
+	
+	
+	double sealevel_interval=(max_sealevel-min_sealevel)/(YLEN-1);
+	double distance_interval=(max_distance-min_distance)/(XLEN-1);
+	
+	char[][] Graph=new char[YLEN][];
+	for(int y=2;y<YLEN;y++){
+		Graph[y]=new char[Size.X];
+		double altitude=(min_sealevel+y*sealevel_interval);
+		int alt_num=(int)Math.Floor(altitude/1000);
+		int low_alt=(int)Math.Floor((altitude-interval)/1000);
+		char alt_10s=((Math.Abs(alt_num)/10)%10).ToString()[0];
+		if(alt_num<0)
+			alt_10s='-';
+		char alt_1s=(Math.Abs(alt_num)%10).ToString()[0];
+		for(int x=0;x<Size.X;x++){
+			Graph[y][x]=' ';
+			if(x<2){
+				if(alt_num!=low_alt||(min_sealevel==0&&y==0)){
+					if(x==0)
+						Graph[y][x]=alt_10s;
+					else
+						Graph[y][x]=alt_1s;
+				}
+				else if(((int)Math.Floor(altitude/500))!=((int)Math.Floor((altitude-sealevel_interval)/500)))
+					Graph[y][x]='-';
+				else if(x==1&&((int)Math.Floor(altitude/250))!=((int)Math.Floor((altitude-sealevel_interval)/250)))
+					Graph[y][x]='-';
+			}
+			else if(x==2){
+				Graph[y][x]='|';
+			}
+		}
+	}
+	
+	double time_interval=Graph_Length_Seconds/((double)XLEN);
+	double End=Time_Since_Start.TotalSeconds;
+	double Start=End-Graph_Length_Seconds;
+	
+	List<AltitudeTerrain_Point> Points=new List<AltitudeTerrain_Point>();
+	foreach(Altitude_Terrain Point in Altitude_Terrain_Graph){
+		int X=(int)Math.Ceiling((Point.Timestamp.TotalSeconds-Start)/time_interval);
+		int Y_Ship=(int)Math.Round((Point.Sealevel-min_sealevel)/sealevel_interval,0);
+		int Y_Terrain=(int)Math.Round((Point.Terrain-min_sealevel)/sealevel_interval,0);
+		if(X>=0&&X<XLEN)
+			Points.Add(new AltitudeTerrain_Point(X,Y_Ship,Y_Terrain));
+	}
+	
+	int Y_Target=(Target_Altitude==double.MinValue?-1:(int)Math.Round((Target_Altitude-min_sealevel)/sealevel_interval,0));
+	if(Y_Target>=2&&Y_Target<Size.Y){
+		for(int i=0;i<XLEN;i+=2)
+			Graph[Y_Target][i+3]='=';
+	}
+	else{
+		Y_Target=-1;
+	}
+	
+	for(int i=0;i<Points.Count;i++){
+		AltitudeTerrain_Point Point=Points[i];
+		int X=Point.X;
+		int Y_Ship=Point.Y_Ship;
+		int Y_Terrain=Point.Y_Terrain;
+		
+		for(int j=2;j<YLEN;j++){
+			if(j!=Y_Target||X%2!=0)
+				Graph[j][X+3]=' ';
+		}
+		int min_ship=Y_Ship;
+		int min_terrain=Y_Terrain;
+		int terrain_from=0,terrain_to=0;
+		if(i>0){
+			AltitudeTerrain_Point Target=Points[i-1];
+			min_ship=Math.Min(min_ship,Target.Y_Ship);
+			min_terrain=Math.Min(min_terrain,Target.Y_Terrain);
+			terrain_from=Y_Terrain-Target.Y_Terrain;
+		}
+		if(i+1<Points.Count){
+			AltitudeTerrain_Point Target=Points[i+1];
+			min_ship=Math.Min(min_ship,Target.Y_Ship);
+			min_terrain=Math.Min(min_terrain,Target.Y_Terrain);
+			terrain_to=Target.Y_Terrain-Y_Terrain;
+		}
+		
+		
+		if(Y_Ship-min_ship>1){
+			for(int j=min_ship+1;j<Y_Ship;j++)
+				Graph[j][X+3]='•';
+		}
+		for(int j=0;j<Y_Terrain;j++){
+			if(j>min_terrain)
+				Graph[j][X+3]='|';
+			else
+				Graph[j][X+3]='■';
+		}
+		
+		
+		if(Y_Ship>=2&&Y_Ship<YLEN)
+			Graph[Y_Ship][X+3]='○';
+		
+		if(Y_Terrain>=2&&Y_Terrain<YLEN){
+			int difference=Math.Abs(terrain_to)-Math.Abs(terrain_from);
+			if(difference>0&&terrain_to>0)
+				Graph[Y_Terrain][X+3]='/';
+			else if(difference>0&&terrain_from>0)
+				Graph[Y_Terrain][X+3]='\\';
+			else
+				Graph[Y_Terrain][X+3]='_';
+		}
+	}
+	
+	string time=Math.Round(Graph_Timer,3).ToString();
 	for(int i=1;i<=time.Length;i++)
 		Graph[Size.Y-1][Size.X-i]=time[time.Length-i];
 	
@@ -1251,7 +1558,7 @@ public void Main(string argument,UpdateType updateSource){
 				Main_Program(argument);
 		}
 		if(Current_Display==3)
-			PrintAltitude(new CustomPanel(Me.GetSurface(0)));
+			PrintAltitudeTerrain(new CustomPanel(Me.GetSurface(0)));
 		else
 			PrintNotifications();
 	}
@@ -1460,6 +1767,7 @@ bool Task_Go(Task task){
 	Vector3D position=new Vector3D(0,0,0);
 	if(Vector3D.TryParse(task.Qualifiers.Last(),out position)){
 		Vector3D Target_Position=position;
+		Target_Distance=(Target_Position-Controller.GetPosition()).Length();
 		if(Gravity.Length()>0){
 			double sealevel_radius=(Controller.GetPosition()-PlanetCenter).Length()-Sealevel;
 			double target_radius=(Target_Position-PlanetCenter).Length();
@@ -1559,6 +1867,7 @@ void ProcessTasks(){
 
 void Task_Resetter(){
 	Target_Altitude=double.MinValue;
+	Target_Distance=double.MinValue;
 }
 
 void Task_Pruner(Task task){
@@ -1621,11 +1930,11 @@ void Main_Program(string argument){
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
-	if(Altitude_Timer<=0)
-		MarkAltitude();
+	if(Graph_Timer<=0)
+		MarkGraphs();
 	
-	foreach(CustomPanel Panel in AltitudeLCDs){
-		PrintAltitude(Panel);
+	foreach(CustomPanel Panel in AltitudeTerrainLCDs){
+		PrintAltitudeTerrain(Panel);
 	}
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
