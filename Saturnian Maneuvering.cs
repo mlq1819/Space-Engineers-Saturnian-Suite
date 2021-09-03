@@ -1421,7 +1421,7 @@ void SetThrusters(){
 	
 	Display(3,"Effective Speed Limit:"+Math.Round(effective_speed_limit,1)+"mps");
 	float deviation_multx=1;
-	if(effective_speed_limit>5&&Math.Abs(effective_speed_limit-Speed_Deviation)<5)
+	if(Target_Distance>25&&effective_speed_limit>5&&Math.Abs(effective_speed_limit-Speed_Deviation)<5)
 		deviation_multx=(float)Math.Sqrt(1-Math.Max(Math.Abs(effective_speed_limit-Speed_Deviation),0.1)/5);
 	
 	
@@ -1835,14 +1835,20 @@ void Crash_And_Autolanding(){
 			need_print=false;
 		}
 		else{
-			if(_Autoland&&CurrentSpeed<10&&Math.Abs(Relative_CurrentVelocity.Y)>CurrentSpeed/2&&Target_Elevation>800)
+			bool Will_Descend=(Controller.GetPosition()-PlanetCenter).Length()>(Controller.GetPosition()+CurrentVelocity-PlanetCenter).Length();
+			bool Will_Be_Closer=true;
+			if(Do_Position){
+				Will_Be_Closer=(Controller.GetPosition()-Target_Position).Length()<(Controller.GetPosition()+CurrentVelocity-Target_Position).Length()||CurrentSpeed<5;
+			}
+			if(_Autoland&&Will_Be_Closer&&CurrentSpeed<10&&Math.Abs(Relative_CurrentVelocity.Y)>CurrentSpeed/2&&Target_Elevation>800)
 				Controller.DampenersOverride=false;
-			if(Time_To_Crash*Math.Max(Target_Elevation,1000)<1800000&&CurrentSpeed>1.0f){
+			else if(Time_To_Crash*Math.Max(Target_Elevation,1000)<1800000&&CurrentSpeed>1.0f){
 				Write(Math.Round(Time_To_Crash,1).ToString()+" seconds to crash");
 				if(_Autoland&&(Time_To_Crash-Time_To_Stop>15||(CurrentSpeed<=5&&CurrentSpeed>2.5&&Time_To_Crash-Time_To_Stop>5)))
 					Controller.DampenersOverride=false;
 				need_print=false;
 			}
+			
 		}
 		if(Target_Elevation-MySize<5&&_Autoland)
 			_Autoland=false;
