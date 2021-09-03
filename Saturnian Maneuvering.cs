@@ -2287,14 +2287,11 @@ bool Task_Go(Task task){
 					target_direction.Normalize();
 					planet_angle=GetAngle(me_direction,target_direction);
 				}
-				double ExpectedForwardMovement=CurrentSpeed/60;
-				double UpwardMovementLimit=ExpectedForwardMovement*2;
-				bool WorryElevation=(cycle>10&&Runtime.UpdateFrequency==UpdateFrequency.Update1)?LastElevation-Elevation>UpwardMovementLimit:false;
-				double GoalElevation=WorryElevation?500:300;
+				double GoalElevation=500;
 				
-				if(Elevation<(WorryElevation?400:250)+MySize){
+				if(Elevation<500+MySize){
 					//This increases the cruising altitude if the elevation is too low, for collision avoidance
-					my_radius+=Math.Max(Math.Min(9.375*(GoalElevation-(Elevation-MySize)),2500),250);
+					my_radius+=Math.Max(Math.Min(9.375*2*(GoalElevation-(Elevation-MySize)),5000),400);
 					MyPosition=(my_radius)*me_direction+PlanetCenter;
 				}
 				Target_Position=(my_radius)*target_direction+PlanetCenter;
