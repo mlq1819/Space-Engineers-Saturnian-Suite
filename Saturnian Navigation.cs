@@ -1260,7 +1260,6 @@ void PrintAltitudeDistance(CustomPanel Panel){
 	max_sealevel=Math.Ceiling(max_sealevel/100)*100;
 	min_sealevel=Math.Floor(min_sealevel/100)*100;
 	
-	
 	double sealevel_interval=(max_sealevel-min_sealevel)/(YLEN-1);
 	double distance_interval=(max_distance-min_distance)/(XLEN-1);
 	
@@ -1278,12 +1277,14 @@ void PrintAltitudeDistance(CustomPanel Panel){
 			Graph[y][x]=' ';
 			if(x<2&&y>=2){
 				if(alt_num!=low_alt||(min_sealevel==0&&y==0)){
-					if(x==0)
+					if(x==0&&alt_10s!='0')
 						Graph[y][x]=alt_10s;
-					else
+					else if(x==1)
 						Graph[y][x]=alt_1s;
 				}
 				else if(((int)Math.Floor(altitude/500))!=((int)Math.Floor((altitude-sealevel_interval)/500)))
+					Graph[y][x]='-';
+				else if(x==1&&((int)Math.Floor(altitude/250))!=((int)Math.Floor((altitude-sealevel_interval)/250)))
 					Graph[y][x]='-';
 			}
 			else if(x==2){
@@ -1302,25 +1303,31 @@ void PrintAltitudeDistance(CustomPanel Panel){
 		if(alt_num!=low_alt||(min_distance==0&&x==3)){
 			Graph[1][x]='+';
 			Graph[0][x]=alt_10s;
-			Graph[0][++x]=alt_1s;
+			if(++x<Size.X)
+				Graph[0][x]=alt_1s;
 			continue;
 		}
 		else if(((int)Math.Floor(distance/500))!=((int)Math.Floor((distance-distance_interval)/500)))
 			Graph[0][x]='|';
-		else if(x==1&&((int)Math.Floor(distance/250))!=((int)Math.Floor((distance-distance_interval)/250)))
-			Graph[0][x]='|';
+	}
+	
+	if(Target_Altitude!=double.MinValue){
+		int Y=(int)Math.Round((Target_Altitude-min_sealevel)/sealevel_interval,0);
+		for(int x=0;x<Size.X;x++){
+			if(x<3||x%2==0){
+				if(x>=0&&x<Size.X&&Y>=0&&Y<YLEN)
+					Graph[Y+2][x]='=';
+			}
+		}
+		
 	}
 	
 	foreach(Altitude_Distance Point in Altitude_Distance_Graph){
 		int X=(int)Math.Round((Point.Distance-min_distance)/distance_interval,0);
 		int Y=(int)Math.Round((Point.Sealevel-min_sealevel)/sealevel_interval,0);
-		if(X>=0&&X<XLEN&&Y>=2&&Y<Size.Y)
-			Graph[Y][X]='○';
+		if(X>=0&&X<XLEN&&Y>=0&&Y<YLEN)
+			Graph[Y+2][X+3]='○';
 	}
-	
-	string time=Math.Round(Graph_Timer,3).ToString();
-	for(int i=1;i<=time.Length;i++)
-		Graph[Size.Y-1][Size.X-i]=time[time.Length-i];
 	
 	string text="";
 	for(int y=Size.Y-1;y>=0;y--){
@@ -1374,8 +1381,7 @@ void PrintDistanceTime(CustomPanel Panel){
 		if(alt_num!=low_alt||(min==0&&x==0)){
 			if(x>0&&alt_10s!='0')
 				Graph[0][x-1]=alt_10s;
-			else
-				Graph[0][x]=alt_1s;
+			Graph[0][x]=alt_1s;
 			Graph[1][x]='+';
 		}
 		else if(((int)Math.Floor(distance/500))!=((int)Math.Floor((distance-interval)/500)))
@@ -1935,23 +1941,56 @@ void Main_Program(string argument){
 	try{
 		foreach(CustomPanel Panel in AltitudeTerrainLCDs){
 			PrintAltitudeTerrain(Panel);
+			if(Panel.Trans){
+				Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
+				Panel.Display.BackgroundColor=new Color(0,0,0,0);
+			}
+			else{
+				Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
+				Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+			}
 		}
 	} catch(Exception e){
 		Notifications.Add(new Notification("Exception in AltitudeTerrainLCDs:\n"+e.Message,10));
+		foreach(CustomPanel Panel in AltitudeTerrainLCDs){
+			Panel.Display.BackgroundColor=new Color(255,255,0);
+		}
 	}
 	try{
 		foreach(CustomPanel Panel in AltitudeDistanceLCDs){
 			PrintAltitudeDistance(Panel);
+			if(Panel.Trans){
+				Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
+				Panel.Display.BackgroundColor=new Color(0,0,0,0);
+			}
+			else{
+				Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
+				Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+			}
 		}
 	} catch(Exception e){
 		Notifications.Add(new Notification("Exception in AltitudeDistanceLCDs:\n"+e.Message,10));
+		foreach(CustomPanel Panel in AltitudeDistanceLCDs){
+			Panel.Display.BackgroundColor=new Color(255,255,0);
+		}
 	}
 	try{
 		foreach(CustomPanel Panel in DistanceTimeLCDs){
 			PrintDistanceTime(Panel);
+			if(Panel.Trans){
+				Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
+				Panel.Display.BackgroundColor=new Color(0,0,0,0);
+			}
+			else{
+				Panel.Display.FontColor=DEFAULT_TEXT_COLOR;
+				Panel.Display.BackgroundColor=DEFAULT_BACKGROUND_COLOR;
+			}
 		}
 	} catch(Exception e){
 		Notifications.Add(new Notification("Exception in DistanceTimeLCDs:\n"+e.Message,10));
+		foreach(CustomPanel Panel in DistanceTimeLCDs){
+			Panel.Display.BackgroundColor=new Color(255,255,0);
+		}
 	}
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
