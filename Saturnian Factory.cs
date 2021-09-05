@@ -70,6 +70,14 @@ class Prog{
 	public static bool CanHaveJob(IMyTerminalBlock Block, string JobName){
 		return (!HasBlockData(Block,"Job"))||GetBlockData(Block,"Job").Equals("None")||GetBlockData(Block, "Job").Equals(JobName);
 	}
+	public static string GetRemovedString(string big_string, string small_string){
+		string output=big_string;
+		if(big_string.Contains(small_string)){
+			output=big_string.Substring(0, big_string.IndexOf(small_string))+big_string.Substring(big_string.IndexOf(small_string)+small_string.Length);
+		}
+		return output;
+}
+
 }
 
 class GenericMethods<T> where T : class, IMyTerminalBlock{
@@ -480,11 +488,7 @@ void UpdateMyDisplay(){
 }
 
 string GetRemovedString(string big_string, string small_string){
-	string output=big_string;
-	if(big_string.Contains(small_string)){
-		output=big_string.Substring(0, big_string.IndexOf(small_string))+big_string.Substring(big_string.IndexOf(small_string)+small_string.Length);
-	}
-	return output;
+	return Prog.GetRemovedString(big_string,small_string);
 }
 
 struct CustomPanel{
@@ -555,6 +559,33 @@ public static class Item{
 		}
 		if(type.Equals("credit")||type.Equals("sc"))
 			output.Add(Credit);
+		return output;
+	}
+	
+	public static List<MyItemType> Search(string name){
+		string[] args=name.Trim().ToLower().Split(' ');
+		for(int i=0;i<args.Length;i++){
+			if(args[i][args[i].Length-1]=='s')
+				args[i]=args[i].Substring(0,args[i].Length-1);
+		}
+		List<MyItemType> output=new List<MyItemType>();
+		foreach(MyItemType Type in All){
+			bool match=true;
+			string type=Type.TypeId.ToLower();
+			string subtype=Type.SubtypeId.ToLower();
+			foreach(string arg in args){
+				if(type.Contains(arg)||arg.Contains(type))
+					continue;
+				else if(subtype.Contains(arg)||arg.Contains(subtype))
+					continue;
+				else{
+					match=false;
+					break;
+				}
+			}
+			if(match)
+				output.Add(Type);
+		}
 		return output;
 	}
 	
@@ -1032,6 +1063,41 @@ class InvBlock{
 	
 	public InvBlock(IMyTerminalBlock b){
 		Block=b;
+		if(IsCargo)
+			Prog.SetBlockData(b,"BlockType","Cargo");
+		else if(IsConnector)
+			Prog.SetBlockData(b,"BlockType","Connector");
+		else if(IsSorter)
+			Prog.SetBlockData(b,"BlockType","Sorter");
+		else if(IsTurret)
+			Prog.SetBlockData(b,"BlockType","Turret");
+		else if(IsGun)
+			Prog.SetBlockData(b,"BlockType","Gun");
+		else if(IsRocket)
+			Prog.SetBlockData(b,"BlockType","Rocket");
+		else if(IsReactor)
+			Prog.SetBlockData(b,"BlockType","Reactor");
+		else if(IsTank)
+			Prog.SetBlockData(b,"BlockType","Tank");
+		else if(IsGenerator)
+			Prog.SetBlockData(b,"BlockType","Generator");
+		else if(IsAssembler)
+			Prog.SetBlockData(b,"BlockType","Assembler");
+		else if(IsRefinery)
+			Prog.SetBlockData(b,"BlockType","Refinery");
+		else if(IsParachute)
+			Prog.SetBlockData(b,"BlockType","Parachute");
+		else if(IsDummy)
+			Prog.SetBlockData(b,"BlockType","Dummy");
+		else if(IsSafeZone)
+			Prog.SetBlockData(b,"BlockType","SafeZone");
+		else if(IsDrill)
+			Prog.SetBlockData(b,"BlockType","Drill");
+		else if(IsWelder)
+			Prog.SetBlockData(b,"BlockType","Welder");
+		else if(IsGrinder)
+			Prog.SetBlockData(b,"BlockType","Grinder");
+		
 		DefaultItem=Item.Raw.Ice;
 		if(IsCargo||IsConnector||IsWelder||IsGrinder||IsDummy)
 			DefaultItem=Item.Comp.Steel;
@@ -1125,7 +1191,7 @@ class CargoBlock:InvBlock{
 	}
 	public bool Valid{
 		get{
-			return Main||Deep;
+			return (Main||Deep)&&ItemTypes.Count>0;
 		}
 	}
 	public static List<MyItemType> DeepItems;
@@ -1164,13 +1230,15 @@ class CargoBlock:InvBlock{
 		}
 		else if(Deep){
 			int i1,i2;
-			i1=Name.IndexOf('(');
+			i1=Name.IndexOf('(')+1;
 			i2=Name.IndexOf(')');
 			if(i1>=0&&i2>i1){
 				string str=Name.Substring(i1,i2-i1);
 				string[] types=str.Split(',');
 				foreach(string type in types){
-					foreach(MyItemType Type in Item.ByString(type.Trim())){
+					foreach(MyItemType Type in Item.Search(type.Trim())){
+						if(Type.ToString().Contains("(null)"))
+							continue;
 						ItemTypes.Add(Type);
 						if(Type.TypeId.Equals(Item.Raw.B_O)||Type.TypeId.Equals(Item.Ingot.B_I)){
 							if(!DeepItems.Contains(Type))
@@ -1218,7 +1286,13 @@ abstract class Network{
 	public bool CanAdd(InvBlock node){
 		return CanAdd(node,true);
 	}
+	
 	public abstract bool CanAdd(InvBlock node,bool check_same);
+	
+	public bool ForceAdd(InvBlock node){
+		Nodes.Add(node);
+		return true;
+	}
 	
 	public abstract bool Add(InvBlock node,bool check=true);
 	
@@ -1448,10 +1522,13 @@ bool Setup(){
 	for(int i=1;i<InvBlocks.Count;i++){
 		bool added=false;
 		for(int j=0;j<ConveyorNetworks.Count;j++){
-			if(ConveyorNetworks[j].Add(InvBlocks[i])){
-				added=true;
-				break;
-			}
+			ConveyorNetworks[j].ForceAdd(InvBlocks[i]);
+			added=true;
+			break;
+			// if(ConveyorNetworks[j].Add(InvBlocks[i])){
+				// added=true;
+				// break;
+			// }
 		}
 		if(!added)
 			ConveyorNetworks.Add(new Inv_Network(InvBlocks[i]));
@@ -1907,6 +1984,13 @@ void Main_Program(string argument){
 		FactoryReset();
 	}
 	int total_size=0;
+	Write(StorageBlocks.Count.ToString()+" Important Cargos");
+	foreach(CargoBlock Storage in StorageBlocks){
+		if(Storage.ItemTypes.Count==1)
+			Write(Storage.CustomName+":"+Storage.ItemTypes[0].ToString());
+		else
+			Write(Storage.CustomName+":"+Storage.ItemTypes.Count.ToString()+" Types");
+	}
 	foreach(Inv_Network Network in ConveyorNetworks){
 		total_size+=Network.Count;
 	}
@@ -1915,7 +1999,7 @@ void Main_Program(string argument){
 		Inv_Network MyNetwork=ConveyorNetworks[i] as Inv_Network;
 		if(MyNetwork==null)
 			continue;
-		int remaining_count=(int)Math.Ceiling((250f*MyNetwork.Count)/total_size);
+		int remaining_count=(int)Math.Min(Math.Ceiling((20f*MyNetwork.Count)/total_size),MyNetwork.Count);
 		int starting_index=MyNetwork.Search_Index;
 		Write("Network "+(i+1).ToString()+": Scanning "+remaining_count.ToString()+"/"+MyNetwork.Count.ToString()+" Inventories");
 		if(MyNetwork.Count==0)
@@ -1980,15 +2064,15 @@ void Main_Program(string argument){
 							MyInventoryItem MyItem=(MyInventoryItem)myItem;
 							if(move_all_items){
 								if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,null))
-									Notifications.Add(new Notification("Transfered "+MyItem.Amount.ToString()+" Items of Type \""+Type.SubtypeId+"\"\nFrom "+Block.Block.CustomName+" to "+MoveTo.Block.CustomName,10));
+									Notifications.Add(new Notification("Transfered "+MyItem.Amount.ToString()+" Items of Type \""+Type.SubtypeId+"\"\nFrom "+Block.Block.CustomName+" to "+MoveTo.Block.CustomName+'\n',5));
 							}
 							else{
-								double my_quantity=MyItem.Amount.RawValue;
+								double my_quantity=MyItem.Amount.ToIntSafe();
 								double target_quantity=0;
 								if(MoveTo.Inventory.ContainItems(1,Type)){
 									MyInventoryItem? targetItem=MoveTo.Inventory.FindItem(Type);
 									if(targetItem!=null)
-										target_quantity=((MyInventoryItem)targetItem).Amount.RawValue;
+										target_quantity=((MyInventoryItem)targetItem).Amount.ToIntSafe();
 								}
 								double transfer_amount=0;
 								if(MoveTo.Deep&&Cargo.Main){
@@ -2003,7 +2087,7 @@ void Main_Program(string argument){
 								transfer_amount=Math.Min(transfer_amount,my_quantity);
 								if(transfer_amount>0){
 									if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,(MyFixedPoint)transfer_amount))
-										Notifications.Add(new Notification("Transfered "+Math.Round(transfer_amount,0).ToString()+" Items of Type \""+Type.SubtypeId+"\"\nFrom "+Block.Block.CustomName+" to "+MoveTo.Block.CustomName,10));
+										Notifications.Add(new Notification("Transfered "+Math.Round(transfer_amount,0).ToString()+" Items of Type \""+Type.SubtypeId+"\"\nFrom "+Block.Block.CustomName+" to "+MoveTo.Block.CustomName+'\n',10));
 								}
 							}
 						}
