@@ -27,6 +27,49 @@ class Prog{
 	public static TimeSpan UpdateTimeSpan(TimeSpan old,double seconds){
 		return old+FromSeconds(seconds);
 	}
+	public bool HasBlockData(IMyTerminalBlock Block, string Name){
+		if(Name.Contains(':'))
+			return false;
+		string[] args=Block.CustomData.Split('•');
+		foreach(string argument in args){
+			if(argument.IndexOf(Name+':')==0){
+				return true;
+			}
+		}
+		return false;
+	}
+	public string GetBlockData(IMyTerminalBlock Block, string Name){
+		if(Name.Contains(':'))
+			return "";
+		string[] args=Block.CustomData.Split('•');
+		foreach(string argument in args){
+			if(argument.IndexOf(Name+':')==0){
+				return argument.Substring((Name+':').Length);
+			}
+		}
+		return "";
+	}
+	public bool SetBlockData(IMyTerminalBlock Block, string Name, string Data){
+		if(Name.Contains(':'))
+			return false;
+		string[] args=Block.CustomData.Split('•');
+		for(int i=0; i<args.Count(); i++){
+			if(args[i].IndexOf(Name+':')==0){
+				Block.CustomData=Name+':'+Data;
+				for(int j=0; j<args.Count(); j++){
+					if(j!=i){
+						Block.CustomData+='•'+args[j];
+					}
+				}
+				return true;
+			}
+		}
+		Block.CustomData+='•'+Name+':'+Data;
+		return true;
+	}
+	public bool CanHaveJob(IMyTerminalBlock Block, string JobName){
+		return (!HasBlockData(Block,"Job"))||GetBlockData(Block,"Job").Equals("None")||GetBlockData(Block, "Job").Equals(JobName);
+	}
 }
 
 class GenericMethods<T> where T : class, IMyTerminalBlock{
@@ -323,47 +366,16 @@ string ToString(TimeSpan ts){
 }
 
 bool HasBlockData(IMyTerminalBlock Block, string Name){
-	if(Name.Contains(':'))
-		return false;
-	string[] args=Block.CustomData.Split('•');
-	foreach(string argument in args){
-		if(argument.IndexOf(Name+':')==0){
-			return true;
-		}
-	}
-	return false;
+	return Prog.HasBlockData(Block,Name);
 }
 string GetBlockData(IMyTerminalBlock Block, string Name){
-	if(Name.Contains(':'))
-		return "";
-	string[] args=Block.CustomData.Split('•');
-	foreach(string argument in args){
-		if(argument.IndexOf(Name+':')==0){
-			return argument.Substring((Name+':').Length);
-		}
-	}
-	return "";
+	return Prog.GetBlockData(Block,Name);
 }
 bool SetBlockData(IMyTerminalBlock Block, string Name, string Data){
-	if(Name.Contains(':'))
-		return false;
-	string[] args=Block.CustomData.Split('•');
-	for(int i=0; i<args.Count(); i++){
-		if(args[i].IndexOf(Name+':')==0){
-			Block.CustomData=Name+':'+Data;
-			for(int j=0; j<args.Count(); j++){
-				if(j!=i){
-					Block.CustomData+='•'+args[j];
-				}
-			}
-			return true;
-		}
-	}
-	Block.CustomData+='•'+Name+':'+Data;
-	return true;
+	return Prog.SetBlockData(Block,Name,Data);
 }
 bool CanHaveJob(IMyTerminalBlock Block, string JobName){
-	return (!HasBlockData(Block,"Job"))||GetBlockData(Block,"Job").Equals("None")||GetBlockData(Block, "Job").Equals(JobName);
+	return Prog.CanHaveJob(Block,JobName);
 }
 
 Vector3D GlobalToLocal(Vector3D Global,IMyCubeBlock Ref){
@@ -883,6 +895,7 @@ class InvBlock{
 			return Block.GetInventory();
 		}
 	}
+	public Inv_Network Network;
 	
 	public bool IsCargo{
 		get{
@@ -1066,6 +1079,7 @@ class InvBlock{
 				}
 			}
 		}
+		Network=null;
 	}
 	
 	public IMyInventory GetInventory(int n){
@@ -1080,6 +1094,107 @@ class InvBlock{
 		if(!o.Inventory.CanTransferItemTo(Inventory,DefaultItem))
 			return false;
 		return true;
+	}
+}
+class CargoBlock:InvBlock{
+	public IMyCargoContainer Cargo{
+		get{
+			return Block as IMyCargoContainer;
+		}
+	}
+	public string CustomName{
+		get{
+			return Cargo?.CustomName??"null";
+		}
+	}
+	string Name{
+		get{
+			return CustomName.ToLower();
+		}
+	}
+	
+	public bool Main{
+		get{
+			return Name.Contains("main");
+		}
+	}
+	public bool Deep{
+		get{
+			return Name.Contains("deep");
+		}
+	}
+	public bool Valid{
+		get{
+			return Main||Deep;
+		}
+	}
+	public static List<ItemTypes> DeepItems;
+	
+	public List<MyItemType> ItemTypes;
+	
+	public List<MyItemType> SetItemTypes(){
+		ItemTypes=new List<MyItemType>();
+		if(Main){
+			if(Name.Contains("component")||Name.Contains("comp")){
+				foreach(MyItemType Type in Item.Comp.All)
+					ItemTypes.Add(Type);
+			}
+			else {
+				bool ingots=false;
+				bool ores=false;
+				if(Name.Contains("material")){
+					ingots=true;
+					ores=true;
+				}
+				else if(Name.Contains("ingot")||Name.Contains("processed")){
+					ingots=true;
+				}
+				else if(Name.Contains("raw")||Name.Contains("ore")){
+					ores=true;
+				}
+				if(ingots){
+					foreach(MyItemType Type in Item.Ingot.All)
+						ItemTypes.Add(Type);
+				}
+				if(ores){
+					foreach(MyItemType Type in Item.raw.All)
+						ItemTypes.Add(Type);
+				}
+			}
+		}
+		else if(Deep){
+			int i1,i1;
+			i1=Name.IndexOf('(');
+			i2=Name.IndexOf(')');
+			if(i1>=0&&i2>i1){
+				string str=Name.Substring(i1,i2-i1);
+				string[] types=str.Split(',');
+				foreach(string type in types){
+					foreach(MyItemType Type in Item.ByString(type.Trim())){
+						ItemTypes.Add(Type);
+						if(Type.TypeId.Equals(Item.Raw.B_O)||Type.TypeId.Equals(Item.Ingot.B_I)){
+							if(!DeepItems.Contains(Type))
+								DeepItems.Add(Type);
+						}
+					}
+				}
+			}
+		}
+		string item_types="";
+		for(int i=0;i<ItemTypes.Count;i++){
+			if(i>0)
+				item_types+=',';
+			item_types.Add(ItemTypes[i].ToString());
+		}
+		Prog.SetBlockData(Block,"StorageTypes",item_types);
+		if(Main)
+			Prog.SetBlockData(Block,"CargoType","Main");
+		else if(Deep)
+			Prog.SetBlockData(Block,"CargoType","Deep");
+	}
+	
+	public CargoBlock(IMyCargoContainer b):base(b){
+		SetItemTypes();
 	}
 }
 
@@ -1098,7 +1213,10 @@ abstract class Network{
 		Nodes.Add(i);
 	}
 	
-	public abstract bool CanAdd(InvBlock node,bool check_same=true);
+	public bool CanAdd(InvBlock node){
+		return CanAdd(node,true);
+	}
+	public abstract bool CanAdd(InvBlock node,bool check_same);
 	
 	public int TestConnection(){
 		if(Nodes.Count<2)
@@ -1137,17 +1255,32 @@ abstract class Network{
 class Sort_Network:Network{
 	
 	
-	public Sort_Network(InvBlock i):base(i){;};
+	public Sort_Network(InvBlock i):base(i){;}
 	
-	
+	public override bool CanAdd(InvBlock node,bool check_same){
+		return (node as IMyConveyorSorter)!=null;
+	}
 	
 	
 	
 }
 class Inv_Network:Network{
+	int _Search_Index;
+	public int Search_Index{
+		get{
+			return _Search_Index;
+		}
+		set{
+			if(Count>0)
+				_Search_Index=value%Count;
+			else
+				_Search_Index=value;
+		}
+	}
 	
-	
-	public Inv_Network(InvBlock i):base(i){;};
+	public Inv_Network(InvBlock i):base(i){
+		Search_Index=0;
+	}
 	
 	public bool InNetwork(InvBlock node){
 		foreach(InvBlock Node in Nodes){
@@ -1157,7 +1290,7 @@ class Inv_Network:Network{
 		return false;
 	}
 	
-	public bool CanAdd(InvBlock node,bool check_same=true){
+	public override bool CanAdd(InvBlock node,bool check_same){
 		
 		if(Nodes.Count<1000&&InNetwork(node))
 			return false;
@@ -1189,6 +1322,7 @@ class Inv_Network:Network{
 		if(check&&!CanAdd(node))
 			return false;
 		Nodes.Add(node);
+		node.Network=this;
 		return true;
 	}
 	
@@ -1247,6 +1381,7 @@ char loading_char='|';
 double seconds_since_last_update=0;
 Random Rnd;
 
+List<CargoBlock> StorageBlocks;
 List<InvBlock> InvBlocks;
 List<Network> ConveyorNetworks;
 
@@ -1261,6 +1396,7 @@ UpdateFrequency GetUpdateFrequency(){
 void Reset(){
 	Operational=false;
 	Runtime.UpdateFrequency=UpdateFrequency.None;
+	StorageBlocks=new List<CargoBlock>();
 	InvBlocks=new List<InvBlock>();
 	ConveyorNetworks=new List<Network>();
 	//Reset LCD Lists
@@ -1289,8 +1425,15 @@ bool Setup(){
 	}*/
 	
 	List<IMyTerminalBlock> invBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
-	foreach(IMyTerminalBlock b in invBlocks)
-		InvBlocks.Add(new InvBlock(b));
+	foreach(IMyTerminalBlock b in invBlocks){
+		if((b as IMyCargoContainer)!=null&&b.CustomName.ToLower().Contains("main")||b.CustomName.ToLower().Contains("deep")){
+			CargoBlock block=new CargoBlock(b);
+			StorageBlocks.Add(block);
+			InvBlocks.Add(block);
+		}
+		else
+			InvBlocks.Add(new InvBlock(b));
+	}
 	if(InvBlocks.Count>0)
 		ConveyorNetworks.Add(new Network(InvBlocks[0]));
 	for(int i=1;i<InvBlocks.Count;i++){
@@ -1313,6 +1456,7 @@ bool Setup(){
 bool Operational=false;
 public Program(){
 	Prog.P=this;
+	CargoBlock.DeepItems=new List<MyItemType>();
 	Me.CustomName=(Program_Name+" Programmable block").Trim();
 	for(int i=0;i<Me.SurfaceCount;i++){
 		Me.GetSurface(i).FontColor=DEFAULT_TEXT_COLOR;
@@ -1738,12 +1882,128 @@ void TaskParser(string argument){
 	}
 }
 
+
+List<CargoBlock> NetworkStorage(Inv_Network Network){
+	List<CargoBlock> output=new List<CargoBlock>();
+	foreach(CargoBlock Cargo in StorageBlocks){
+		if(Network.InNetwork(Cargo))
+			output.Add(Cargo);
+	}
+	return output;
+}
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
 	if(argument.ToLower().Equals("factory reset")){
 		FactoryReset();
 	}
+	int total_size=0;
+	foreach(Inv_Network Network in ConveyorNetworks){
+		total_size+=Network.Count;
+	}
+	Write("Scanning "+total_size.ToString()+" Inventories");
+	for(int i=0;i<ConveyorNetworks.Count;i++){
+		Inv_Network Network=ConveyorNetworks[i];
+		int remaining_count=(int)Math.Ceiling((250f*Network.Count)/total_size);
+		int starting_index=Network.Search_Index;
+		Write("Network "+(i+1).ToString()+": Scanning "+remaining_count.ToString()+"/"+Network.Count.ToString()+" Inventories");
+		if(Count==0)
+			continue;
+		List<CargoBlock> MyStorage=NetworkStorage(Network);
+		List<MyItemType> ItemTypes=new List<MyItemType>();
+		foreach(CargoBlock Storage in MyStorage){
+			foreach(MyItemType Type in Storage.ItemTypes){
+				if(!ItemTypes.Contains(Type))
+					ItemTypes.Add(Type);
+			}
+		}
+		do{
+			InvBlock Block=Network[Network.Search_Index].Block;
+			CargoBlock Cargo=Block as CargoBlock;
+			List<MyItemType> CompetingTypes=new List<MyItemType>();
+			if(Cargo?.Valid??false){
+				foreach(MyItemType Type in Cargo.ItemTypes)
+					CompetingTypes.Add(Type);
+			}
+			for(int j=0;j<Block.InventoryCount;j++){
+				IMyInventory Inventory=Block.GetInventory(j);
+				foreach(MyItemType Type in ItemTypes){
+					if(!Inventory.ContainsItems(1,Type))
+						continue;
+					if(Block.IsAssembler&&Type.TypeId==Item.Ingot.B_I)
+						continue;
+					if(Block.IsRefinery&&Type.TypeId==Item.Ore.B_O)
+						continue;
+					if(Block.IsTurret)
+						continue;
+					if(Block.IsGun||Block.IsRocket)
+						continue;
+					if(Block.IsGenerator)
+						continue;
+					if(Block.IsParachute)
+						continue;
+					if(Block.IsDummy)
+						continue;
+					if(Block.IsSafeZone)
+						continue;
+					if(Block.IsWelder)
+						continue;
+					if(Block.IsTank)
+						continue;
+					bool move_all_items=true;
+					if(CompetingTypes.Count>0){
+						foreach(MyItemType type in CompetingTypes){
+							if(type==Type){
+								move_all_items=false;
+								break;
+							}
+						}
+					}
+					foreach(CargoBlock MoveTo in MyStorage){
+						if(MoveTo.ItemTypes.Contains(Type)){
+							if(MoveTo.IsFull)
+								continue;
+							MyInventoryItem? myItem=Inventory.FindItem(Type);
+							if(myItem==null)
+								continue;
+							MyInventoryItem MyItem=(MyInventoryItem)myItem;
+							if(move_all_items){
+								Inventory.TransferItemTo(MoveTo.Inventory,MyItem,null);
+							}
+							else{
+								double my_quantity=MyItem.Amount;
+								double target_quantity=0;
+								if(MoveTo.ContainsItems(1,Type)){
+									MyInventoryItem? targetItem=MoveTo.Inventory.FindItem(Type);
+									if(targetItem!=null)
+										target_quantity=targetItem.Amount;
+								}
+								double transfer_amount=0;
+								if(MoveTo.Deep&&Cargo.Main){
+									transfer_amount=Math.Max(0,my_quantity-5000);
+								}
+								else if(MoveTo.Main&&Cargo.Deep){
+									transfer_amount=Math.Max(0,5000-target_quantity);
+								}
+								else{
+									continue;
+								}
+								transfer_amount=Math.Min(transfer_amount,my_quantity);
+								if(transfer_amount>0){
+									Inventory.TransferItemTo(MoveTo.Inventory,MyItem,transfer_amount);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		while(--remaining_count>0&&++Network.Search_Index!=starting_index);
+		
+		
+	}
+	
+	
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
