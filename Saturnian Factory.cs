@@ -1212,10 +1212,10 @@ class CargoBlock:InvBlock{
 					ingots=true;
 					ores=true;
 				}
-				else if(Name.Contains("ingot")||Name.Contains("processed")){
+				if(Name.Contains("ingot")||Name.Contains("processed")){
 					ingots=true;
 				}
-				else if(Name.Contains("raw")||Name.Contains("ore")){
+				if(Name.Contains("raw")||Name.Contains("ore")){
 					ores=true;
 				}
 				if(ingots){
