@@ -487,7 +487,7 @@ void UpdateMyDisplay(){
 	}
 }
 
-string GetRemovedString(string big_string, string small_string){
+string GetRemovedString(string big_string, string small_string){https://github.com/malware-dev/MDK-SE/wiki/Api-Index
 	return Prog.GetRemovedString(big_string,small_string);
 }
 
@@ -1006,6 +1006,11 @@ class InvBlock{
 			return IsTank&&!IsH2;
 		}
 	}
+	public bool IsProduction{
+		get{
+			return IsGenerator||IsAssembler||IsRefinery;
+		}
+	}
 	public bool IsGenerator{
 		get{
 			var t=Block as IMyGasGenerator;
@@ -1354,15 +1359,27 @@ class Inv_Network:Network{
 			return _Search_Index;
 		}
 		set{
-			if(Count>0)
+			if(Count>0){
 				_Search_Index=value%Count;
+				if(value>=Count){
+					foreach(MyItemType Type in Item.All){
+						GlobalItems[Type]=MyFixedPoint.AddSafe(GlobalItems[Type],MyFixedPoint.AddSafe(CountingItems[Type],MyFixedPoint.MultiplySafe(-1,MyItems[Type])));
+					}
+				}
+			}
 			else
 				_Search_Index=value;
 		}
 	}
+	public static Dictionary<MyItemType,MyFixedPoint> GlobalItems;
+	public Dictionary<MyItemType,MyFixedPoint> MyItems;
+	private Dictionary<MyItemType,MyFixedPoint> CountingItems;
+	
 	
 	public Inv_Network(InvBlock i):base(i){
 		Search_Index=0;
+		MyItems=new Dictionary<MyItemType,MyFixedPoint>();
+		CountingItems=new Dictionary<MyItemType,MyFixedPoint>();
 	}
 	
 	public bool InNetwork(InvBlock node){
@@ -1522,16 +1539,39 @@ bool Setup(){
 	for(int i=1;i<InvBlocks.Count;i++){
 		bool added=false;
 		for(int j=0;j<ConveyorNetworks.Count;j++){
-			ConveyorNetworks[j].ForceAdd(InvBlocks[i]);
-			added=true;
-			break;
-			// if(ConveyorNetworks[j].Add(InvBlocks[i])){
-				// added=true;
-				// break;
-			// }
+			// ConveyorNetworks[j].ForceAdd(InvBlocks[i]);
+			// added=true;
+			// break;
+			if(ConveyorNetworks[j].Add(InvBlocks[i])){
+				added=true;
+				Write(InvBlocks[i].Block.CustomName+" added to existing network");
+				break;
+			}
 		}
-		if(!added)
+		if(!added){
 			ConveyorNetworks.Add(new Inv_Network(InvBlocks[i]));
+			Write(InvBlocks[i].Block.CustomName+" creates new network");
+		}
+	}
+	Write("Created "+ConveyorNetworks.Count.ToString()+" Networks");
+	for(int i=0;i<ConveyorNetworks.Count;i++){
+		if(ConveyorNetworks[i].Count<=2){
+			if(ConveyorNetworks[i].Count>=1)
+				Write("  Removing micro-Network \""+ConveyorNetworks[i].Nodes[0].Block.CustomName+"\"");
+			ConveyorNetworks.RemoveAt(i--);
+			continue;
+		}
+	}
+	Write("Trimmed to "+ConveyorNetworks.Count.ToString()+" Networks");
+	for(int i=0;i<ConveyorNetworks.Count;i++){
+		Network network=ConveyorNetworks[i];
+		Write("Network "+(i+1).ToString()+": ("+network.Count.ToString()+" Nodes)");
+		for(int j=0;j<network.Count;j++){
+			string name=network.Nodes[j].Block.CustomName;
+			if(name.Length>20)
+				name=name.Substring(0,20);
+			Write((j+1).ToString()+":"+name);
+		}
 	}
 	
 	Operational=Me.IsWorking;
@@ -1543,6 +1583,7 @@ bool Operational=false;
 public Program(){
 	Prog.P=this;
 	CargoBlock.DeepItems=new List<MyItemType>();
+	Inv_Network.GlobalItems=new Dictionary<MyItemType,MyFixedPoint>();
 	Me.CustomName=(Program_Name+" Programmable block").Trim();
 	for(int i=0;i<Me.SurfaceCount;i++){
 		Me.GetSurface(i).FontColor=DEFAULT_TEXT_COLOR;
@@ -1977,6 +2018,16 @@ List<CargoBlock> NetworkStorage(Inv_Network Network){
 	}
 	return output;
 }
+string PrettyNumber(int num,int max){
+	string output="";
+	int digits=(int)Math.Min(1,Math.Floor(Math.Log(num+1))+1);
+	int max_digits=(int)Math.Min(1,Math.Floor(Math.Log(max))+1);
+	for(int k=digits;k<max_digits;k++)
+		output+="0";
+	output+=(num+1).ToString();
+	return output;
+}
+
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
@@ -1984,13 +2035,6 @@ void Main_Program(string argument){
 		FactoryReset();
 	}
 	int total_size=0;
-	Write(StorageBlocks.Count.ToString()+" Important Cargos");
-	foreach(CargoBlock Storage in StorageBlocks){
-		if(Storage.ItemTypes.Count==1)
-			Write(Storage.CustomName+":"+Storage.ItemTypes[0].ToString());
-		else
-			Write(Storage.CustomName+":"+Storage.ItemTypes.Count.ToString()+" Types");
-	}
 	foreach(Inv_Network Network in ConveyorNetworks){
 		total_size+=Network.Count;
 	}
@@ -2001,7 +2045,13 @@ void Main_Program(string argument){
 			continue;
 		int remaining_count=(int)Math.Min(Math.Ceiling((20f*MyNetwork.Count)/total_size),MyNetwork.Count);
 		int starting_index=MyNetwork.Search_Index;
-		Write("Network "+(i+1).ToString()+": Scanning "+remaining_count.ToString()+"/"+MyNetwork.Count.ToString()+" Inventories");
+		
+		string[] NodeStrings=new string[MyNetwork.Count];
+		if(MyNetwork.Count<250){
+			for(int j=0;j<MyNetwork.Count;j++)
+				NodeStrings[j]="";
+		}
+		Write("Network "+PrettyNumber(i+1,MyNetwork.Count-1)+"/"+MyNetwork.Count.ToString()+": Scanning "+remaining_count.ToString()+"/"+MyNetwork.Count.ToString()+" Inventories");
 		if(MyNetwork.Count==0)
 			continue;
 		List<CargoBlock> MyStorage=NetworkStorage(MyNetwork);
@@ -2020,6 +2070,11 @@ void Main_Program(string argument){
 				foreach(MyItemType Type in Cargo.ItemTypes)
 					CompetingTypes.Add(Type);
 			}
+			string check_str="\t Checking \""+Block.Block.CustomName+"\"";
+			if(MyNetwork.Count<250)
+				NodeStrings[MyNetwork.Search_Index]=check_str;
+			else
+				Write(check_str);
 			for(int j=0;j<Block.InventoryCount;j++){
 				IMyInventory Inventory=Block.GetInventory(j);
 				foreach(MyItemType Type in ItemTypes){
@@ -2063,8 +2118,13 @@ void Main_Program(string argument){
 								continue;
 							MyInventoryItem MyItem=(MyInventoryItem)myItem;
 							if(move_all_items){
-								if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,null))
-									Notifications.Add(new Notification("Transfered "+MyItem.Amount.ToString()+" Items of Type \""+Type.SubtypeId+"\"\nFrom "+Block.Block.CustomName+" to "+MoveTo.Block.CustomName+'\n',5));
+								if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,null)){
+									string trans_string="Transfered "+MyItem.Amount.ToString()+" Items of Type \""+Type.SubtypeId+"\"\n";
+									if(MyNetwork.Count<250)
+										NodeStrings[MyNetwork.Search_Index]+="\n"+trans_string;
+									else
+										Write(trans_string);
+								}
 							}
 							else{
 								double my_quantity=MyItem.Amount.ToIntSafe();
@@ -2086,8 +2146,13 @@ void Main_Program(string argument){
 								}
 								transfer_amount=Math.Min(transfer_amount,my_quantity);
 								if(transfer_amount>0){
-									if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,(MyFixedPoint)transfer_amount))
-										Notifications.Add(new Notification("Transfered "+Math.Round(transfer_amount,0).ToString()+" Items of Type \""+Type.SubtypeId+"\"\nFrom "+Block.Block.CustomName+" to "+MoveTo.Block.CustomName+'\n',10));
+									if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,(MyFixedPoint)transfer_amount)){
+										string trans_string="Transfered "+Math.Round(transfer_amount,0).ToString()+" Items of Type \""+Type.SubtypeId+"\"\n";
+										if(MyNetwork.Count<250)
+											NodeStrings[MyNetwork.Search_Index]+="\n"+trans_string;
+										else
+											Write(trans_string);
+									}
 								}
 							}
 						}
@@ -2097,7 +2162,26 @@ void Main_Program(string argument){
 		}
 		while(--remaining_count>0&&++MyNetwork.Search_Index!=starting_index);
 		
-		
+		if(MyNetwork.Count<250){
+			List<string> ImportantNodes=new List<string>();
+			for(int j=0;j<MyNetwork.Count;j++){
+				if(NodeStrings[j].Length==0)
+					NodeStrings[j]="\t Waiting "+MyNetwork.Nodes[j].Block.CustomName;
+				NodeStrings[j]=PrettyNumber(j+1,MyNetwork.Count-1)+":"+NodeStrings[j];
+				if(MyNetwork.Nodes[j].IsProduction){
+					ImportantNodes.Add(NodeStrings[j]);
+					NodeStrings[j]="";
+				}
+			}
+			foreach(string str in ImportantNodes)
+				Write(str);
+			if(ImportantNodes.Count>0)
+				Write("------");
+			foreach(string str in NodeStrings){
+				if(str.Length>0)
+					Write(str);
+			}
+		}
 	}
 	
 	
