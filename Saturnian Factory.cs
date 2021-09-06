@@ -2240,11 +2240,20 @@ void PrintComponents(CustomPanel Panel){
 			Standard=250;
 		else
 			Standard=1;
-		int steps=(XLEN-1)*3/4;
+		
+		string quantity_str=Math.Round(BaseQuantity,0).ToString();
+		if(BaseQuantity>=1000000)
+			quantity_str=Math.Round(BaseQuantity/1000000,1).ToString()+"M";
+		else if(BaseQuantity>=1000)
+			quantity_str=Math.Round(BaseQuantity/1000,1).ToString()+"K";
+		int quantity_len=quantity_str.Length;
+		
+		int steps=(XLEN-7)*3/4;
+		int X_Standard=(XLEN-6)*3/4;
 		double Base=Standard/Math.Pow(1.2,steps);
-		for(int x=0;x<XLEN;x++){
+		for(int x=0;x<XLEN-6;x++){
 			double compare;
-			if(x<XLEN*.75){
+			if(x<X_Standard){
 				compare=Base*Math.Pow(1.2,x);
 				if(BaseQuantity<compare)
 					output+=' ';
@@ -2256,13 +2265,16 @@ void PrintComponents(CustomPanel Panel){
 				}
 			}
 			else{
-				compare=Standard+(x-XLEN*.75)*Standard*0.2;
+				compare=Standard+(x-X_Standard)*Standard*0.2;
 				if(BaseQuantity<compare||BaseQuantity<=0)
 					output+=' ';
 				else
 					output+='♦';
 			}
 		}
+		for(int i=quantity_len;i<6;i++)
+			output+=" ";
+		output+=quantity_str;
 		output+='\n';
 	}
 	Panel.Display.WriteText(output,false);
