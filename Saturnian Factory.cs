@@ -2215,6 +2215,8 @@ void PrintComponents(CustomPanel Panel){
 	string output="";
 	foreach(MyItemType Type in Item.Comp.All){
 		string name=Type.SubtypeId;
+		if(name.ToLower().Contains("glass"))
+			name="Glass";
 		if(name.Length>10)
 			name=name.Substring(0,10);
 		for(int x=name.Length;x<10;x++)
