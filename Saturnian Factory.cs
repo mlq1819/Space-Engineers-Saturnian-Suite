@@ -6,6 +6,7 @@
 * Include "Refining" in LCD name to add to Refinery group.
 * Include "Assembling" in LCD name to add to Assembler group.
 * Include "Material" in LCD name to add to Material Levels group.
+* Include "Component" in LCD name to add to Component group. 
 * Include "Network" in LCD name to add to the Networks group.
 
 
@@ -487,7 +488,7 @@ void UpdateMyDisplay(){
 	}
 }
 
-string GetRemovedString(string big_string, string small_string){https://github.com/malware-dev/MDK-SE/wiki/Api-Index
+string GetRemovedString(string big_string, string small_string){
 	return Prog.GetRemovedString(big_string,small_string);
 }
 
@@ -1358,26 +1359,44 @@ class Inv_Network:Network{
 		get{
 			return _Search_Index;
 		}
-		set{
-			if(Count>0){
-				_Search_Index=value%Count;
-				if(value>=Count){
-					foreach(MyItemType Type in Item.All){
-						GlobalItems[Type]=MyFixedPoint.AddSafe(GlobalItems[Type],MyFixedPoint.AddSafe(CountingItems[Type],MyFixedPoint.MultiplySafe(-1,MyItems[Type])));
-					}
-				}
-			}
-			else
-				_Search_Index=value;
-		}
 	}
 	public static Dictionary<MyItemType,MyFixedPoint> GlobalItems;
 	public Dictionary<MyItemType,MyFixedPoint> MyItems;
 	private Dictionary<MyItemType,MyFixedPoint> CountingItems;
 	
 	
+	public int Increment_Search(){
+		int value=Search_Index+1;
+		if(Count>0){
+			_Search_Index=value%Count;
+			if(value>=Count){
+				foreach(MyItemType Type in Item.All){
+					if(!GlobalItems.ContainsKey(Type))
+						GlobalItems.Add(Type,(MyFixedPoint)0);
+					if(!MyItems.ContainsKey(Type))
+						MyItems.Add(Type,(MyFixedPoint)0);
+					if(!CountingItems.ContainsKey(Type))
+						CountingItems.Add(Type,(MyFixedPoint)0);
+					GlobalItems[Type]=MyFixedPoint.AddSafe(GlobalItems[Type],MyFixedPoint.AddSafe(CountingItems[Type],MyFixedPoint.MultiplySafe(-1,MyItems[Type])));
+					MyItems[Type]=CountingItems[Type];
+					CountingItems[Type]=(MyFixedPoint)0;
+				}
+			}
+		}
+		else
+			_Search_Index=value;
+		return Search_Index;
+	}
+	
+	public void CountItems(MyInventoryItem MyItem){
+		if(CountingItems.ContainsKey(MyItem.Type))
+			CountingItems[MyItem.Type]=MyFixedPoint.AddSafe(CountingItems[MyItem.Type],MyItem.Amount);
+		else
+			CountingItems.Add(MyItem.Type,MyItem.Amount);
+	}
+	
 	public Inv_Network(InvBlock i):base(i){
-		Search_Index=0;
+		_Search_Index=0;
 		MyItems=new Dictionary<MyItemType,MyFixedPoint>();
 		CountingItems=new Dictionary<MyItemType,MyFixedPoint>();
 	}
@@ -1485,6 +1504,9 @@ List<CargoBlock> StorageBlocks;
 List<InvBlock> InvBlocks;
 List<Network> ConveyorNetworks;
 
+List<CustomPanel> MaterialLCDs;
+List<CustomPanel> ComponentLCDs;
+
 bool InvBlockFunction(IMyTerminalBlock blk){
 	return blk.IsSameConstructAs(Me)&&blk.InventoryCount>0;
 }
@@ -1500,15 +1522,28 @@ void Reset(){
 	InvBlocks=new List<InvBlock>();
 	ConveyorNetworks=new List<Network>();
 	//Reset LCD Lists
+	MaterialLCDs=new List<CustomPanel>();
+	ComponentLCDs=new List<CustomPanel>();
+	
 	Notifications=new List<Notification>();
 }
 
 bool Setup(){
 	Reset();
-	/*List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Altitude");
-	foreach(IMyTextPanel Panel in LCDs)
-		AltitudeLCDs.Add(new CustomPanel(Panel));
-	foreach(CustomPanel Panel in AltitudeLCDs){
+	List<CustomPanel> MyLCDs=new List<CustomPanel>();
+	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Material");
+	foreach(IMyTextPanel Panel in LCDs){
+		CustomPanel panel=new CustomPanel(Panel);
+		MaterialLCDs.Add(panel);
+		MyLCDs.Add(panel);
+	}
+	LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Component");
+	foreach(IMyTextPanel Panel in LCDs){
+		CustomPanel panel=new CustomPanel(Panel);
+		ComponentLCDs.Add(panel);
+		MyLCDs.Add(panel);
+	}
+	foreach(CustomPanel Panel in MyLCDs){
 		if(Panel.Trans){
 			Panel.Display.FontColor=DEFAULT_BACKGROUND_COLOR;
 			Panel.Display.BackgroundColor=new Color(0,0,0,0);
@@ -1522,7 +1557,7 @@ bool Setup(){
 		Panel.Display.ContentType=ContentType.TEXT_AND_IMAGE;
 		Panel.Display.TextPadding=0;
 		Panel.Display.FontSize=0.5f;
-	}*/
+	}
 	
 	List<IMyTerminalBlock> invBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
 	foreach(IMyTerminalBlock b in invBlocks){
@@ -1539,9 +1574,6 @@ bool Setup(){
 	for(int i=1;i<InvBlocks.Count;i++){
 		bool added=false;
 		for(int j=0;j<ConveyorNetworks.Count;j++){
-			// ConveyorNetworks[j].ForceAdd(InvBlocks[i]);
-			// added=true;
-			// break;
 			if(ConveyorNetworks[j].Add(InvBlocks[i])){
 				added=true;
 				Write(InvBlocks[i].Block.CustomName+" added to existing network");
@@ -1573,6 +1605,13 @@ bool Setup(){
 			Write((j+1).ToString()+":"+name);
 		}
 	}
+	if(HasBlockData(Me,"AutoBoot")){
+		bool autoboot=false;
+		if(bool.TryParse(GetBlockData(Me,"AutoBoot"),out autoboot)&&autoboot)
+			Me.Enabled=true;
+	}
+	else
+		SetBlockData(Me,"AutoBoot",false.ToString());
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
@@ -2028,6 +2067,14 @@ string PrettyNumber(int num,int max){
 	return output;
 }
 
+
+void PrintMaterials(CustomPanel Panel){
+	
+}
+void PrintComponents(CustomPanel Panel){
+	
+}
+
 void Main_Program(string argument){
 	ProcessTasks();
 	UpdateSystemData();
@@ -2064,22 +2111,26 @@ void Main_Program(string argument){
 		}
 		do{
 			InvBlock Block=MyNetwork.Nodes[MyNetwork.Search_Index];
+			string check_str="\t Checking \""+Block.Block.CustomName+"\"";
+			if(MyNetwork.Count<250)
+				NodeStrings[MyNetwork.Search_Index]=check_str;
+			else
+				Write(check_str);
+			
 			CargoBlock Cargo=Block as CargoBlock;
 			List<MyItemType> CompetingTypes=new List<MyItemType>();
 			if(Cargo?.Valid??false){
 				foreach(MyItemType Type in Cargo.ItemTypes)
 					CompetingTypes.Add(Type);
 			}
-			string check_str="\t Checking \""+Block.Block.CustomName+"\"";
-			if(MyNetwork.Count<250)
-				NodeStrings[MyNetwork.Search_Index]=check_str;
-			else
-				Write(check_str);
+			
 			for(int j=0;j<Block.InventoryCount;j++){
 				IMyInventory Inventory=Block.GetInventory(j);
-				foreach(MyItemType Type in ItemTypes){
-					if(!Inventory.ContainItems(1,Type))
-						continue;
+				List<MyInventoryItem> MyItems=new List<MyInventoryItem>();
+				Inventory.GetItems(MyItems,null);
+				foreach(MyInventoryItem MyItem in MyItems){
+					MyNetwork.CountItems(MyItem);
+					MyItemType Type=MyItem.Type;
 					if(Block.IsAssembler&&Type.TypeId==Item.Ingot.B_I)
 						continue;
 					if(Block.IsRefinery&&Type.TypeId==Item.Raw.B_O)
@@ -2100,33 +2151,12 @@ void Main_Program(string argument){
 						continue;
 					if(Block.IsTank)
 						continue;
-					bool move_all_items=true;
-					if(CompetingTypes.Count>0){
-						foreach(MyItemType type in CompetingTypes){
-							if(type==Type){
-								move_all_items=false;
-								break;
-							}
-						}
-					}
+					bool competing=CompetingTypes.Contains(Type);
 					foreach(CargoBlock MoveTo in MyStorage){
+						if(MoveTo.Inventory.IsFull)
+							continue;
 						if(MoveTo.ItemTypes.Contains(Type)){
-							if(MoveTo.Inventory.IsFull)
-								continue;
-							MyInventoryItem? myItem=Inventory.FindItem(Type);
-							if(myItem==null)
-								continue;
-							MyInventoryItem MyItem=(MyInventoryItem)myItem;
-							if(move_all_items){
-								if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,null)){
-									string trans_string="Transfered "+MyItem.Amount.ToString()+" Items of Type \""+Type.SubtypeId+"\"\n";
-									if(MyNetwork.Count<250)
-										NodeStrings[MyNetwork.Search_Index]+="\n"+trans_string;
-									else
-										Write(trans_string);
-								}
-							}
-							else{
+							if(competing){
 								double my_quantity=MyItem.Amount.ToIntSafe();
 								double target_quantity=0;
 								if(MoveTo.Inventory.ContainItems(1,Type)){
@@ -2155,12 +2185,21 @@ void Main_Program(string argument){
 									}
 								}
 							}
+							else{
+								if(Inventory.TransferItemTo(MoveTo.Inventory,MyItem,null)){
+									string trans_string="Transfered "+MyItem.Amount.ToString()+" Items of Type \""+Type.SubtypeId+"\"\n";
+									if(MyNetwork.Count<250)
+										NodeStrings[MyNetwork.Search_Index]+="\n"+trans_string;
+									else
+										Write(trans_string);
+								}
+							}
 						}
 					}
 				}
 			}
 		}
-		while(--remaining_count>0&&++MyNetwork.Search_Index!=starting_index);
+		while(--remaining_count>0&&MyNetwork.Increment_Search()!=starting_index);
 		
 		if(MyNetwork.Count<250){
 			List<string> ImportantNodes=new List<string>();
@@ -2184,7 +2223,12 @@ void Main_Program(string argument){
 		}
 	}
 	
-	
+	if(cycle%5==0){
+		foreach(CustomPanel Panel in MaterialLCDs)
+			PrintMaterials(Panel);
+		foreach(CustomPanel Panel in ComponentLCDs)
+			PrintComponents(Panel);
+	}
 	
 	
 	Runtime.UpdateFrequency=GetUpdateFrequency();
