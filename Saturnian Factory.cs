@@ -2191,7 +2191,7 @@ void PrintMaterials(CustomPanel Panel){
 				}
 			}
 			else{
-				compare=Standard+(x-XLEN*.75)*Standard;
+				compare=Standard+(x-XLEN*.75)*Standard*0.2;
 				if(BaseQuantity<compare||BaseQuantity<=0)
 					output+=' ';
 				else
@@ -2256,7 +2256,7 @@ void PrintComponents(CustomPanel Panel){
 				}
 			}
 			else{
-				compare=Standard+(x-XLEN*.75)*Standard;
+				compare=Standard+(x-XLEN*.75)*Standard*0.2;
 				if(BaseQuantity<compare||BaseQuantity<=0)
 					output+=' ';
 				else
