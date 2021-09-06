@@ -703,6 +703,7 @@ public static class Item{
 				output.Add(Grid);
 				output.Add(Display);
 				output.Add(Girder);
+				output.Add(Glass);
 				output.Add(Thrust);
 				output.Add(Reactor);
 				output.Add(Super);
@@ -734,6 +735,60 @@ public static class Item{
 			}
 			return output;
 		}
+		public static List<MyItemType> VeryCommon{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Steel);
+				return output;
+			}
+		}
+		public static List<MyItemType> Common{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Construction);
+				output.Add(Interior);
+				output.Add(Small);
+				output.Add(Grid);
+				output.Add(Glass);
+				return output;
+			}
+		}
+		public static List<MyItemType> Uncommon{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Motor);
+				output.Add(Girder);
+				output.Add(Thrust);
+				return output;
+			}
+		}
+		public static List<MyItemType> Rare{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Computer);
+				output.Add(Large);
+				output.Add(Display);
+				output.Add(Reactor);
+				output.Add(Super);
+				output.Add(Power);
+				return output;
+			}
+		}
+		public static List<MyItemType> VeryRare{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				output.Add(Medical);
+				output.Add(Grav);
+				output.Add(Radio);
+				output.Add(Solar);
+				output.Add(Detector);
+				output.Add(Explosive);
+				output.Add(Zone);
+				output.Add(Canvas);
+				return output;
+			}
+		}
+		
 		public static MyItemType Steel=new MyItemType(B_C,"SteelPlate");
 		public static MyItemType Construction=new MyItemType(B_C,"Construction");
 		public static MyItemType Interior=new MyItemType(B_C,"InteriorPlate");
@@ -2067,12 +2122,148 @@ string PrettyNumber(int num,int max){
 	return output;
 }
 
+Vector2I GetSize(IMyTextSurface Display){
+	if(Display.Font!="Monospace")
+		Display.Font="Monospace";
+	Vector2 Size=Display.SurfaceSize;
+	Vector2 CharSize=Display.MeasureStringInPixels(new StringBuilder("|"),Display.Font,Display.FontSize);
+	float Padding=(100-Display.TextPadding)/100f;
+	return new Vector2I((int)(Padding*Size.X/CharSize.X-2),(int)(Padding*Size.Y/CharSize.Y));
+}
 
 void PrintMaterials(CustomPanel Panel){
-	
+	Vector2I Size=GetSize(Panel.Display);
+	int YLEN=Math.Max(Math.Max(Item.Raw.All.Count,Item.Ingot.All.Count),10);
+	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<YLEN){
+		float FontSize=Panel.Display.FontSize;
+		FontSize=Math.Max(FontSize-0.1f,FontSize*.9f);
+		Panel.Display.FontSize=FontSize;
+		Size=GetSize(Panel.Display);
+	}
+	int XLEN=Size.X-11;
+	string output="";
+	foreach(MyItemType OreType in Item.Raw.All){
+		if(OreType.SubtypeId.ToLower().Contains("scrap")||OreType.SubtypeId.ToLower().Contains("organic"))
+			continue;
+		string name=OreType.SubtypeId;
+		if(name.ToLower().Equals("stone"))
+			name="Gravel";
+		if(name.Length>10)
+			name=name.Substring(0,10);
+		for(int x=name.Length;x<10;x++)
+			output+=" ";
+		for(int x=0;x<name.Length;x++)
+			output+=name[x];
+		output+=":";
+		double OreQuantity=0;
+		if(Inv_Network.GlobalItems.ContainsKey(OreType))
+			OreQuantity=Inv_Network.GlobalItems[OreType].ToIntSafe();
+		MyItemType IngotType=new MyItemType(Item.Ingot.B_I,OreType.SubtypeId);
+		double BaseQuantity=0;
+		if(Item.Ingot.All.Contains(IngotType)){
+			double IngotQuantity=0;
+			if(Inv_Network.GlobalItems.ContainsKey(IngotType))
+				IngotQuantity=Inv_Network.GlobalItems[IngotType].ToIntSafe();
+			BaseQuantity=IngotQuantity;
+		}
+		else
+			BaseQuantity=OreQuantity;
+		double Standard;
+		if(OreType.Equals(Item.Raw.Ice)||OreType.Equals(Item.Raw.Iron))
+			Standard=5000000;
+		else if(OreType.Equals(Item.Raw.Gold)||OreType.Equals(Item.Raw.Silver)||OreType.Equals(Item.Raw.Platinum)||OreType.Equals(Item.Raw.Uranium))
+			Standard=50000;
+		else
+			Standard=500000;
+		int steps=(XLEN-1)*3/4;
+		double Base=Standard/Math.Pow(1.2,steps);
+		for(int x=0;x<XLEN;x++){
+			double compare;
+			if(x<XLEN*.75){
+				compare=Base*Math.Pow(1.2,x);
+				if(BaseQuantity<compare||BaseQuantity<=0)
+					output+=' ';
+				else{
+					if(compare<Standard*.2)
+						output+='•';
+					else
+						output+='■';
+				}
+			}
+			else{
+				compare=Standard+(x-XLEN*.75)*Standard;
+				if(BaseQuantity<compare||BaseQuantity<=0)
+					output+=' ';
+				else
+					output+='♦';
+			}
+		}
+		output+='\n';
+	}
+	Panel.Display.WriteText(output,false);
 }
 void PrintComponents(CustomPanel Panel){
-	
+	Vector2I Size=GetSize(Panel.Display);
+	int YLEN=Math.Max(Item.Comp.All.Count,10);
+	while(Panel.Display.FontSize>0.1&&Size.X<50&&Size.Y<YLEN){
+		float FontSize=Panel.Display.FontSize;
+		FontSize=Math.Max(FontSize-0.1f,FontSize*.9f);
+		Panel.Display.FontSize=FontSize;
+		Size=GetSize(Panel.Display);
+	}
+	int XLEN=Size.X-11;
+	string output="";
+	foreach(MyItemType Type in Item.Comp.All){
+		string name=Type.SubtypeId;
+		if(name.Length>10)
+			name=name.Substring(0,10);
+		for(int x=name.Length;x<10;x++)
+			output+=" ";
+		for(int x=0;x<name.Length;x++)
+			output+=name[x];
+		output+=":";
+		double BaseQuantity=0;
+		if(Inv_Network.GlobalItems.ContainsKey(Type))
+			BaseQuantity=Inv_Network.GlobalItems[Type].ToIntSafe();
+		double Standard;
+		if(Item.Comp.VeryCommon.Contains(Type))
+			Standard=500000;
+		else if(Item.Comp.Common.Contains(Type))
+			Standard=100000;
+		else if(Item.Comp.Uncommon.Contains(Type))
+			Standard=50000;
+		else if(Item.Comp.Rare.Contains(Type))
+			Standard=10000;
+		else if(Item.Comp.VeryRare.Contains(Type))
+			Standard=250;
+		else
+			Standard=1;
+		int steps=(XLEN-1)*3/4;
+		double Base=Standard/Math.Pow(1.2,steps);
+		for(int x=0;x<XLEN;x++){
+			double compare;
+			if(x<XLEN*.75){
+				compare=Base*Math.Pow(1.2,x);
+				if(BaseQuantity<compare)
+					output+=' ';
+				else{
+					if(compare<Standard*.2)
+						output+='•';
+					else
+						output+='■';
+				}
+			}
+			else{
+				compare=Standard+(x-XLEN*.75)*Standard;
+				if(BaseQuantity<compare||BaseQuantity<=0)
+					output+=' ';
+				else
+					output+='♦';
+			}
+		}
+		output+='\n';
+	}
+	Panel.Display.WriteText(output,false);
 }
 
 void Main_Program(string argument){
@@ -2223,7 +2414,7 @@ void Main_Program(string argument){
 		}
 	}
 	
-	if(cycle%5==0){
+	if(cycle%6==0||cycle==2){
 		foreach(CustomPanel Panel in MaterialLCDs)
 			PrintMaterials(Panel);
 		foreach(CustomPanel Panel in ComponentLCDs)
