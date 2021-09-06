@@ -665,6 +665,7 @@ public static class Item{
 				output.Add(Grid);
 				output.Add(Display);
 				output.Add(Girder);
+				output.Add(Glass);
 				output.Add(Thrust);
 				output.Add(Reactor);
 				output.Add(Super);
