@@ -1583,6 +1583,7 @@ void Reset(){
 	Notifications=new List<Notification>();
 }
 
+bool AutoBoot=false;
 bool Setup(){
 	Reset();
 	List<CustomPanel> MyLCDs=new List<CustomPanel>();
@@ -1661,12 +1662,9 @@ bool Setup(){
 		}
 	}
 	if(HasBlockData(Me,"AutoBoot")){
-		bool autoboot=false;
-		if(bool.TryParse(GetBlockData(Me,"AutoBoot"),out autoboot)&&autoboot)
+		if(bool.TryParse(GetBlockData(Me,"AutoBoot"),out AutoBoot)&&AutoBoot)
 			Me.Enabled=true;
 	}
-	else
-		SetBlockData(Me,"AutoBoot",false.ToString());
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
@@ -1708,11 +1706,14 @@ public Program(){
 }
 
 public void Save(){
+	if(HasBlockData(Me,"AutoBoot"))
+		bool.TryParse(GetBlockData(Me,"AutoBoot"),out AutoBoot);
 	this.Storage="";
 	Me.CustomData="";
 	foreach(Task T in Task_Queue){
 		Me.CustomData+=T.ToString()+'•';
 	}
+	SetBlockData(Me,"AutoBoot",AutoBoot.ToString());
 }
 
 bool Disable(){
