@@ -2304,7 +2304,7 @@ void Main_Program(string argument){
 			for(int j=0;j<MyNetwork.Count;j++)
 				NodeStrings[j]="";
 		}
-		Write("Network "+PrettyNumber(i+1,MyNetwork.Count-1)+"/"+MyNetwork.Count.ToString()+": Scanning "+remaining_count.ToString()+"/"+MyNetwork.Count.ToString()+" Inventories");
+		Write("Network "+PrettyNumber(i+1,ConveyorNetworks.Count-1)+"/"+ConveyorNetworks.Count.ToString()+": Scanning "+remaining_count.ToString()+"/"+MyNetwork.Count.ToString()+" Inventories");
 		if(MyNetwork.Count==0)
 			continue;
 		List<CargoBlock> MyStorage=NetworkStorage(MyNetwork);
