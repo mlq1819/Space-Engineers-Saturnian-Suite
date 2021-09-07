@@ -2119,7 +2119,7 @@ string PrettyNumber(int num,int max){
 	int max_digits=(int)Math.Min(1,Math.Floor(Math.Log(max))+1);
 	for(int k=digits;k<max_digits;k++)
 		output+="0";
-	output+=(num+1).ToString();
+	output+=num.ToString();
 	return output;
 }
 
