@@ -1705,7 +1705,7 @@ Gen_Task ParseTask(string input){
 		case "Refuel":
 			return Task_Refuel.Parse(input);
 		case "Cargo":
-			return Task_Refuel.Parse(input);
+			return Task_Cargo.Parse(input);
 	}
 	return null;
 }
