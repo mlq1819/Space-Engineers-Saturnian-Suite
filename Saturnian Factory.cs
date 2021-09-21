@@ -93,10 +93,15 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 		}
 	}
 	
+	private static List<T> Get_AllBlocks(){
+		List<T> output=new List<T>();
+		TerminalSystem.GetBlocksOfType<T>(output);
+		return output;
+	}
+	private static Rool<T> AllBlocks=new Rool<T>(Get_AllBlocks);
+	
 	public static T GetFull(string name,Vector3D Ref,double mx_d=double.MaxValue){
-		List<T> AllBlocks=new List<T>();
 		List<T> MyBlocks=new List<T>();
-		TerminalSystem.GetBlocksOfType<T>(AllBlocks);
 		double min_distance=mx_d;
 		foreach(T Block in AllBlocks){
 			if(Block.CustomName.Equals(name)){
@@ -147,9 +152,7 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	}
 	
 	public static T GetContaining(string name,Vector3D Ref,double mx_d){
-		List<T> AllBlocks=new List<T>();
 		List<T> MyBlocks=new List<T>();
-		TerminalSystem.GetBlocksOfType<T>(AllBlocks);
 		double min_distance=mx_d;
 		foreach(T Block in AllBlocks){
 			if(Block.CustomName.Contains(name)){
@@ -175,10 +178,8 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	}
 	
 	public static List<T> GetAllContaining(string name,Vector3D Ref,double mx_d){
-		List<T> AllBlocks=new List<T>();
 		List<List<T>> MyLists=new List<List<T>>();
 		List<T> MyBlocks=new List<T>();
-		TerminalSystem.GetBlocksOfType<T>(AllBlocks);
 		foreach(T Block in AllBlocks){
 			if(Block.CustomName.Contains(name)){
 				bool has_with_name=false;
@@ -218,9 +219,9 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	}
 	
 	public static List<T> GetAllIncluding(string name,Vector3D Ref,double mx_d=double.MaxValue){
-		List<T> AllBlocks=new List<T>();
+		if(name.Length==0&&mx_d==double.MaxValue)
+			return AllBlocks;
 		List<T> MyBlocks=new List<T>();
-		TerminalSystem.GetBlocksOfType<T>(AllBlocks);
 		foreach(T Block in AllBlocks){
 			double distance=(Ref-Block.GetPosition()).Length();
 			if(Block.CustomName.Contains(name)&&distance<=mx_d)
@@ -246,9 +247,7 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	}
 	
 	public static List<T> GetAllFunc(Func<T,bool> f){
-		List<T> AllBlocks=new List<T>();
 		List<T> MyBlocks=new List<T>();
-		TerminalSystem.GetBlocksOfType<T>(AllBlocks);
 		foreach(T Block in AllBlocks){
 			if(f(Block))
 				MyBlocks.Add(Block);
@@ -350,6 +349,99 @@ class GenericMethods<T> where T : class, IMyTerminalBlock{
 	
 	public static double GetAngle(Vector3D v1, Vector3D v2){
 		return GetAngle(v1,v2,10);
+	}
+}
+
+public abstract class OneDone{
+	public static List<OneDone> All;
+	
+	protected OneDone(){
+		if(All==null)
+			All=new List<OneDone>();
+		All.Add(this);
+	}
+	
+	public static void ResetAll(){
+		if(All==null)
+			return;
+		for(int i=0;i<All.Count;i++)
+			All[i].Reset();
+	}
+	
+	public abstract void Reset();
+}
+public class OneDone<T>:OneDone{
+	private T Default;
+	public T Value;
+	
+	public OneDone(T value):base(){
+		Default=value;
+		Value=value;
+	}
+	
+	public override void Reset(){
+		Value=Default;
+	}
+	
+	public static implicit operator T(OneDone<T> O){
+		return O.Value;
+	}
+}
+public class Rool<T>:IEnumerable<T>{
+	// Run Only Once
+	private List<T> _Value;
+	public List<T> Value{
+		get{
+			if(!Ran.Value){
+				_Value=Updater();
+				Ran.Value=true;
+			}
+			return _Value;
+		}
+	}
+	private OneDone<bool> Ran;
+	private Func<List<T>> Updater;
+	
+	public Rool(Func<List<T>> updater){
+		Ran=new OneDone<bool>(false);
+		Updater=updater;
+	}
+	
+	public IEnumerator<T> GetEnumerator(){
+		return Value.GetEnumerator();
+	}
+	
+	IEnumerator IEnumerable.GetEnumerator()
+	{
+		return this.GetEnumerator();
+	}
+	
+	public static implicit operator List<T>(Rool<T> R){
+		return R.Value;
+	}
+}
+public class Roo<T>{
+	// Run Only Once
+	private T _Value;
+	public T Value{
+		get{
+			if(!Ran.Value){
+				_Value=Updater();
+				Ran.Value=true;
+			}
+			return _Value;
+		}
+	}
+	private OneDone<bool> Ran;
+	private Func<T> Updater;
+	
+	public Roo(Func<T> updater){
+		Ran=new OneDone<bool>(false);
+		Updater=updater;
+	}
+	
+	public static implicit operator T(Roo<T> R){
+		return R.Value;
 	}
 }
 
@@ -505,14 +597,14 @@ struct CustomPanel{
 	}
 }
 
-enum MyRarity{
+public enum MyRarity{
 	VeryRare=1,
 	Rare=2,
 	Uncommon=3,
 	Common=4,
 	VeryCommon=5
 }
-struct ModdedItem{
+public struct ModdedItem{
 	public MyItemType Type;
 	public MyRarity Rarity;
 	
@@ -526,15 +618,16 @@ struct ModdedItem{
 		float amount=item.Amount.ToIntSafe();
 		float multx=1;
 		switch(Type.TypeId){
-			case Item.Raw.B_O:
-			case Item.Ingot.B_I:
+			case "MyObjectBuilder_Ore":
+			case "MyObjectBuilder_Ingot":
 				multx=100;
 				break;
-			case Item.Comp.B_C:
+			case "MyObjectBuilder_Component":
 				multx=10;
 				break;
-			case Item.Tool.B_T:
+			case "MyObjectBuilder_PhysicalGunObject":
 				multx=0.1f;
+				break;
 		}
 		if(amount<=25*multx)
 			Rarity=MyRarity.VeryRare;
@@ -586,17 +679,17 @@ public static class Item{
 	public static List<MyItemType> Vanilla{
 		get{
 			List<MyItemType> output=new List<MyItemType>();
-			foreach(MyItemType I in Raw.All)
+			foreach(MyItemType I in Raw.Vanilla)
 				output.Add(I);
-			foreach(MyItemType I in Ingot.All)
+			foreach(MyItemType I in Ingot.Vanilla)
 				output.Add(I);
-			foreach(MyItemType I in Comp.All)
+			foreach(MyItemType I in Comp.Vanilla)
 				output.Add(I);
-			foreach(MyItemType I in Ammo.All)
+			foreach(MyItemType I in Ammo.Vanilla)
 				output.Add(I);
-			foreach(MyItemType I in Tool.All)
+			foreach(MyItemType I in Tool.Vanilla)
 				output.Add(I);
-			foreach(MyItemType I in Cons.All)
+			foreach(MyItemType I in Cons.Vanilla)
 				output.Add(I);
 			output.Add(Datapad);
 			output.Add(Package);
@@ -627,37 +720,37 @@ public static class Item{
 	
 	public static bool CheckExists(MyInventoryItem item){
 		string TypeId=item.Type.TypeId;
-		bool exists=false;
 		List<MyItemType> VanillaList;
 		List<ModdedItem> ModdedList;
 		switch(TypeId){
-			case Raw.B_O:
+			case "MyObjectBuilder_Ore":
 				VanillaList=Raw.Vanilla;
 				ModdedList=Raw.Modded;
 				break;
-			case Ingot.B_I:
+			case "MyObjectBuilder_Ingot":
 				VanillaList=Ingot.Vanilla;
 				ModdedList=Raw.Modded;
 				break;
-			case Comp.B_C:
+			case "MyObjectBuilder_Component":
 				VanillaList=Comp.Vanilla;
 				ModdedList=Comp.Modded;
 				break;
-			case Ammo.B_A:
+			case "MyObjectBuilder_AmmoMagazine":
 				VanillaList=Ammo.Vanilla;
 				ModdedList=Ammo.Modded;
 				break;
-			case Tool.B_T:
+			case "MyObjectBuilder_PhysicalGunObject":
 				VanillaList=Tool.Vanilla;
 				ModdedList=Tool.Modded;
 				break;
-			case Cons.B_C:
+			case "MyObjectBuilder_ConsumableItem":
 				VanillaList=Cons.Vanilla;
 				ModdedList=Cons.Modded;
 				break;
 			default:
 				VanillaList=Vanilla;
 				ModdedList=MiscModded;
+				break;
 		}
 		foreach(MyItemType Type in VanillaList){
 			if(item.Type.Equals(Type))
@@ -668,6 +761,7 @@ public static class Item{
 			if(item.Type.Equals(ModdedList[i].Type)){
 				if(ModdedList[i].Rarity<MyItem.Rarity)
 					ModdedList[i]=MyItem;
+				return true;
 			}
 		}
 		ModdedList.Add(MyItem);
@@ -918,7 +1012,7 @@ public static class Item{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Steel);
 				foreach(ModdedItem MyItem in Modded){
-					if(Modded.Rarity==MyRarity.VeryCommon)
+					if(MyItem.Rarity==MyRarity.VeryCommon)
 						output.Add(MyItem.Type);
 				}
 				return output;
@@ -933,7 +1027,7 @@ public static class Item{
 				output.Add(Grid);
 				output.Add(Glass);
 				foreach(ModdedItem MyItem in Modded){
-					if(Modded.Rarity==MyRarity.Common)
+					if(MyItem.Rarity==MyRarity.Common)
 						output.Add(MyItem.Type);
 				}
 				return output;
@@ -946,7 +1040,7 @@ public static class Item{
 				output.Add(Girder);
 				output.Add(Thrust);
 				foreach(ModdedItem MyItem in Modded){
-					if(Modded.Rarity==MyRarity.Uncommon)
+					if(MyItem.Rarity==MyRarity.Uncommon)
 						output.Add(MyItem.Type);
 				}
 				return output;
@@ -962,7 +1056,7 @@ public static class Item{
 				output.Add(Super);
 				output.Add(Power);
 				foreach(ModdedItem MyItem in Modded){
-					if(Modded.Rarity==MyRarity.Rare)
+					if(MyItem.Rarity==MyRarity.Rare)
 						output.Add(MyItem.Type);
 				}
 				return output;
@@ -980,7 +1074,7 @@ public static class Item{
 				output.Add(Zone);
 				output.Add(Canvas);
 				foreach(ModdedItem MyItem in Modded){
-					if(Modded.Rarity==MyRarity.VeryRare)
+					if(MyItem.Rarity==MyRarity.VeryRare)
 						output.Add(MyItem.Type);
 				}
 				return output;
@@ -1201,22 +1295,22 @@ public static class Item{
 	public static void InitializeModdedItems(List<ModdedItem> ModdedItems){
 		foreach(ModdedItem MyItem in ModdedItems){
 			switch(MyItem.Type.TypeId){
-				case Raw.B_O:
+				case "MyObjectBuilder_Ore":
 					Raw.Modded.Add(MyItem);
 					break;
-				case Ingot.B_I:
+				case "MyObjectBuilder_Ingot":
 					Ingot.Modded.Add(MyItem);
 					break;
-				case Comp.B_C:
+				case "MyObjectBuilder_Component":
 					Comp.Modded.Add(MyItem);
 					break;
-				case Ammo.B_A:
+				case "MyObjectBuilder_AmmoMagazine":
 					Ammo.Modded.Add(MyItem);
 					break;
-				case Tool.B_T:
+				case "MyObjectBuilder_PhysicalGunObject":
 					Tool.Modded.Add(MyItem);
 					break;
-				case Cons.B_C:
+				case "MyObjectBuilder_ConsumableItem":
 					Cons.Modded.Add(MyItem);
 					break;
 				default:
@@ -1725,9 +1819,9 @@ class Inv_Network:Network{
 	
 	public override bool CanAdd(InvBlock node,bool check_same){
 		
-		if(Nodes.Count<1000&&InNetwork(node))
+		if(Nodes.Count<100&&InNetwork(node))
 			return false;
-		if(Nodes.Count<100){
+		if(Nodes.Count<10){
 			foreach(InvBlock Node in Nodes){
 				if((check_same&&Node.Equals(node))||!Node.SameNetwork(node))
 					return false;
@@ -1739,7 +1833,7 @@ class Inv_Network:Network{
 		List<int> indices=new List<int>();
 		Random rnd=new Random();
 		int tries=0;
-		while(indices.Count<50&&(indices.Count<25||1000>tries++)){
+		while(indices.Count<5&&(indices.Count<25||100>tries++)){
 			int i=rnd.Next(0,Count);
 			if(indices.Contains(i))
 				continue;
@@ -1845,6 +1939,7 @@ void Reset(){
 bool AutoBoot=false;
 bool Setup(){
 	Reset();
+	Write("Beginning Setup");
 	List<CustomPanel> MyLCDs=new List<CustomPanel>();
 	List<IMyTextPanel> LCDs=GenericMethods<IMyTextPanel>.GetAllConstruct("Material");
 	foreach(IMyTextPanel Panel in LCDs){
@@ -1875,15 +1970,21 @@ bool Setup(){
 	}
 	
 	List<IMyTerminalBlock> invBlocks=GenericMethods<IMyTerminalBlock>.GetAllFunc(InvBlockFunction);
+	Write("Found "+invBlocks.Count.ToString()+" Inventory Blocks");
+	int counter=0;
 	foreach(IMyTerminalBlock b in invBlocks){
-		if((b as IMyCargoContainer)!=null&&b.CustomName.ToLower().Contains("main")||b.CustomName.ToLower().Contains("deep")){
-			CargoBlock block=new CargoBlock(b as IMyCargoContainer);
+		Echo((++counter).ToString());
+		IMyCargoContainer cargo=(b as IMyCargoContainer);
+		Echo("cargo:"+(cargo?.CustomName??"null"));
+		if(cargo!=null&&b.CustomName.ToLower().Contains("main")||b.CustomName.ToLower().Contains("deep")){
+			CargoBlock block=new CargoBlock(cargo);
 			StorageBlocks.Add(block);
 			InvBlocks.Add(block);
 		}
 		else
 			InvBlocks.Add(new InvBlock(b));
 	}
+	Write("Collected "+InvBlocks.Count.ToString()+" Inventory Blocks");
 	if(InvBlocks.Count>0)
 		ConveyorNetworks.Add(new Inv_Network(InvBlocks[0]));
 	for(int i=1;i<InvBlocks.Count;i++){
@@ -1935,9 +2036,9 @@ bool Setup(){
 			default:
 				switch(mode){
 					case "ModdedItems":
-						ModdedItem MyItem;
+						ModdedItem? MyItem;
 						if(ModdedItem.TryParse(arg,out MyItem))
-							ModdedItems.Add(MyItem);
+							ModdedItems.Add((ModdedItem)MyItem);
 						break;
 				}
 				break;
@@ -1947,11 +2048,13 @@ bool Setup(){
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
+	Write("Completed Setup");
 	return true;
 }
 
 bool Operational=false;
 public Program(){
+	Echo("Beginning initialization");
 	Prog.P=this;
 	CargoBlock.DeepItems=new List<MyItemType>();
 	Inv_Network.GlobalItems=new Dictionary<MyItemType,MyFixedPoint>();
@@ -1965,11 +2068,12 @@ public Program(){
 	}
 	Me.GetSurface(1).FontSize=2.2f;
 	Me.GetSurface(1).TextPadding=30.0f;
-	Echo("Beginning initialization");
+	
 	Rnd=new Random();
 	Notifications=new List<Notification>();
 	Task_Queue=new Queue<Task>();
 	TaskParser(Me.CustomData);
+	Echo("Completed initialization");
 	Setup();
 }
 
@@ -2017,6 +2121,7 @@ class Notification{
 List<Notification> Notifications;
 
 void UpdateProgramInfo(){
+	OneDone.ResetAll();
 	cycle=(++cycle)%long.MaxValue;
 	switch(loading_char){
 		case '|':
