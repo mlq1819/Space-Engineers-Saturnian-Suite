@@ -505,9 +505,85 @@ struct CustomPanel{
 	}
 }
 
+enum MyRarity{
+	VeryRare=1,
+	Rare=2,
+	Uncommon=3,
+	Common=4,
+	VeryCommon=5
+}
+struct ModdedItem{
+	public MyItemType Type;
+	public MyRarity Rarity;
+	
+	public ModdedItem(MyItemType type,MyRarity rarity){
+		Type=type;
+		Rarity=rarity;
+	}
+	
+	public ModdedItem(MyInventoryItem item){
+		Type=item.Type;
+		float amount=item.Amount.ToIntSafe();
+		float multx=1;
+		switch(Type.TypeId){
+			case Item.Raw.B_O:
+			case Item.Ingot.B_I:
+				multx=100;
+				break;
+			case Item.Comp.B_C:
+				multx=10;
+				break;
+			case Item.Tool.B_T:
+				multx=0.1f;
+		}
+		if(amount<=25*multx)
+			Rarity=MyRarity.VeryRare;
+		else if(amount<=2000*multx)
+			Rarity=MyRarity.Rare;
+		else if(amount<10000*multx)
+			Rarity=MyRarity.Uncommon;
+		else if(amount<20000*multx)
+			Rarity=MyRarity.Common;
+		else 
+			Rarity=MyRarity.VeryCommon;
+	}
+	
+	public override string ToString(){
+		return Type.ToString()+";"+Rarity.ToString();
+	}
+	
+	public static ModdedItem Parse(string input){
+		int index=input.IndexOf(';');
+		return new ModdedItem(MyItemType.Parse(input.Substring(0,index)),(MyRarity)Enum.Parse(typeof(MyRarity),input.Substring(index+1)));
+	}
+	
+	public static bool TryParse(string input,out ModdedItem? output){
+		output=null;
+		try{
+			output=Parse(input);
+			return output!=null;
+		}
+		catch{
+			return false;
+		}
+	}
+}
+
 //Contains raw IDs for items of each type
 public static class Item{
+	public static List<ModdedItem> MiscModded=new List<ModdedItem>();
+	
 	public static List<MyItemType> All{
+		get{
+			List<MyItemType> output=new List<MyItemType>();
+			foreach(MyItemType Type in Vanilla)
+				output.Add(Type);
+			foreach(ModdedItem Type in Modded)
+				output.Add(Type.Type);
+			return output;
+		}
+	}
+	public static List<MyItemType> Vanilla{
 		get{
 			List<MyItemType> output=new List<MyItemType>();
 			foreach(MyItemType I in Raw.All)
@@ -527,6 +603,75 @@ public static class Item{
 			output.Add(Credit);
 			return output;
 		}
+	}
+	public static List<ModdedItem> Modded{
+		get{
+			List<ModdedItem> output=new List<ModdedItem>();
+			foreach(ModdedItem I in Raw.Modded)
+				output.Add(I);
+			foreach(ModdedItem I in Ingot.Modded)
+				output.Add(I);
+			foreach(ModdedItem I in Comp.Modded)
+				output.Add(I);
+			foreach(ModdedItem I in Ammo.Modded)
+				output.Add(I);
+			foreach(ModdedItem I in Tool.Modded)
+				output.Add(I);
+			foreach(ModdedItem I in Cons.Modded)
+				output.Add(I);
+			foreach(ModdedItem Type in Modded)
+				output.Add(Type);
+			return output;
+		}
+	}
+	
+	public static bool CheckExists(MyInventoryItem item){
+		string TypeId=item.Type.TypeId;
+		bool exists=false;
+		List<MyItemType> VanillaList;
+		List<ModdedItem> ModdedList;
+		switch(TypeId){
+			case Raw.B_O:
+				VanillaList=Raw.Vanilla;
+				ModdedList=Raw.Modded;
+				break;
+			case Ingot.B_I:
+				VanillaList=Ingot.Vanilla;
+				ModdedList=Raw.Modded;
+				break;
+			case Comp.B_C:
+				VanillaList=Comp.Vanilla;
+				ModdedList=Comp.Modded;
+				break;
+			case Ammo.B_A:
+				VanillaList=Ammo.Vanilla;
+				ModdedList=Ammo.Modded;
+				break;
+			case Tool.B_T:
+				VanillaList=Tool.Vanilla;
+				ModdedList=Tool.Modded;
+				break;
+			case Cons.B_C:
+				VanillaList=Cons.Vanilla;
+				ModdedList=Cons.Modded;
+				break;
+			default:
+				VanillaList=Vanilla;
+				ModdedList=MiscModded;
+		}
+		foreach(MyItemType Type in VanillaList){
+			if(item.Type.Equals(Type))
+				return true;
+		}
+		ModdedItem MyItem=new ModdedItem(item);
+		for(int i=0;i<ModdedList.Count;i++){
+			if(item.Type.Equals(ModdedList[i].Type)){
+				if(ModdedList[i].Rarity<MyItem.Rarity)
+					ModdedList[i]=MyItem;
+			}
+		}
+		ModdedList.Add(MyItem);
+		return false;
 	}
 	
 	public static List<MyItemType> ByString(string name){
@@ -592,7 +737,18 @@ public static class Item{
 	
 	public static class Raw{
 		public static string B_O="MyObjectBuilder_Ore";
+		public static List<ModdedItem> Modded=new List<ModdedItem>();
 		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				foreach(MyItemType Type in Vanilla)
+					output.Add(Type);
+				foreach(ModdedItem Type in Modded)
+					output.Add(Type.Type);
+				return output;
+			}
+		}
+		public static List<MyItemType> Vanilla{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Ice);
@@ -643,7 +799,18 @@ public static class Item{
 	}
 	public static class Ingot{
 		public static string B_I="MyObjectBuilder_Ingot";
-		public static List<MyItemType> All{		
+		public static List<ModdedItem> Modded=new List<ModdedItem>();
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				foreach(MyItemType Type in Vanilla)
+					output.Add(Type);
+				foreach(ModdedItem Type in Modded)
+					output.Add(Type.Type);
+				return output;
+			}
+		}
+		public static List<MyItemType> Vanilla{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Stone);
@@ -690,7 +857,18 @@ public static class Item{
 	}
 	public static class Comp{
 		public static string B_C="MyObjectBuilder_Component";
-		public static List<MyItemType> All{		
+		public static List<ModdedItem> Modded=new List<ModdedItem>();
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				foreach(MyItemType Type in Vanilla)
+					output.Add(Type);
+				foreach(ModdedItem Type in Modded)
+					output.Add(Type.Type);
+				return output;
+			}
+		}
+		public static List<MyItemType> Vanilla{	
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Steel);
@@ -739,6 +917,10 @@ public static class Item{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Steel);
+				foreach(ModdedItem MyItem in Modded){
+					if(Modded.Rarity==MyRarity.VeryCommon)
+						output.Add(MyItem.Type);
+				}
 				return output;
 			}
 		}
@@ -750,6 +932,10 @@ public static class Item{
 				output.Add(Small);
 				output.Add(Grid);
 				output.Add(Glass);
+				foreach(ModdedItem MyItem in Modded){
+					if(Modded.Rarity==MyRarity.Common)
+						output.Add(MyItem.Type);
+				}
 				return output;
 			}
 		}
@@ -759,6 +945,10 @@ public static class Item{
 				output.Add(Motor);
 				output.Add(Girder);
 				output.Add(Thrust);
+				foreach(ModdedItem MyItem in Modded){
+					if(Modded.Rarity==MyRarity.Uncommon)
+						output.Add(MyItem.Type);
+				}
 				return output;
 			}
 		}
@@ -771,6 +961,10 @@ public static class Item{
 				output.Add(Reactor);
 				output.Add(Super);
 				output.Add(Power);
+				foreach(ModdedItem MyItem in Modded){
+					if(Modded.Rarity==MyRarity.Rare)
+						output.Add(MyItem.Type);
+				}
 				return output;
 			}
 		}
@@ -785,6 +979,10 @@ public static class Item{
 				output.Add(Explosive);
 				output.Add(Zone);
 				output.Add(Canvas);
+				foreach(ModdedItem MyItem in Modded){
+					if(Modded.Rarity==MyRarity.VeryRare)
+						output.Add(MyItem.Type);
+				}
 				return output;
 			}
 		}
@@ -815,7 +1013,18 @@ public static class Item{
 	}
 	public static class Ammo{
 		public static string B_A="MyObjectBuilder_AmmoMagazine";
-		public static List<MyItemType> All{		
+		public static List<ModdedItem> Modded=new List<ModdedItem>();
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				foreach(MyItemType Type in Vanilla)
+					output.Add(Type);
+				foreach(ModdedItem Type in Modded)
+					output.Add(Type.Type);
+				return output;
+			}
+		}
+		public static List<MyItemType> Vanilla{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Missile);
@@ -860,7 +1069,18 @@ public static class Item{
 	}
 	public static class Tool{
 		public static string B_T="MyObjectBuilder_PhysicalGunObject";
-		public static List<MyItemType> All{		
+		public static List<ModdedItem> Modded=new List<ModdedItem>();
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				foreach(MyItemType Type in Vanilla)
+					output.Add(Type);
+				foreach(ModdedItem Type in Modded)
+					output.Add(Type.Type);
+				return output;
+			}
+		}
+		public static List<MyItemType> Vanilla{	
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(H2);
@@ -931,7 +1151,18 @@ public static class Item{
 	}
 	public static class Cons{
 		public static string B_C="MyObjectBuilder_ConsumableItem";
-		public static List<MyItemType> All{		
+		public static List<ModdedItem> Modded=new List<ModdedItem>();
+		public static List<MyItemType> All{
+			get{
+				List<MyItemType> output=new List<MyItemType>();
+				foreach(MyItemType Type in Vanilla)
+					output.Add(Type);
+				foreach(ModdedItem Type in Modded)
+					output.Add(Type.Type);
+				return output;
+			}
+		}
+		public static List<MyItemType> Vanilla{
 			get{
 				List<MyItemType> output=new List<MyItemType>();
 				output.Add(Power);
@@ -966,6 +1197,34 @@ public static class Item{
 	public static MyItemType Datapad=new MyItemType("MyObjectBuilder_Datapad","Datapad");
 	public static MyItemType Package=new MyItemType("MyObjectBuilder_Package","Package");
 	public static MyItemType Credit=new MyItemType("MyObjectBuilder_PhysicalObject","SpaceCredit");
+	
+	public static void InitializeModdedItems(List<ModdedItem> ModdedItems){
+		foreach(ModdedItem MyItem in ModdedItems){
+			switch(MyItem.Type.TypeId){
+				case Raw.B_O:
+					Raw.Modded.Add(MyItem);
+					break;
+				case Ingot.B_I:
+					Ingot.Modded.Add(MyItem);
+					break;
+				case Comp.B_C:
+					Comp.Modded.Add(MyItem);
+					break;
+				case Ammo.B_A:
+					Ammo.Modded.Add(MyItem);
+					break;
+				case Tool.B_T:
+					Tool.Modded.Add(MyItem);
+					break;
+				case Cons.B_C:
+					Cons.Modded.Add(MyItem);
+					break;
+				default:
+					MiscModded.Add(MyItem);
+					break;
+			}
+		}
+	}
 }
 
 
@@ -1665,6 +1924,26 @@ bool Setup(){
 		if(bool.TryParse(GetBlockData(Me,"AutoBoot"),out AutoBoot)&&AutoBoot)
 			Me.Enabled=true;
 	}
+	List<ModdedItem> ModdedItems=new List<ModdedItem>();
+	string mode="";
+	string[] args=this.Storage.Split('\n');
+	foreach(string arg in args){
+		switch(arg){
+			case "ModdedItems":
+				mode=arg;
+				break;
+			default:
+				switch(mode){
+					case "ModdedItems":
+						ModdedItem MyItem;
+						if(ModdedItem.TryParse(arg,out MyItem))
+							ModdedItems.Add(MyItem);
+						break;
+				}
+				break;
+		}
+	}
+	Item.InitializeModdedItems(ModdedItems);
 	
 	Operational=Me.IsWorking;
 	Runtime.UpdateFrequency=GetUpdateFrequency();
@@ -1688,17 +1967,6 @@ public Program(){
 	Me.GetSurface(1).TextPadding=30.0f;
 	Echo("Beginning initialization");
 	Rnd=new Random();
-	/*string[] args=this.Storage.Split('•');
-	foreach(string arg in args){
-		if(!arg.Contains(':'))
-			continue;
-		int index=arg.IndexOf(':');
-		string name=arg.Substring(0,index);
-		string data=arg.Substring(index+1);
-		switch(name){
-			
-		}
-	}*/
 	Notifications=new List<Notification>();
 	Task_Queue=new Queue<Task>();
 	TaskParser(Me.CustomData);
@@ -1708,7 +1976,9 @@ public Program(){
 public void Save(){
 	if(HasBlockData(Me,"AutoBoot"))
 		bool.TryParse(GetBlockData(Me,"AutoBoot"),out AutoBoot);
-	this.Storage="";
+	this.Storage="ModdedItems";
+	foreach(ModdedItem MyItem in Item.Modded)
+		this.Storage+="\n"+MyItem.ToString();
 	Me.CustomData="";
 	foreach(Task T in Task_Queue){
 		Me.CustomData+=T.ToString()+'•';
